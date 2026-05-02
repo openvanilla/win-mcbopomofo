@@ -13,6 +13,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 if(MSVC)
     add_compile_options(/W4 /WX- /EHsc /utf-8 /FS)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS -DNOMINMAX)
+
+    # Use Static CRT (/MT) for Release builds to avoid VCRUNTIME140.dll dependency issues in COM host processes
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
 add_subdirectory(src)
