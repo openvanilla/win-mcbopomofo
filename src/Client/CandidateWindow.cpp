@@ -140,7 +140,7 @@ void CandidateWindow::Destroy() {
     }
 }
 
-void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int cursorIndex) {
+void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical) {
     if (!_hwnd) return;
 
     _candidates.clear();
@@ -154,11 +154,13 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
         return;
     }
 
+    bool drawVertical = _isVertical || forceVertical;
+
     std::wstringstream ss;
     for (size_t i = 0; i < _candidates.size(); ++i) {
         ss << (i + 1) << L"." << _candidates[i];
         if (i < _candidates.size() - 1) {
-            ss << (_isVertical ? L"\n" : L"   ");
+            ss << (drawVertical ? L"\n" : L"   ");
         }
     }
     _displayString = ss.str();

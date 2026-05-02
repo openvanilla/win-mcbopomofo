@@ -30,6 +30,16 @@ public:
 
     void Update(InputState* state) override {
         currentState.commitString.clear();
+        currentState.forceVertical = false;
+
+        // Determine if we need to force vertical layout
+        if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||
+            dynamic_cast<InputStates::SelectingDictionary*>(state) != nullptr ||
+            dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr ||
+            dynamic_cast<InputStates::SelectingDateMacro*>(state) != nullptr) {
+            currentState.forceVertical = true;
+        }
+
         if (auto* inputting = dynamic_cast<InputStates::Inputting*>(state)) {
             currentState.composingBuffer = inputting->composingBuffer;
             currentState.cursorIndex = (int)inputting->cursorIndex;
@@ -40,6 +50,11 @@ public:
             currentState.candidates.clear();
             for (const auto& c : choosing->candidates) {
                 currentState.candidates.push_back(c.value);
+                
+                // If any candidate string length > 8, force vertical
+                if (c.value.length() > 8 * 3) { // Approximate check for UTF-8 lengths
+                    currentState.forceVertical = true;
+                }
             }
         } else {
             currentState.composingBuffer.clear();

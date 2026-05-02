@@ -52,6 +52,7 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
     std::ostringstream ss;
     ss << (payload.consumed ? 1 : 0) << "\n"
        << payload.cursorIndex << "\n"
+       << (payload.forceVertical ? 1 : 0) << "\n"
        << payload.commitString << "\n"
        << payload.composingBuffer << "\n"
        << payload.candidates.size() << "\n";
@@ -71,6 +72,9 @@ bool DeserializeStateUpdate(const std::string& data, StateUpdatePayload& payload
 
     if (!std::getline(ss, line)) return false;
     payload.cursorIndex = std::stoi(line);
+
+    if (!std::getline(ss, line)) return false;
+    payload.forceVertical = (line == "1");
 
     if (!std::getline(ss, line)) return false;
     payload.commitString = line;

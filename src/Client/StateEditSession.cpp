@@ -103,7 +103,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
 
     // 4. Update Candidate Window UI
-    _pTIP->GetCandidateWindow()->UpdateUI(_state.candidates, _state.cursorIndex);
+    _pTIP->GetCandidateWindow()->UpdateUI(_state.candidates, _state.cursorIndex, _state.forceVertical);
 
     return S_OK;
 }

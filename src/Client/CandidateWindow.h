@@ -13,7 +13,7 @@ public:
     bool Create(HINSTANCE hInstance);
     void Destroy();
 
-    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex);
+    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical = false);
     void Move(int x, int y);
     void Hide();
 
