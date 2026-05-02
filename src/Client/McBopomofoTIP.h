@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <msctf.h>
+#include "Ipc.h"
 
 class McBopomofoTIP : public ITfTextInputProcessor,
                       public ITfKeyEventSink,
@@ -61,4 +62,13 @@ private:
     
     DWORD _dwThreadMgrEventSinkCookie;
     DWORD _dwThreadFocusSinkCookie;
+
+    // Track the server state locally to decide whether to eat keys in OnTestKeyDown
+    McBopomofo::IPC::StateUpdatePayload _lastState;
+
+    ITfComposition *_pComposition;
+
+public:
+    ITfComposition *GetComposition() const { return _pComposition; }
+    void SetComposition(ITfComposition *pComp) { _pComposition = pComp; }
 };

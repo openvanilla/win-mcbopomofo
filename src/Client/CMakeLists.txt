@@ -1,4 +1,4 @@
-add_library(McBopomofoTIP SHARED dllmain.cpp McBopomofoTIP.cpp Register.cpp)
+add_library(McBopomofoTIP SHARED dllmain.cpp McBopomofoTIP.cpp Register.cpp EditSession.cpp StateEditSession.cpp)
 target_link_libraries(McBopomofoTIP PRIVATE Common Ole32 OleAut32 Uuid Advapi32)
 target_compile_definitions(McBopomofoTIP PRIVATE _USRDLL)
 
