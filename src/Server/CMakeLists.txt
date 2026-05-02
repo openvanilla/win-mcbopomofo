@@ -15,6 +15,10 @@ add_library(McBopomofoEngine STATIC
     ${ENGINE_DIR}/UTF8Helper.cpp
     ${ENGINE_DIR}/gramambular2/reading_grid.cpp
     ${ENGINE_DIR}/Mandarin/Mandarin.cpp
+    ${ENGINE_DIR}/InputState.cpp
+    ${ENGINE_DIR}/KeyHandler.cpp
+    ${ENGINE_DIR}/Log.cpp
+    ${ENGINE_DIR}/VariantAnnotator.cpp
 )
 
 # Include directories for the engine
@@ -34,5 +38,9 @@ if(MSVC)
 endif()
 
 # Server executable
-add_executable(McBopomofoServer main.cpp)
+add_executable(McBopomofoServer 
+    main.cpp
+    InputController.cpp
+    WindowsKeyBridge.cpp
+)
 target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common)
