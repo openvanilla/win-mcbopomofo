@@ -16,7 +16,7 @@ Stop-Process -Name "McBopomofoServer" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
 Write-Host "3. Registering McBopomofoTIP.dll..."
-$dllPath = Resolve-Path "build\bin\Debug\McBopomofoTIP.dll"
+$dllPath = Resolve-Path "build\bin\Debug\McBopomofoTIP_v2.dll"
 if ($dllPath) {
     # /s for silent, but let's see output for debugging
     Start-Process -FilePath "regsvr32.exe" -ArgumentList "`"$dllPath`"" -Wait

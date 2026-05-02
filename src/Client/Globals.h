@@ -7,3 +7,5 @@ extern LONG g_cRefDll;
 
 void DllAddRef();
 void DllRelease();
+
+void LogMessage(const char* format, ...);
