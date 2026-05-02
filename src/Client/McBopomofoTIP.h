@@ -2,7 +2,8 @@
 #include <windows.h>
 #include <msctf.h>
 
-class McBopomofoTIP : public ITfTextInputProcessor {
+class McBopomofoTIP : public ITfTextInputProcessor,
+                      public ITfKeyEventSink {
 public:
     McBopomofoTIP();
     ~McBopomofoTIP();
@@ -16,7 +17,18 @@ public:
     STDMETHODIMP Activate(ITfThreadMgr *ptim, TfClientId tid) override;
     STDMETHODIMP Deactivate() override;
 
+    // ITfKeyEventSink methods
+    STDMETHODIMP OnSetFocus(BOOL fForeground) override;
+    STDMETHODIMP OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) override;
+    STDMETHODIMP OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) override;
+    STDMETHODIMP OnTestKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) override;
+    STDMETHODIMP OnKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) override;
+    STDMETHODIMP OnPreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEaten) override;
+
 private:
+    BOOL _InitKeyEventSink();
+    void _UninitKeyEventSink();
+
     LONG _cRef;
     ITfThreadMgr *_ptim;
     TfClientId _tid;

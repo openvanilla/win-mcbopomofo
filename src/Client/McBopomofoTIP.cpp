@@ -18,6 +18,8 @@ STDAPI McBopomofoTIP::QueryInterface(REFIID riid, void **ppvObj) {
 
     if (IsEqualIID(riid, IID_IUnknown) || IsEqualIID(riid, IID_ITfTextInputProcessor)) {
         *ppvObj = static_cast<ITfTextInputProcessor *>(this);
+    } else if (IsEqualIID(riid, IID_ITfKeyEventSink)) {
+        *ppvObj = static_cast<ITfKeyEventSink *>(this);
     }
 
     if (*ppvObj) {
@@ -40,18 +42,42 @@ STDAPI_(ULONG) McBopomofoTIP::Release() {
     return cr;
 }
 
+BOOL McBopomofoTIP::_InitKeyEventSink() {
+    ITfKeystrokeMgr *pKeystrokeMgr = nullptr;
+    HRESULT hr = _ptim->QueryInterface(IID_ITfKeystrokeMgr, (void **)&pKeystrokeMgr);
+
+    if (SUCCEEDED(hr)) {
+        hr = pKeystrokeMgr->AdviseKeyEventSink(_tid, static_cast<ITfKeyEventSink *>(this), TRUE);
+        pKeystrokeMgr->Release();
+    }
+
+    return SUCCEEDED(hr);
+}
+
+void McBopomofoTIP::_UninitKeyEventSink() {
+    ITfKeystrokeMgr *pKeystrokeMgr = nullptr;
+    HRESULT hr = _ptim->QueryInterface(IID_ITfKeystrokeMgr, (void **)&pKeystrokeMgr);
+
+    if (SUCCEEDED(hr)) {
+        pKeystrokeMgr->UnadviseKeyEventSink(_tid);
+        pKeystrokeMgr->Release();
+    }
+}
+
 STDAPI McBopomofoTIP::Activate(ITfThreadMgr *ptim, TfClientId tid) {
     _ptim = ptim;
     _ptim->AddRef();
     _tid = tid;
 
-    // TODO: Initialize key event sink and other TSF components here
+    if (!_InitKeyEventSink()) {
+        return E_FAIL;
+    }
 
     return S_OK;
 }
 
 STDAPI McBopomofoTIP::Deactivate() {
-    // TODO: Cleanup TSF components here
+    _UninitKeyEventSink();
 
     if (_ptim) {
         _ptim->Release();
@@ -59,5 +85,34 @@ STDAPI McBopomofoTIP::Deactivate() {
     }
     _tid = TF_CLIENTID_NULL;
 
+    return S_OK;
+}
+
+STDAPI McBopomofoTIP::OnSetFocus(BOOL fForeground) {
+    return S_OK;
+}
+
+STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+    *pfEaten = FALSE;
+    return S_OK;
+}
+
+STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+    *pfEaten = FALSE;
+    return S_OK;
+}
+
+STDAPI McBopomofoTIP::OnTestKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+    *pfEaten = FALSE;
+    return S_OK;
+}
+
+STDAPI McBopomofoTIP::OnKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+    *pfEaten = FALSE;
+    return S_OK;
+}
+
+STDAPI McBopomofoTIP::OnPreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEaten) {
+    *pfEaten = FALSE;
     return S_OK;
 }
