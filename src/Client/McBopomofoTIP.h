@@ -4,7 +4,7 @@
 #include "Ipc.h"
 #include "CandidateWindow.h"
 
-class McBopomofoTIP : public ITfTextInputProcessor,
+class McBopomofoTIP : public ITfTextInputProcessorEx,
                       public ITfKeyEventSink,
                       public ITfCompositionSink,
                       public ITfDisplayAttributeProvider,
@@ -22,6 +22,9 @@ public:
     // ITfTextInputProcessor methods
     STDMETHODIMP Activate(ITfThreadMgr *ptim, TfClientId tid) override;
     STDMETHODIMP Deactivate() override;
+
+    // ITfTextInputProcessorEx methods
+    STDMETHODIMP ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFlags) override;
 
     // ITfKeyEventSink methods
     STDMETHODIMP OnSetFocus(BOOL fForeground) override;
