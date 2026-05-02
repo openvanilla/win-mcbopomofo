@@ -9,12 +9,13 @@ namespace IPC {
 const char* const PIPE_NAME = "\\\\.\\pipe\\WinMcBopomofo_IPC_Pipe";
 
 enum class Command : int {
-    RESET = 0,
-    KEY_EVENT = 1,
+    CMD_RESET = 0,
+    CMD_KEY_EVENT = 1,
 };
 
 struct KeyEventPayload {
     unsigned int vk;
+    unsigned int ascii;
     bool shift;
     bool ctrl;
 };

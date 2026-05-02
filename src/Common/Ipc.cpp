@@ -13,6 +13,7 @@ namespace IPC {
 std::string SerializeKeyEvent(const KeyEventPayload& payload) {
     std::ostringstream ss;
     ss << payload.vk << "\n"
+       << payload.ascii << "\n"
        << (payload.shift ? 1 : 0) << "\n"
        << (payload.ctrl ? 1 : 0) << "\n";
     return ss.str();
@@ -24,6 +25,9 @@ bool DeserializeKeyEvent(const std::string& data, KeyEventPayload& payload) {
     
     if (!std::getline(ss, line)) return false;
     payload.vk = std::stoul(line);
+    
+    if (!std::getline(ss, line)) return false;
+    payload.ascii = std::stoul(line);
     
     if (!std::getline(ss, line)) return false;
     payload.shift = (line == "1");

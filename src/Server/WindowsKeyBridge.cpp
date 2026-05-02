@@ -2,14 +2,11 @@
 
 namespace McBopomofo {
 
-Key MapWindowsKey(WPARAM wParam, LPARAM lParam) {
-    char ascii = 0;
+Key MapIPCKey(const IPC::KeyEventPayload& payload) {
+    char ascii = (char)payload.ascii;
     Key::KeyName name = Key::KeyName::UNKNOWN;
-    bool shiftPressed = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-    bool ctrlPressed = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-    bool isFromNumberPad = false;
-
-    switch (wParam) {
+    
+    switch (payload.vk) {
     case VK_BACK: ascii = Key::BACKSPACE; break;
     case VK_RETURN: ascii = Key::RETURN; break;
     case VK_ESCAPE: ascii = Key::ESC; break;
@@ -22,25 +19,11 @@ Key MapWindowsKey(WPARAM wParam, LPARAM lParam) {
     case VK_DOWN: name = Key::KeyName::DOWN; break;
     case VK_HOME: name = Key::KeyName::HOME; break;
     case VK_END: name = Key::KeyName::END; break;
-    // PAGE_UP and PAGE_DOWN are not in KeyName enum
-    // case VK_PRIOR: name = Key::KeyName::PAGE_UP; break;
-    // case VK_NEXT: name = Key::KeyName::PAGE_DOWN; break;
     default:
-        // Handle alphanumeric and punctuation
-        BYTE keyboardState[256];
-        GetKeyboardState(keyboardState);
-        WCHAR chars[2];
-        int res = ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2, 0);
-        if (res == 1) {
-            // Very simple ASCII mapping for English layout
-            if (chars[0] >= 32 && chars[0] <= 126) {
-                ascii = (char)chars[0];
-            }
-        }
         break;
     }
 
-    return Key(ascii, name, shiftPressed, ctrlPressed, isFromNumberPad);
+    return Key(ascii, name, payload.shift, payload.ctrl, false);
 }
 
 } // namespace McBopomofo
