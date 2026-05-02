@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <msctf.h>
 #include "Ipc.h"
+#include "CandidateWindow.h"
 
 class McBopomofoTIP : public ITfTextInputProcessor,
                       public ITfKeyEventSink,
@@ -67,8 +68,10 @@ private:
     McBopomofo::IPC::StateUpdatePayload _lastState;
 
     ITfComposition *_pComposition;
+    CandidateWindow _candidateWindow;
 
 public:
     ITfComposition *GetComposition() const { return _pComposition; }
     void SetComposition(ITfComposition *pComp) { _pComposition = pComp; }
+    CandidateWindow* GetCandidateWindow() { return &_candidateWindow; }
 };

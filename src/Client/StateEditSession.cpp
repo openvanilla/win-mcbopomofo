@@ -63,8 +63,30 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
 
         if (pRange && _pTIP->GetComposition()) {
             pRange->SetText(ec, 0, compStr.c_str(), (LONG)compStr.length());
-            // TODO: Display Attributes (Underline)
-            // TODO: Move caret based on _state.cursorIndex
+            
+            // Try to find the coordinates for the candidate window
+            if (!_state.candidates.empty()) {
+                ITfContextView* pView = nullptr;
+                if (SUCCEEDED(_pContext->GetActiveView(&pView))) {
+                    RECT rc = {0};
+                    BOOL fClipped = FALSE;
+                    
+                    // Collapse the range to the cursor index for getting the precise coordinate
+                    ITfRange* pCursorRange = nullptr;
+                    if (SUCCEEDED(pRange->Clone(&pCursorRange))) {
+                        LONG cch = 0;
+                        pCursorRange->Collapse(ec, TF_ANCHOR_START);
+                        pCursorRange->ShiftEnd(ec, _state.cursorIndex, &cch, nullptr);
+                        pCursorRange->Collapse(ec, TF_ANCHOR_END);
+                        
+                        if (SUCCEEDED(pView->GetTextExt(ec, pCursorRange, &rc, &fClipped))) {
+                            _pTIP->GetCandidateWindow()->Move(rc.left, rc.bottom + 2);
+                        }
+                        pCursorRange->Release();
+                    }
+                    pView->Release();
+                }
+            }
         }
         if (pRange) pRange->Release();
         
@@ -80,7 +102,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         }
     }
 
-    // TODO: Display Candidate Window if !_state.candidates.empty()
+    // 4. Update Candidate Window UI
+    _pTIP->GetCandidateWindow()->UpdateUI(_state.candidates, _state.cursorIndex);
 
     return S_OK;
 }
