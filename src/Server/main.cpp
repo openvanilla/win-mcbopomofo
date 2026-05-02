@@ -1,7 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
-#include <iostream>
 
 #include "McBopomofoLM.h"
 #include "KeyHandler.h"
@@ -12,6 +11,7 @@
 #include "Settings.h"
 #include "UTFHelper.h"
 #include "NamedPipe.h"
+#include "Log.h"
 
 using namespace McBopomofo;
 
@@ -111,11 +111,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 }
 
 int main(int argc, char* argv[]) {
-    // Set console output to UTF-8
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-
-    std::cout << "Win-McBopomofo Server daemon starting..." << std::endl;
+    FCITX_MCBOPOMOFO_INFO() << "Win-McBopomofo Server daemon starting...";
     
     std::string dataPath = "data/data.txt";
     if (argc >= 2) {
@@ -126,7 +122,7 @@ int main(int argc, char* argv[]) {
     lm->loadLanguageModel(dataPath.c_str());
 
     if (!lm->isDataModelLoaded()) {
-        std::cerr << "Failed to load language model from: " << dataPath << std::endl;
+        FCITX_MCBOPOMOFO_ERROR() << "Failed to load language model from: " << dataPath;
         return 1;
     }
 
@@ -149,11 +145,13 @@ int main(int argc, char* argv[]) {
     Settings settings;
     settings.ApplyTo(controller);
 
-    std::cout << "Starting Named Pipe server at " << IPC::PIPE_NAME << std::endl;
+    FCITX_MCBOPOMOFO_INFO() << "Starting Named Pipe server at " << IPC::PIPE_NAME;
 
     IPC::NamedPipeServer server(IPC::PIPE_NAME, [&](const std::string& req) {
         IPC::KeyEventPayload keyReq;
         if (IPC::DeserializeKeyEvent(req, keyReq)) {
+            FCITX_MCBOPOMOFO_INFO() << "IPC Recv: VK=" << keyReq.vk << ", ASCII=" << keyReq.ascii << ", SHIFT=" << keyReq.shift << ", CTRL=" << keyReq.ctrl;
+            
             // Reset UI payload before processing
             ui.currentState.commitString.clear();
             
@@ -161,8 +159,11 @@ int main(int argc, char* argv[]) {
             bool consumed = controller.HandleKey(MapIPCKey(keyReq));
             
             ui.currentState.consumed = consumed;
+            
+            FCITX_MCBOPOMOFO_INFO() << "IPC Reply: Consumed=" << consumed << ", Commit=" << ui.currentState.commitString << ", Comp=" << ui.currentState.composingBuffer;
             return IPC::SerializeStateUpdate(ui.currentState);
         }
+        FCITX_MCBOPOMOFO_WARN() << "IPC Failed to deserialize request.";
         return std::string();
     });
 
@@ -187,7 +188,7 @@ int main(int argc, char* argv[]) {
 
     Shell_NotifyIconW(NIM_ADD, &nid);
 
-    std::cout << "Server is running in background. Check System Tray to exit." << std::endl;
+    FCITX_MCBOPOMOFO_INFO() << "Server is running in background. Check System Tray to exit.";
 
     // Standard message loop to keep the process alive
     MSG msg;

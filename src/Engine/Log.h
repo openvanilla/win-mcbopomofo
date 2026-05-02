@@ -24,10 +24,39 @@
 #ifndef SRC_LOG_H_
 #define SRC_LOG_H_
 
-#include <iostream>
+#include <sstream>
+#include <string>
 
-#define FCITX_MCBOPOMOFO_ERROR() std::cerr << "[ERROR] "
-#define FCITX_MCBOPOMOFO_INFO() std::cout << "[INFO] "
-#define FCITX_MCBOPOMOFO_WARN() std::cerr << "[WARN] "
+namespace McBopomofo {
+
+class LogMessageContext {
+public:
+    LogMessageContext(const char* level);
+    ~LogMessageContext();
+
+    template <typename T>
+    LogMessageContext& operator<<(const T& value) {
+        stream_ << value;
+        return *this;
+    }
+
+    // Overload for stream manipulators like std::endl
+    typedef std::ostream& (*OStreamManipulator)(std::ostream&);
+    LogMessageContext& operator<<(OStreamManipulator manip) {
+        stream_ << manip;
+        return *this;
+    }
+
+private:
+    const char* level_;
+    std::ostringstream stream_;
+};
+
+} // namespace McBopomofo
+
+#define FCITX_MCBOPOMOFO_ERROR() ::McBopomofo::LogMessageContext("ERROR")
+#define FCITX_MCBOPOMOFO_INFO()  ::McBopomofo::LogMessageContext("INFO")
+#define FCITX_MCBOPOMOFO_WARN()  ::McBopomofo::LogMessageContext("WARN")
+#define FCITX_MCBOPOMOFO_DEBUG() ::McBopomofo::LogMessageContext("DEBUG")
 
 #endif // SRC_LOG_H_
