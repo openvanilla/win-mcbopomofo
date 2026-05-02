@@ -46,5 +46,6 @@ add_executable(McBopomofoServer
     main.cpp
     InputController.cpp
     WindowsKeyBridge.cpp
+    Settings.cpp
 )
 target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common)

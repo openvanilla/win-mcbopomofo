@@ -5,7 +5,9 @@
 class McBopomofoTIP : public ITfTextInputProcessor,
                       public ITfKeyEventSink,
                       public ITfCompositionSink,
-                      public ITfDisplayAttributeProvider {
+                      public ITfDisplayAttributeProvider,
+                      public ITfThreadMgrEventSink,
+                      public ITfThreadFocusSink {
 public:
     McBopomofoTIP();
     ~McBopomofoTIP();
@@ -34,11 +36,29 @@ public:
     STDMETHODIMP EnumDisplayAttributeInfo(IEnumTfDisplayAttributeInfo **ppEnum) override;
     STDMETHODIMP GetDisplayAttributeInfo(REFGUID guidInfo, ITfDisplayAttributeInfo **ppInfo) override;
 
+    // ITfThreadMgrEventSink methods
+    STDMETHODIMP OnInitDocumentMgr(ITfDocumentMgr *pDocMgr) override;
+    STDMETHODIMP OnUninitDocumentMgr(ITfDocumentMgr *pDocMgr) override;
+    STDMETHODIMP OnSetFocus(ITfDocumentMgr *pDocMgrFocus, ITfDocumentMgr *pDocMgrPrevFocus) override;
+    STDMETHODIMP OnPushContext(ITfContext *pic) override;
+    STDMETHODIMP OnPopContext(ITfContext *pic) override;
+
+    // ITfThreadFocusSink methods
+    STDMETHODIMP OnSetThreadFocus() override;
+    STDMETHODIMP OnKillThreadFocus() override;
+
 private:
     BOOL _InitKeyEventSink();
     void _UninitKeyEventSink();
+    BOOL _InitThreadMgrEventSink();
+    void _UninitThreadMgrEventSink();
+    BOOL _InitThreadFocusSink();
+    void _UninitThreadFocusSink();
 
     LONG _cRef;
     ITfThreadMgr *_ptim;
     TfClientId _tid;
+    
+    DWORD _dwThreadMgrEventSinkCookie;
+    DWORD _dwThreadFocusSinkCookie;
 };

@@ -10,6 +10,7 @@
 #include "InputMacro.h"
 #include "WindowsKeyBridge.h"
 #include "UIInterface.h"
+#include "Settings.h"
 #include "UTFHelper.h"
 
 using namespace McBopomofo;
@@ -96,6 +97,10 @@ int main(int argc, char* argv[]) {
 
     CLITestUI ui;
     InputController controller(keyHandler, &ui);
+
+    Settings settings;
+    settings.ApplyTo(controller);
+    // If you want to force save defaults: settings.Save();
 
     std::cout << "Language model loaded. Typing '5j/ jp6' for 中文..." << std::endl;
     std::cout << "Available macros: MACRO@DATE_TODAY_SHORT, MACRO@GANZHI_YEAR, etc." << std::endl;
