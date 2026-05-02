@@ -8,25 +8,25 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 }
 
 Write-Host "1. Building McBopomofoTIP and McBopomofoServer..."
-& "C:\Program Files\CMake\bin\cmake.exe" --build build --target McBopomofoTIP --config Debug
-& "C:\Program Files\CMake\bin\cmake.exe" --build build --target McBopomofoServer --config Debug
+& "C:\Program Files\CMake\bin\cmake.exe" --build build --target McBopomofoTIP --config Release
+& "C:\Program Files\CMake\bin\cmake.exe" --build build --target McBopomofoServer --config Release
 
 Write-Host "2. Stopping existing McBopomofoServer instances..."
 Stop-Process -Name "McBopomofoServer" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
 Write-Host "3. Registering McBopomofoTIP.dll..."
-$dllPath = Resolve-Path "build\bin\Debug\McBopomofoTIP_v2.dll"
+$dllPath = Resolve-Path "build\bin\Release\McBopomofoTIP_v2.dll"
 if ($dllPath) {
     # /s for silent, but let's see output for debugging
-    Start-Process -FilePath "regsvr32.exe" -ArgumentList "`"$dllPath`"" -Wait
+    Start-Process -FilePath "regsvr32.exe" -ArgumentList "/s `"$dllPath`"" -Wait
     Write-Host "Registered TSF DLL: $dllPath"
 } else {
-    Write-Error "Could not find McBopomofoTIP.dll"
+    Write-Error "Could not find McBopomofoTIP_v2.dll"
 }
 
 Write-Host "4. Starting McBopomofoServer daemon..."
-$serverPath = Resolve-Path "build\bin\Debug\McBopomofoServer.exe"
+$serverPath = Resolve-Path "build\bin\Release\McBopomofoServer.exe"
 if ($serverPath) {
     # Start it in the background
     Start-Process -FilePath $serverPath -ArgumentList "data/data.txt" -WindowStyle Hidden
