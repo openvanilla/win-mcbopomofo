@@ -47,11 +47,17 @@ void NamedPipeServer::ServerLoop() {
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(sa);
     sa.bInheritHandle = FALSE;
-    ConvertStringSecurityDescriptorToSecurityDescriptorA(
+    sa.lpSecurityDescriptor = NULL;
+
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptorA(
         "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)",
         SDDL_REVISION_1,
         &sa.lpSecurityDescriptor,
-        NULL);
+        NULL)) {
+        std::cerr << "SDDL conversion failed: " << GetLastError() << std::endl;
+        // Fallback to default security
+        sa.lpSecurityDescriptor = NULL;
+    }
 
     while (running_) {
         HANDLE hPipe = CreateNamedPipeA(
@@ -62,10 +68,11 @@ void NamedPipeServer::ServerLoop() {
             4096,
             4096,
             0,
-            &sa);
+            sa.lpSecurityDescriptor ? &sa : NULL);
 
         if (hPipe == INVALID_HANDLE_VALUE) {
-            Sleep(100);
+            std::cerr << "CreateNamedPipeA failed: " << GetLastError() << std::endl;
+            Sleep(1000);
             continue;
         }
 
