@@ -3,7 +3,9 @@
 #include <msctf.h>
 
 class McBopomofoTIP : public ITfTextInputProcessor,
-                      public ITfKeyEventSink {
+                      public ITfKeyEventSink,
+                      public ITfCompositionSink,
+                      public ITfDisplayAttributeProvider {
 public:
     McBopomofoTIP();
     ~McBopomofoTIP();
@@ -24,6 +26,13 @@ public:
     STDMETHODIMP OnTestKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) override;
     STDMETHODIMP OnKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) override;
     STDMETHODIMP OnPreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEaten) override;
+
+    // ITfCompositionSink methods
+    STDMETHODIMP OnCompositionTerminated(TfEditCookie ecWrite, ITfComposition *pComposition) override;
+
+    // ITfDisplayAttributeProvider methods
+    STDMETHODIMP EnumDisplayAttributeInfo(IEnumTfDisplayAttributeInfo **ppEnum) override;
+    STDMETHODIMP GetDisplayAttributeInfo(REFGUID guidInfo, ITfDisplayAttributeInfo **ppInfo) override;
 
 private:
     BOOL _InitKeyEventSink();
