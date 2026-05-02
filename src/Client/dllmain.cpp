@@ -2,10 +2,11 @@
 #include <msctf.h>
 #include "Globals.h"
 #include "McBopomofoTIP.h"
+#include "Register.h"
 
 // TODO: Replace with an actual generated CLSID later
 // {810B8D97-0DAB-4E87-9551-76A3D49D0E76}
-static const CLSID c_clsidMcBopomofoTIP = 
+const CLSID c_clsidMcBopomofoTIP = 
 { 0x810b8d97, 0xdab, 0x4e87, { 0x95, 0x51, 0x76, 0xa3, 0xd4, 0x9d, 0xe, 0x76 } };
 
 HINSTANCE g_hInst = nullptr;
@@ -108,11 +109,15 @@ STDAPI DllCanUnloadNow() {
 }
 
 STDAPI DllRegisterServer() {
-    // TODO: Implement registry entries for COM and TSF categories
+    if (!RegisterServer()) return E_FAIL;
+    if (!RegisterProfiles()) return E_FAIL;
+    if (!RegisterCategories()) return E_FAIL;
     return S_OK;
 }
 
 STDAPI DllUnregisterServer() {
-    // TODO: Remove registry entries
+    UnregisterCategories();
+    UnregisterProfiles();
+    UnregisterServer();
     return S_OK;
 }

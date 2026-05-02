@@ -1,5 +1,5 @@
-add_library(McBopomofoTIP SHARED dllmain.cpp McBopomofoTIP.cpp)
-target_link_libraries(McBopomofoTIP PRIVATE Common Ole32 OleAut32 Uuid)
+add_library(McBopomofoTIP SHARED dllmain.cpp McBopomofoTIP.cpp Register.cpp)
+target_link_libraries(McBopomofoTIP PRIVATE Common Ole32 OleAut32 Uuid Advapi32)
 target_compile_definitions(McBopomofoTIP PRIVATE _USRDLL)
 
 # Generate a .def file to export COM functions
