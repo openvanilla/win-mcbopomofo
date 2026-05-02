@@ -1,1 +1,37 @@
-reference
+# Build directories
+build/
+bin/
+lib/
+obj/
+out/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+*.dir/
+
+# MSVC generated files
+*.sln
+*.suo
+*.user
+*.vcxproj.filters
+*.pdb
+*.ilk
+*.tlog/
+*.log
+*.idb
+*.manifest
+*.res
+*.obj
+*.exe
+*.dll
+*.lib
+*.exp
+.vs/
+
+# Other temporary files
+*.tmp
+*.bak
