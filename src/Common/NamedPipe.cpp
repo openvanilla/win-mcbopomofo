@@ -39,6 +39,16 @@ void NamedPipeServer::Stop() {
 }
 
 void NamedPipeServer::ServerLoop() {
+    // Create security attributes that grant access to everyone
+    SECURITY_DESCRIPTOR sd;
+    InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+    SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
+    
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(sa);
+    sa.lpSecurityDescriptor = &sd;
+    sa.bInheritHandle = FALSE;
+
     while (running_) {
         HANDLE hPipe = CreateNamedPipeA(
             pipeName_.c_str(),
@@ -48,7 +58,7 @@ void NamedPipeServer::ServerLoop() {
             4096,
             4096,
             0,
-            NULL);
+            &sa);
 
         if (hPipe == INVALID_HANDLE_VALUE) {
             Sleep(100);
