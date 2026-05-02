@@ -1,5 +1,6 @@
 #include "NamedPipe.h"
 #include <iostream>
+#include <sddl.h>
 
 namespace McBopomofo {
 namespace IPC {
@@ -39,15 +40,18 @@ void NamedPipeServer::Stop() {
 }
 
 void NamedPipeServer::ServerLoop() {
-    // Create security attributes that grant access to everyone
-    SECURITY_DESCRIPTOR sd;
-    InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
-    SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
-    
+    // Create security attributes that grant access to everyone, including AppContainers (UWP)
+    // WD = Everyone
+    // AC = All Application Packages
+    // LW = Low Mandatory Level
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(sa);
-    sa.lpSecurityDescriptor = &sd;
     sa.bInheritHandle = FALSE;
+    ConvertStringSecurityDescriptorToSecurityDescriptorA(
+        "D:(A;;GA;;;WD)(A;;GA;;;AC)S:(ML;;NW;;;LW)",
+        SDDL_REVISION_1,
+        &sa.lpSecurityDescriptor,
+        NULL);
 
     while (running_) {
         HANDLE hPipe = CreateNamedPipeA(
@@ -84,6 +88,10 @@ void NamedPipeServer::ServerLoop() {
         FlushFileBuffers(hPipe);
         DisconnectNamedPipe(hPipe);
         CloseHandle(hPipe);
+    }
+    
+    if (sa.lpSecurityDescriptor) {
+        LocalFree(sa.lpSecurityDescriptor);
     }
 }
 

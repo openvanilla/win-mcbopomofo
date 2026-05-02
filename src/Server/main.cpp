@@ -1,8 +1,7 @@
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <shellapi.h>
 #include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
-#include <iomanip>
 
 #include "McBopomofoLM.h"
 #include "KeyHandler.h"
@@ -15,6 +14,10 @@
 #include "NamedPipe.h"
 
 using namespace McBopomofo;
+
+#define WM_USER_TRAY (WM_USER + 1)
+#define IDM_RESTART 1001
+#define IDM_EXIT 1002
 
 class ServerUI : public UIInterface {
 public:
@@ -80,6 +83,33 @@ public:
     void removeUserPhrase(const std::string_view&, const std::string_view&) override {}
 };
 
+LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_USER_TRAY) {
+        if (LOWORD(lParam) == WM_RBUTTONUP) {
+            POINT pt;
+            GetCursorPos(&pt);
+            HMENU hMenu = CreatePopupMenu();
+            InsertMenuW(hMenu, -1, MF_BYPOSITION | MF_STRING, IDM_RESTART, L"Restart Server");
+            InsertMenuW(hMenu, -1, MF_BYPOSITION | MF_STRING, IDM_EXIT, L"Exit Server");
+            SetForegroundWindow(hwnd);
+            TrackPopupMenu(hMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL);
+            DestroyMenu(hMenu);
+        }
+        return 0;
+    } else if (msg == WM_COMMAND) {
+        if (LOWORD(wParam) == IDM_EXIT) {
+            PostQuitMessage(0);
+        } else if (LOWORD(wParam) == IDM_RESTART) {
+            WCHAR path[MAX_PATH];
+            GetModuleFileNameW(NULL, path, MAX_PATH);
+            ShellExecuteW(NULL, L"open", path, L"data/data.txt", NULL, SW_SHOW);
+            PostQuitMessage(0);
+        }
+        return 0;
+    }
+    return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
 int main(int argc, char* argv[]) {
     // Set console output to UTF-8
     SetConsoleOutputCP(CP_UTF8);
@@ -138,7 +168,26 @@ int main(int argc, char* argv[]) {
 
     server.Start();
 
-    std::cout << "Server is running in background. Waiting for messages." << std::endl;
+    // Create a hidden window for the Tray Icon
+    WNDCLASSEXW wcex = { sizeof(WNDCLASSEXW) };
+    wcex.lpfnWndProc = TrayWndProc;
+    wcex.hInstance = GetModuleHandle(NULL);
+    wcex.lpszClassName = L"WinMcBopomofoServerTray";
+    RegisterClassExW(&wcex);
+
+    HWND hwndTray = CreateWindowExW(0, L"WinMcBopomofoServerTray", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, wcex.hInstance, NULL);
+
+    NOTIFYICONDATAW nid = { sizeof(NOTIFYICONDATAW) };
+    nid.hWnd = hwndTray;
+    nid.uID = 1;
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nid.uCallbackMessage = WM_USER_TRAY;
+    nid.hIcon = LoadIcon(NULL, IDI_APPLICATION); // Standard exe icon
+    wcscpy_s(nid.szTip, L"Win-McBopomofo Server");
+
+    Shell_NotifyIconW(NIM_ADD, &nid);
+
+    std::cout << "Server is running in background. Check System Tray to exit." << std::endl;
 
     // Standard message loop to keep the process alive
     MSG msg;
@@ -147,5 +196,9 @@ int main(int argc, char* argv[]) {
         DispatchMessage(&msg);
     }
     
+    server.Stop();
+    Shell_NotifyIconW(NIM_DELETE, &nid);
+    DestroyWindow(hwndTray);
+
     return 0;
 }
