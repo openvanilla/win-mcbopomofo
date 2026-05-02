@@ -45,7 +45,7 @@ static std::string GetSecondColumn(std::string_view row) {
 
 bool VariantAnnotator::loadPUAFile(const std::filesystem::path& bpmfvsPUAPath) {
   MemoryMappedFile file;
-  if (!file.open(bpmfvsPUAPath.c_str())) {
+  if (!file.open(bpmfvsPUAPath.string().c_str())) {
     return false;
   }
 
@@ -63,7 +63,7 @@ bool VariantAnnotator::loadPUAFile(const std::filesystem::path& bpmfvsPUAPath) {
 bool VariantAnnotator::loadVariantsFile(
     const std::filesystem::path& bpmfvsVariantsPath) {
   MemoryMappedFile file;
-  if (!file.open(bpmfvsVariantsPath.c_str())) {
+  if (!file.open(bpmfvsVariantsPath.string().c_str())) {
     return false;
   }
 

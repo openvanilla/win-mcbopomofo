@@ -14,6 +14,23 @@ public:
     // Handles a key press and returns true if the key was consumed by the IME.
     bool HandleKey(const Key& key);
 
+    // Forces the current composing string to be committed and resets the state.
+    void Reset();
+
+    // Settings passthrough
+    void SetInputMode(InputMode mode);
+    void SetKeyboardLayout(const Formosa::Mandarin::BopomofoKeyboardLayout* layout);
+    void SetSelectPhraseAfterCursorAsCandidate(bool flag);
+    void SetMoveCursorAfterSelection(bool flag);
+    void SetPutLowercaseLettersToComposingBuffer(bool flag);
+    void SetEscKeyClearsEntireComposingBuffer(bool flag);
+    void SetShiftEnterEnabled(bool flag);
+    void SetCtrlEnterKeyBehavior(KeyHandlerCtrlEnter behavior);
+    void SetAssociatedPhrasesEnabled(bool enabled);
+    void SetHalfWidthPunctuationEnabled(bool enabled);
+    void SetRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
+    void SetChooseCandidateUsingSpace(bool enabled);
+
 private:
     void ChangeState(std::unique_ptr<InputState> newState);
 

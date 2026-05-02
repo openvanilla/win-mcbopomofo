@@ -19,6 +19,10 @@ add_library(McBopomofoEngine STATIC
     ${ENGINE_DIR}/KeyHandler.cpp
     ${ENGINE_DIR}/Log.cpp
     ${ENGINE_DIR}/VariantAnnotator.cpp
+    ${ENGINE_DIR}/Big5Utils/Big5Utils.cpp
+    ${ENGINE_DIR}/NumberInputHelper.cpp
+    ${ENGINE_DIR}/DictionaryService.cpp
+    ${ENGINE_DIR}/InputMacro.cpp
 )
 
 # Include directories for the engine

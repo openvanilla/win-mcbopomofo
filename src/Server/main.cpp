@@ -2,11 +2,67 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iomanip>
+
 #include "McBopomofoLM.h"
+#include "KeyHandler.h"
+#include "InputController.h"
+#include "InputMacro.h"
+#include "WindowsKeyBridge.h"
+#include "UIInterface.h"
 #include "UTFHelper.h"
 
+using namespace McBopomofo;
+
+class CLITestUI : public UIInterface {
+public:
+    void Reset() override {
+        // std::cout << "\n[UI] Reset" << std::endl;
+    }
+
+    void CommitString(const std::string& text) override {
+        std::cout << "\n[COMMIT] " << text << std::endl;
+    }
+
+    void Update(InputState* state) override {
+        if (auto* inputting = dynamic_cast<InputStates::Inputting*>(state)) {
+            std::cout << "\r[COMPOSING] " << inputting->composingBuffer 
+                      << " (Cursor: " << inputting->cursorIndex << ")" << std::flush;
+        } else if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(state)) {
+            std::cout << "\n[CANDIDATES] " << choosing->composingBuffer << std::endl;
+            for (size_t i = 0; i < choosing->candidates.size(); ++i) {
+                std::cout << i + 1 << ". " << choosing->candidates[i].value << "  ";
+                if ((i + 1) % 5 == 0) std::cout << "\n";
+            }
+            std::cout << "\nSelection: " << std::flush;
+        }
+    }
+};
+
+class DummyLocalizedStrings : public LocalizedStrings {
+public:
+    std::string cursorIsBetweenSyllables(const std::string&, const std::string&) override { return "Cursor between syllables"; }
+    std::string bopomofoFontAnnotationModeTooltip(bool, bool) override { return "Font annotation mode"; }
+    std::string syllablesRequired(size_t s) override { return "Requires " + std::to_string(s) + " syllables"; }
+    std::string syllablesMaximum(size_t s) override { return "Maximum " + std::to_string(s) + " syllables"; }
+    std::string phraseAlreadyExists() override { return "Phrase exists"; }
+    std::string pressEnterToAddThePhrase() override { return "Press Enter to add"; }
+    std::string markedWithSyllablesAndStatus(const std::string&, const std::string&, const std::string& s) override { return s; }
+    std::string markingNotAvailableInFontAnnotationMode() override { return "Not available in font annotation mode"; }
+};
+
+class DummyUserPhraseAdder : public UserPhraseAdder {
+public:
+    void addUserPhrase(const std::string_view&, const std::string_view&) override {}
+    void removeUserPhrase(const std::string_view&, const std::string_view&) override {}
+};
+
 int main(int argc, char* argv[]) {
-    std::cout << "Win-McBopomofo Server starting..." << std::endl;
+    // Set console output to UTF-8
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+
+    std::cout << "Win-McBopomofo CLI Test Tool" << std::endl;
     
     if (argc < 2) {
         std::cout << "Usage: McBopomofoServer <path_to_data.txt>" << std::endl;
@@ -14,35 +70,52 @@ int main(int argc, char* argv[]) {
     }
 
     std::string dataPath = argv[1];
-    std::cout << "Loading language model from: " << dataPath << std::endl;
+    auto lm = std::make_shared<McBopomofoLM>();
+    lm->loadLanguageModel(dataPath.c_str());
 
-    McBopomofo::McBopomofoLM lm;
-    lm.loadLanguageModel(dataPath.c_str());
-
-    if (!lm.isDataModelLoaded()) {
-        std::cerr << "Failed to load language model." << std::endl;
+    if (!lm->isDataModelLoaded()) {
+        std::cerr << "Failed to load language model from: " << dataPath << std::endl;
         return 1;
     }
 
-    std::cout << "Language model loaded successfully." << std::endl;
+    // Set macro converter in LM
+    InputMacroController macroController;
+    lm->setMacroConverter([&macroController](const std::string& input) {
+        return macroController.handle(input);
+    });
 
-    // Simple test loop
-    std::string line;
-    std::cout << "Enter a Bopomofo reading (e.g. ã„•ã„¨) or 'q' to quit:" << std::endl;
-    while (std::getline(std::cin, line)) {
-        if (line == "q") break;
-        if (line.empty()) continue;
+    std::shared_ptr<KeyHandler> keyHandler(new KeyHandler(
+        lm, 
+        std::shared_ptr<VariantAnnotator>(nullptr), 
+        std::static_pointer_cast<UserPhraseAdder>(std::make_shared<DummyUserPhraseAdder>()), 
+        std::unique_ptr<LocalizedStrings>(new DummyLocalizedStrings())
+    ));
 
-        auto unigrams = lm.getUnigrams(line);
-        if (unigrams.empty()) {
-            std::cout << "No results found for: " << line << std::endl;
-        } else {
-            std::cout << "Results for " << line << ":" << std::endl;
-            for (const auto& u : unigrams) {
-                std::cout << "  " << u.value() << " (score: " << u.score() << ")" << std::endl;
+    // Default to Standard Layout
+    keyHandler->setKeyboardLayout(Formosa::Mandarin::BopomofoKeyboardLayout::StandardLayout());
+
+    CLITestUI ui;
+    InputController controller(keyHandler, &ui);
+
+    std::cout << "Language model loaded. Typing '5j/ jp6' for 中文..." << std::endl;
+    std::cout << "Available macros: MACRO@DATE_TODAY_SHORT, MACRO@GANZHI_YEAR, etc." << std::endl;
+    std::cout << "Type 'exit' to quit." << std::endl;
+
+    std::string input;
+    while (true) {
+        std::cout << "\n> " << std::flush;
+        if (!std::getline(std::cin, input) || input == "exit") break;
+
+        for (char c : input) {
+            char ascii = c;
+            Key::KeyName name = Key::KeyName::ASCII;
+            if (c == ' ') {
+                ascii = Key::SPACE;
             }
+            controller.HandleKey(Key(ascii, name, false, false, false));
         }
-        std::cout << "Enter a Bopomofo reading or 'q' to quit:" << std::endl;
+        // Force an ENTER to commit if anything is left
+        controller.HandleKey(Key(Key::RETURN, Key::KeyName::ASCII, false, false, false));
     }
     
     return 0;

@@ -31,12 +31,17 @@
 namespace McBopomofo {
 
 bool ParselessPhraseDB::ValidatePragma(const char* buf, size_t length) {
-  if (length < SORTED_PRAGMA_HEADER.length()) {
+  std::string_view header_without_nl = SORTED_PRAGMA_HEADER;
+  if (!header_without_nl.empty() && header_without_nl.back() == '\n') {
+    header_without_nl.remove_suffix(1);
+  }
+
+  if (length < header_without_nl.length()) {
     return false;
   }
 
-  std::string_view header(buf, SORTED_PRAGMA_HEADER.length());
-  return header == SORTED_PRAGMA_HEADER;
+  std::string_view header(buf, header_without_nl.length());
+  return header == header_without_nl;
 }
 
 std::unique_ptr<ParselessPhraseDB> ParselessPhraseDB::CreateValidatedDB(
@@ -57,11 +62,21 @@ ParselessPhraseDB::ParselessPhraseDB(const char* buf, size_t length,
                                      bool validate_pragma)
     : begin_(buf), end_(buf + length) {
   assert(buf != nullptr);
-  assert(length > 0);
+  // assert(length > 0); // Removed for robustness if empty
 
   if (validate_pragma) {
-    if (ValidatePragma(buf, length)) {
-      begin_ += SORTED_PRAGMA_HEADER.length();
+    std::string_view header_without_nl = SORTED_PRAGMA_HEADER;
+    if (!header_without_nl.empty() && header_without_nl.back() == '\n') {
+        header_without_nl.remove_suffix(1);
+    }
+
+    if (length >= header_without_nl.length() && 
+        std::string_view(buf, header_without_nl.length()) == header_without_nl) {
+      begin_ += header_without_nl.length();
+      // Skip optional \r and \n
+      while (begin_ < end_ && (*begin_ == '\r' || *begin_ == '\n')) {
+        begin_++;
+      }
     } else {
       // Header invalid; makes the db no-op.
       end_ = begin_;

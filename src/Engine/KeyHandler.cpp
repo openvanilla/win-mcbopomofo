@@ -31,9 +31,12 @@
 #include <utility>
 #include <vector>
 
+#include "AssociatedPhrasesV2.h"
 #include "Big5Utils/Big5Utils.h"
+#include "McBopomofoLM.h"
 #include "NumberInputHelper.h"
 #include "UTF8Helper.h"
+#include "VariantAnnotator.h"
 
 namespace McBopomofo {
 
@@ -1870,6 +1873,14 @@ void KeyHandler::pinNodeWithAssociatedPhrase(
 
   walk();
   // Cursor is already at accumulatedCursor, so no more work here.
+}
+
+std::unique_ptr<InputStates::SelectingDictionary>
+KeyHandler::buildSelectingDictionaryState(
+    std::unique_ptr<InputStates::NotEmpty> nonEmptyState,
+    const std::string& selectedPhrase, size_t selectedIndex) {
+  return std::make_unique<InputStates::SelectingDictionary>(
+      std::move(nonEmptyState), selectedPhrase, selectedIndex, std::vector<std::string>());
 }
 
 void KeyHandler::walk() { latestWalk_ = grid_.walk(); }
