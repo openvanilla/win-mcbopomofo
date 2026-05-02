@@ -1,0 +1,34 @@
+#include "UTFHelper.h"
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+namespace McBopomofo {
+
+std::wstring Utf8ToUtf16(const std::string& utf8) {
+    if (utf8.empty()) {
+        return std::wstring();
+    }
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, NULL, 0);
+    if (wlen <= 0) {
+        return std::wstring();
+    }
+    std::wstring utf16(wlen - 1, 0);
+    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, &utf16[0], wlen);
+    return utf16;
+}
+
+std::string Utf16ToUtf8(const std::wstring& utf16) {
+    if (utf16.empty()) {
+        return std::string();
+    }
+    int len = WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, NULL, 0, NULL, NULL);
+    if (len <= 0) {
+        return std::string();
+    }
+    std::string utf8(len - 1, 0);
+    WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, &utf8[0], len, NULL, NULL);
+    return utf8;
+}
+
+}  // namespace McBopomofo

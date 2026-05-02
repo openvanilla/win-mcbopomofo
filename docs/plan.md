@@ -38,10 +38,12 @@
 ## 3. 開發階段 (Milestones)
 
 ### 第一階段：環境搭建與核心移植
-1.  建立專案結構 (CMake)。
-2.  引入 McBopomofo 的 C++ 核心代碼與詞庫。
-3.  編譯並測試核心引擎在 Windows 上的運作。
-
+ 1.  建立專案結構 (CMake)。
+ 2.  引入 McBopomofo 的 C++ 核心代碼與詞庫（位於 `src/Engine`）。
+ 3.  **核心移植規範**：
+     *   **嚴禁修改核心引擎 (Core Engine)**：必須保持 `src/Engine` 目錄及相關演算法代碼的原樣。
+     *   **適配層開發**：僅允許修改或新增高層 API 適配層（如 `KeyHandler` 的包裝或 TSF 介面橋接），以對接 Windows 平台的 IME API。
+ 4.  編譯並測試核心引擎在 Windows 上的運作。
 ### 第二階段：TSF 輸入法框架實作
 1.  實作 TSF 基本介面，讓 Windows 能識別並載入此輸入法 DLL。
 2.  實作 `ITfKeyEventSink`，處理基本的按鍵輸入。
