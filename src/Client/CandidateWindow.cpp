@@ -12,7 +12,7 @@ const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
 CandidateWindow::CandidateWindow() 
     : _hwnd(nullptr), _dpiScale(1.0f), _cursorIndex(0), _candidateKeys(L"123456789"),
-      _candidateKeysCount(9), _isVertical(false), _isDarkMode(false),
+      _candidateKeysCount(9), _isVertical(false), _forceVertical(false), _isDarkMode(false),
       _pD2DFactory(nullptr), _pRenderTarget(nullptr), _pDWriteFactory(nullptr), 
       _pTextFormat(nullptr), _pTextLayout(nullptr),
       _pTextBrush(nullptr), _pBgBrush(nullptr), _pBorderBrush(nullptr),
@@ -197,6 +197,7 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
     }
 
     bool drawVertical = _isVertical || forceVertical;
+    _forceVertical = forceVertical;
 
     const int pageSize = _candidateKeysCount;
     int pageIndex = _cursorIndex / pageSize;
@@ -368,11 +369,24 @@ LRESULT CandidateWindow::OnPaint(HWND hwnd) {
                         12.0f, 8.0f, hitTestMetrics.data(), actualHitTestCount, &actualHitTestCount
                     );
 
+                    float layoutWidth = 0;
+                    bool isVerticalLayout = _isVertical || _forceVertical;
+                    if (isVerticalLayout) {
+                        DWRITE_TEXT_METRICS textMetrics;
+                        _pTextLayout->GetMetrics(&textMetrics);
+                        layoutWidth = textMetrics.width;
+                    }
+
                     for (const auto& metrics : hitTestMetrics) {
+                        float right = metrics.left + metrics.width;
+                        if (isVerticalLayout) {
+                            right = 12.0f + layoutWidth;
+                        }
+
                         D2D1_RECT_F rect = D2D1::RectF(
                             metrics.left - 4.0f, 
                             metrics.top - 2.0f, 
-                            metrics.left + metrics.width + 4.0f, 
+                            right + 4.0f, 
                             metrics.top + metrics.height + 2.0f
                         );
                         _pRenderTarget->FillRectangle(rect, _pHighlightBgBrush);

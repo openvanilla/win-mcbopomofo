@@ -44,6 +44,7 @@ private:
     std::wstring _candidateKeys;
     int _candidateKeysCount;
     bool _isVertical;
+    bool _forceVertical;
     bool _isDarkMode;
 
     TextRange _selectedRange;
