@@ -645,6 +645,10 @@ void InputController::SetHalfWidthPunctuationEnabled(bool enabled) {
     keyHandler_->setHalfWidthPunctuationEnabled(enabled);
 }
 
+void InputController::SetBopomofoFontAnnotationSupportEnabled(bool enabled) {
+    keyHandler_->setBopomofoFontAnnotationSupportEnabled(enabled);
+}
+
 void InputController::SetRepeatedPunctuationToSelectCandidateEnabled(bool enabled) {
     keyHandler_->setRepeatedPunctuationToSelectCandidateEnabled(enabled);
 }

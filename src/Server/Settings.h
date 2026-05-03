@@ -50,6 +50,9 @@ public:
     bool GetHalfWidthPunctuationEnabled() const { return halfWidthPunctuationEnabled_; }
     void SetHalfWidthPunctuationEnabled(bool v) { halfWidthPunctuationEnabled_ = v; }
 
+    bool GetBopomofoFontAnnotationSupportEnabled() const { return bopomofoFontAnnotationSupportEnabled_; }
+    void SetBopomofoFontAnnotationSupportEnabled(bool v) { bopomofoFontAnnotationSupportEnabled_ = v; }
+
     bool GetRepeatedPunctuationToSelectCandidateEnabled() const { return repeatedPunctuationToSelectCandidateEnabled_; }
     void SetRepeatedPunctuationToSelectCandidateEnabled(bool v) { repeatedPunctuationToSelectCandidateEnabled_ = v; }
 
@@ -86,6 +89,7 @@ private:
     KeyHandlerCtrlEnter ctrlEnterKeyBehavior_ = KeyHandlerCtrlEnter::Disabled;
     bool associatedPhrasesEnabled_ = false;
     bool halfWidthPunctuationEnabled_ = false;
+    bool bopomofoFontAnnotationSupportEnabled_ = false;
     bool repeatedPunctuationToSelectCandidateEnabled_ = false;
     bool chooseCandidateUsingSpace_ = true;
     std::string candidateKeys_ = "123456789";

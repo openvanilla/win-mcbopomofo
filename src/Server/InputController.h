@@ -31,6 +31,7 @@ public:
     void SetCtrlEnterKeyBehavior(KeyHandlerCtrlEnter behavior);
     void SetAssociatedPhrasesEnabled(bool enabled);
     void SetHalfWidthPunctuationEnabled(bool enabled);
+    void SetBopomofoFontAnnotationSupportEnabled(bool enabled);
     void SetRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
     void SetChooseCandidateUsingSpace(bool enabled);
     void SetCandidateKeys(const std::string& keys);

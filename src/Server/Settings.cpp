@@ -60,6 +60,7 @@ void Settings::Load() {
     ctrlEnterKeyBehavior_ = (KeyHandlerCtrlEnter)ReadInt(L"General", L"CtrlEnterKeyBehavior", (int)KeyHandlerCtrlEnter::Disabled);
     associatedPhrasesEnabled_ = ReadBool(L"General", L"AssociatedPhrasesEnabled", false);
     halfWidthPunctuationEnabled_ = ReadBool(L"General", L"HalfWidthPunctuationEnabled", false);
+    bopomofoFontAnnotationSupportEnabled_ = ReadBool(L"General", L"BopomofoFontAnnotationSupportEnabled", false);
     repeatedPunctuationToSelectCandidateEnabled_ = ReadBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", false);
     chooseCandidateUsingSpace_ = ReadBool(L"General", L"ChooseCandidateUsingSpace", true);
     candidateKeys_ = Utf16ToUtf8(ReadString(L"General", L"CandidateKeys", L"123456789"));
@@ -84,6 +85,7 @@ void Settings::Save() {
     WriteInt(L"General", L"CtrlEnterKeyBehavior", (int)ctrlEnterKeyBehavior_);
     WriteBool(L"General", L"AssociatedPhrasesEnabled", associatedPhrasesEnabled_);
     WriteBool(L"General", L"HalfWidthPunctuationEnabled", halfWidthPunctuationEnabled_);
+    WriteBool(L"General", L"BopomofoFontAnnotationSupportEnabled", bopomofoFontAnnotationSupportEnabled_);
     WriteBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", repeatedPunctuationToSelectCandidateEnabled_);
     WriteBool(L"General", L"ChooseCandidateUsingSpace", chooseCandidateUsingSpace_);
     WriteString(L"General", L"CandidateKeys", Utf8ToUtf16(candidateKeys_));
@@ -111,6 +113,7 @@ void Settings::ApplyTo(InputController& controller) {
     controller.SetCtrlEnterKeyBehavior(ctrlEnterKeyBehavior_);
     controller.SetAssociatedPhrasesEnabled(associatedPhrasesEnabled_);
     controller.SetHalfWidthPunctuationEnabled(halfWidthPunctuationEnabled_);
+    controller.SetBopomofoFontAnnotationSupportEnabled(bopomofoFontAnnotationSupportEnabled_);
     controller.SetRepeatedPunctuationToSelectCandidateEnabled(repeatedPunctuationToSelectCandidateEnabled_);
     controller.SetChooseCandidateUsingSpace(chooseCandidateUsingSpace_);
     controller.SetCandidateKeys(candidateKeys_);

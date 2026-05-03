@@ -18,6 +18,7 @@ namespace {
 constexpr UINT MENU_TOGGLE_OPEN_CLOSE = 100;
 constexpr UINT MENU_TOGGLE_ASSOCIATED_PHRASES = 101;
 constexpr UINT MENU_TOGGLE_HALF_WIDTH_PUNCTUATION = 102;
+constexpr UINT MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION = 103;
 
 std::wstring SettingsPath() {
     std::filesystem::path path(McBopomofo::fcitx5_compat::userDirectory());
@@ -162,6 +163,11 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt, const RECT *prc
                 MF_STRING | (ReadBoolSetting(L"HalfWidthPunctuationEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
                 MENU_TOGGLE_HALF_WIDTH_PUNCTUATION,
                 L"使用半形標點");
+            AppendMenuW(
+                menu,
+                MF_STRING | (ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
+                MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION,
+                L"啟用注音標示");
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
             AppendMenuW(menu, MF_STRING, 1, L"設定 (Settings)");
             AppendMenuW(menu, MF_STRING, 2, L"編輯使用者詞庫 (Edit User Phrases)");
@@ -209,6 +215,14 @@ STDMETHODIMP CLangBarButton::InitMenu(ITfMenu *pMenu) {
         L"使用半形標點",
         (ULONG)wcslen(L"使用半形標點"),
         nullptr);
+    pMenu->AddMenuItem(
+        MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION,
+        ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false) ? TF_LBMENUF_CHECKED : 0,
+        nullptr,
+        nullptr,
+        L"啟用注音標示",
+        (ULONG)wcslen(L"啟用注音標示"),
+        nullptr);
     pMenu->AddMenuItem(0, TF_LBMENUF_SEPARATOR, nullptr, nullptr, nullptr, 0, nullptr);
     pMenu->AddMenuItem(1, 0, nullptr, nullptr, L"設定 (Settings)", (ULONG)wcslen(L"設定 (Settings)"), nullptr);
     pMenu->AddMenuItem(2, 0, nullptr, nullptr, L"編輯使用者詞庫 (Edit User Phrases)", (ULONG)wcslen(L"編輯使用者詞庫 (Edit User Phrases)"), nullptr);
@@ -232,6 +246,12 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
     case MENU_TOGGLE_HALF_WIDTH_PUNCTUATION: {
         bool enabled = !ReadBoolSetting(L"HalfWidthPunctuationEnabled", false);
         WriteBoolSetting(L"HalfWidthPunctuationEnabled", enabled);
+        NotifySettingsChanged();
+        break;
+    }
+    case MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION: {
+        bool enabled = !ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false);
+        WriteBoolSetting(L"BopomofoFontAnnotationSupportEnabled", enabled);
         NotifySettingsChanged();
         break;
     }
