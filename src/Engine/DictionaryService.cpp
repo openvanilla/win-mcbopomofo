@@ -94,17 +94,11 @@ DictionaryServices::DictionaryServices() {}
 DictionaryServices::~DictionaryServices() {}
 
 void DictionaryServices::load() {
-    services_.clear();
+    load("data\\dictionary_service.json");
+}
 
-    std::string jsonPath = "data\\dictionary_service.json";
-#if defined(_WIN32)
-    // If we are in the server, we might want to load from the executable's directory.
-    // For now, assume it's in the current working directory's "data" folder,
-    // which the server sets to the installation directory.
-    // A more robust way is to pass the path to `load(const std::string& dataPath)`.
-    // Let's modify the signature or assume the path. Since we can't easily change
-    // the signature without changing callers, we'll try to find it.
-#endif
+void DictionaryServices::load(const std::string& jsonPath) {
+    services_.clear();
 
     std::ifstream file(jsonPath);
     if (!file.is_open()) {

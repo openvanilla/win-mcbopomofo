@@ -60,6 +60,7 @@ class DictionaryServices {
   bool hasServices();
   /** Load additional services. */
   void load();
+  void load(const std::string& path);
   /**
    * Look up a phrase using the index of the service in the list.
    * @param phrase The phrase.

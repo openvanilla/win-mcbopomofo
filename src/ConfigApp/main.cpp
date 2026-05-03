@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <uxtheme.h>
+#include <dwmapi.h>
 
 #include <algorithm>
 #include <array>
@@ -13,6 +14,7 @@
 
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "uxtheme.lib")
+#pragma comment(lib, "dwmapi.lib")
 #pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 using namespace McBopomofo;
@@ -23,8 +25,45 @@ constexpr const wchar_t* kClassName = L"McBopomofoConfigClass";
 constexpr const wchar_t* kSingleInstanceMutexName = L"Local\\WinMcBopomofoConfigSingleInstance";
 constexpr int kReloadCommand = 1;
 
-constexpr COLORREF kWindowColor = RGB(246, 247, 249);
-constexpr COLORREF kTextColor = RGB(32, 33, 36);
+// Light Mode Colors
+constexpr COLORREF kLightWindowColor = RGB(246, 247, 249);
+constexpr COLORREF kLightTextColor = RGB(32, 33, 36);
+
+// Dark Mode Colors
+constexpr COLORREF kDarkWindowColor = RGB(32, 33, 36);
+constexpr COLORREF kDarkTextColor = RGB(232, 234, 237);
+
+COLORREF g_WindowColor = kLightWindowColor;
+COLORREF g_TextColor = kLightTextColor;
+HBRUSH g_WindowBrush = nullptr;
+
+bool IsDarkModeEnabled() {
+    HKEY hKey;
+    DWORD value = 0;
+    DWORD size = sizeof(value);
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr, reinterpret_cast<LPBYTE>(&value), &size);
+        RegCloseKey(hKey);
+    }
+    return value == 0;
+}
+
+void UpdateThemeColors() {
+    if (IsDarkModeEnabled()) {
+        g_WindowColor = kDarkWindowColor;
+        g_TextColor = kDarkTextColor;
+    } else {
+        g_WindowColor = kLightWindowColor;
+        g_TextColor = kLightTextColor;
+    }
+    if (g_WindowBrush) DeleteObject(g_WindowBrush);
+    g_WindowBrush = CreateSolidBrush(g_WindowColor);
+}
+
+void ApplyThemeToWindow(HWND hwnd) {
+    BOOL dark = IsDarkModeEnabled();
+    DwmSetWindowAttribute(hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &dark, sizeof(dark));
+}
 
 struct ComboOption {
     const wchar_t* label;
@@ -387,24 +426,32 @@ void CreateControls(HWND hwnd) {
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_CREATE:
+        ApplyThemeToWindow(hwnd);
         CreateControls(hwnd);
+        break;
+    case WM_SETTINGCHANGE:
+        if (lParam && wcscmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") == 0) {
+            UpdateThemeColors();
+            ApplyThemeToWindow(hwnd);
+            InvalidateRect(hwnd, nullptr, TRUE);
+        }
         break;
     case WM_CTLCOLORSTATIC: {
         HDC hdc = reinterpret_cast<HDC>(wParam);
         SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, kTextColor);
-        return reinterpret_cast<LRESULT>(hWindowBrush);
+        SetTextColor(hdc, g_TextColor);
+        return reinterpret_cast<LRESULT>(g_WindowBrush);
     }
     case WM_CTLCOLORBTN: {
         HDC hdc = reinterpret_cast<HDC>(wParam);
         SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, kTextColor);
-        return reinterpret_cast<LRESULT>(hWindowBrush);
+        SetTextColor(hdc, g_TextColor);
+        return reinterpret_cast<LRESULT>(g_WindowBrush);
     }
     case WM_ERASEBKGND: {
         RECT rect;
         GetClientRect(hwnd, &rect);
-        FillRect(reinterpret_cast<HDC>(wParam), &rect, hWindowBrush);
+        FillRect(reinterpret_cast<HDC>(wParam), &rect, g_WindowBrush);
         return 1;
     }
     case WM_COMMAND:
@@ -417,7 +464,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_DESTROY:
         DeleteObject(hUiFont);
         DeleteObject(hTitleFont);
-        DeleteObject(hWindowBrush);
+        DeleteObject(g_WindowBrush);
         PostQuitMessage(0);
         break;
     default:
@@ -441,15 +488,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     INITCOMMONCONTROLSEX icc = {sizeof(INITCOMMONCONTROLSEX), ICC_STANDARD_CLASSES | ICC_WIN95_CLASSES};
     InitCommonControlsEx(&icc);
 
+    UpdateThemeColors();
+
     hUiFont = CreateUIFont(12, FW_NORMAL);
     hTitleFont = CreateUIFont(17, FW_SEMIBOLD);
-    hWindowBrush = CreateSolidBrush(kWindowColor);
 
     WNDCLASSEXW wcex = {sizeof(WNDCLASSEXW)};
     wcex.lpfnWndProc = WndProc;
     wcex.hInstance = hInstance;
     wcex.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
-    wcex.hbrBackground = hWindowBrush;
+    wcex.hbrBackground = g_WindowBrush;
     wcex.lpszClassName = kClassName;
     RegisterClassExW(&wcex);
 
@@ -461,7 +509,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         Scale(620),
-        Scale(930),
+        Scale(962),
         nullptr,
         nullptr,
         hInstance,

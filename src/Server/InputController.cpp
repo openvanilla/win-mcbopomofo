@@ -6,6 +6,7 @@
 #include <windows.h>
 
 #include "UTF8Helper.h"
+#include "McBopomofoLM.h"
 
 namespace McBopomofo {
 
@@ -133,13 +134,45 @@ bool HasInvalidDictionaryPrefix(const std::string& reading) {
 
 InputController::InputController(std::shared_ptr<KeyHandler> keyHandler, UIInterface* ui)
     : keyHandler_(std::move(keyHandler)), ui_(ui) {
+    currentState_ = std::make_unique<InputStates::Empty>();
+}
+
+void InputController::SetDataDirectory(const std::filesystem::path& dataDir) {
     try {
-        openccConverter_ = std::make_unique<opencc::SimpleConverter>("tw2s.json");
+        std::filesystem::path openccPath = dataDir / "opencc" / "tw2s.json";
+        openccConverter_ = std::make_unique<opencc::SimpleConverter>(openccPath.string());
+        
+        auto lm = std::dynamic_pointer_cast<McBopomofoLM>(keyHandler_->getLM());
+        if (lm) {
+            lm->setExternalConverter([this](const std::string& input) {
+                if (openccConverter_) {
+                    return openccConverter_->Convert(input);
+                }
+                return input;
+            });
+            // We disable it by default. The user will toggle it via the tray menu.
+            lm->setExternalConverterEnabled(false);
+        }
     } catch (const std::exception& e) {
         // Fallback or log if missing
         openccConverter_.reset();
     }
-    currentState_ = std::make_unique<InputStates::Empty>();
+}
+
+void InputController::ToggleChineseConversion() {
+    auto lm = std::dynamic_pointer_cast<McBopomofoLM>(keyHandler_->getLM());
+    if (lm) {
+        bool current = lm->externalConverterEnabled();
+        lm->setExternalConverterEnabled(!current);
+    }
+}
+
+bool InputController::IsChineseConversionEnabled() const {
+    auto lm = std::dynamic_pointer_cast<McBopomofoLM>(keyHandler_->getLM());
+    if (lm) {
+        return lm->externalConverterEnabled();
+    }
+    return false;
 }
 
 bool InputController::HandleKey(const Key& key) {

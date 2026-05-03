@@ -131,6 +131,7 @@ class KeyHandler {
 
   void setChineseConversionEnabled(bool enabled);
   bool chineseConversionEnabled() const { return chineseConversionEnabled_; }
+  std::shared_ptr<Formosa::Gramambular2::LanguageModel> getLM() const { return lm_; }
 
   size_t actualCandidateCursorIndex();
   size_t computeActualCandidateCursorIndex(size_t index);

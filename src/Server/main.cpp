@@ -296,7 +296,10 @@ bool IsCtrlSpace(const IPC::KeyEventPayload& key) {
 #define IDM_OPEN_USER_PHRASES 1004
 #define IDM_OPEN_EXCLUDED_PHRASES 1005
 #define IDM_OPEN_USER_DIR 1006
+#define IDM_TOGGLE_CONVERSION 1007
 #define IDM_EXIT 1002
+
+InputController* g_Controller = nullptr;
 
 void OpenSettingsApp() {
     WCHAR path[MAX_PATH] = {};
@@ -315,7 +318,13 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             POINT pt;
             GetCursorPos(&pt);
             HMENU hMenu = CreatePopupMenu();
+            
+            bool isConversionEnabled = g_Controller && g_Controller->IsChineseConversionEnabled();
+            LPCWSTR conversionText = isConversionEnabled ? L"切換為繁體輸出 (Traditional)" : L"切換為簡體輸出 (Simplified)";
+
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_SETTINGS, L"設定 (Settings)");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_TOGGLE_CONVERSION, conversionText);
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_PHRASES, L"編輯使用者詞庫 (Edit User Phrases)");
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_EXCLUDED_PHRASES, L"編輯排除詞庫 (Edit Excluded Phrases)");
@@ -332,6 +341,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             PostQuitMessage(0);
         } else if (LOWORD(wParam) == IDM_SETTINGS) {
             OpenSettingsApp();
+        } else if (LOWORD(wParam) == IDM_TOGGLE_CONVERSION) {
+            if (g_Controller) {
+                g_Controller->ToggleChineseConversion();
+            }
         } else if (LOWORD(wParam) == IDM_OPEN_USER_PHRASES) {
             std::string path = fcitx5_compat::userDirectory() + "/user.txt";
             ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
@@ -413,9 +426,15 @@ int main(int argc, char* argv[]) {
         std::unique_ptr<LocalizedStrings>(new DummyLocalizedStrings())
     ));
 
+    std::string dictionaryServiceJsonPath = (exeDir / "data" / "dictionary_service.json").string();
+    keyHandler->getDictionaryServices()->load(dictionaryServiceJsonPath);
+
     ServerUI ui;
     InputController controller(keyHandler, &ui);
     ui.controller = &controller;
+    g_Controller = &controller;
+
+    controller.SetDataDirectory(exeDir / "data");
 
     Settings settings;
     settings.ApplyTo(controller);

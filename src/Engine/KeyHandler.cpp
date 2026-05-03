@@ -1894,7 +1894,8 @@ KeyHandler::buildSelectingDictionaryState(
     std::unique_ptr<InputStates::NotEmpty> nonEmptyState,
     const std::string& selectedPhrase, size_t selectedIndex) {
   return std::make_unique<InputStates::SelectingDictionary>(
-      std::move(nonEmptyState), selectedPhrase, selectedIndex, std::vector<std::string>());
+      std::move(nonEmptyState), selectedPhrase, selectedIndex,
+      dictionaryServices_.menuForPhrase(selectedPhrase));
 }
 
 void KeyHandler::walk() { latestWalk_ = grid_.walk(); }

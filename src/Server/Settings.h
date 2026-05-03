@@ -50,9 +50,6 @@ public:
     bool GetHalfWidthPunctuationEnabled() const { return halfWidthPunctuationEnabled_; }
     void SetHalfWidthPunctuationEnabled(bool v) { halfWidthPunctuationEnabled_ = v; }
 
-    bool GetChineseConversionEnabled() const { return chineseConversionEnabled_; }
-    void SetChineseConversionEnabled(bool v) { chineseConversionEnabled_ = v; }
-
     bool GetBopomofoFontAnnotationSupportEnabled() const { return bopomofoFontAnnotationSupportEnabled_; }
     void SetBopomofoFontAnnotationSupportEnabled(bool v) { bopomofoFontAnnotationSupportEnabled_ = v; }
 
@@ -92,7 +89,6 @@ private:
     KeyHandlerCtrlEnter ctrlEnterKeyBehavior_ = KeyHandlerCtrlEnter::Disabled;
     bool associatedPhrasesEnabled_ = false;
     bool halfWidthPunctuationEnabled_ = false;
-    bool chineseConversionEnabled_ = false;
     bool bopomofoFontAnnotationSupportEnabled_ = false;
     bool repeatedPunctuationToSelectCandidateEnabled_ = false;
     bool chooseCandidateUsingSpace_ = true;

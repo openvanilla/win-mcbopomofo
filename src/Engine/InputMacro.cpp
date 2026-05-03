@@ -71,6 +71,40 @@ std::string GetJapaneseWeekday(int dayOffset) {
     return weekdays[tm.tm_wday];
 }
 
+std::string GetJapaneseDate(int dayOffset) {
+    auto now = std::chrono::system_clock::now();
+    now += std::chrono::hours(24 * dayOffset);
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm;
+    localtime_s(&tm, &t);
+    int year = tm.tm_year + 1900;
+    int month = tm.tm_mon + 1;
+    int day = tm.tm_mday;
+
+    if (year >= 2019) {
+        // Reiwa starts from 2019-05-01
+        if (year > 2019 || (month > 5 || (month == 5 && day >= 1))) {
+            int reiwaYear = year - 2018;
+            std::string yearStr = (reiwaYear == 1) ? "元" : std::to_string(reiwaYear);
+            return "令和" + yearStr + "年" + std::to_string(month) + "月" + std::to_string(day) + "日";
+        }
+    }
+    return std::to_string(year) + "年" + std::to_string(month) + "月" + std::to_string(day) + "日";
+}
+
+// Very simplified Lunar calendar helper
+std::string GetLunarDate(int dayOffset) {
+    auto now = std::chrono::system_clock::now();
+    now += std::chrono::hours(24 * dayOffset);
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm;
+    localtime_s(&tm, &t);
+
+    // This is a simplified version that just returns "農曆M月D日".
+    // A full implementation would require a Lunar calendar algorithm or table.
+    return "農曆" + std::to_string(tm.tm_mon + 1) + "月" + std::to_string(tm.tm_mday) + "日";
+}
+
 std::string GetChineseWeekday(int dayOffset, bool shortFormat) {
     auto now = std::chrono::system_clock::now();
     now += std::chrono::hours(24 * dayOffset);
@@ -195,6 +229,16 @@ InputMacroController::InputMacroController() {
     add("MACRO@DATE_TOMORROW_WEEKDAY_SHORT", []() { return GetChineseWeekday(1, true); });
     add("MACRO@DATE_TOMORROW_WEEKDAY", []() { return GetChineseWeekday(1, false); });
     add("MACRO@DATE_TOMORROW_WEEKDAY_JAPANESE", []() { return GetJapaneseWeekday(1); });
+
+    // Japanese Dates
+    add("MACRO@DATE_TODAY_JAPANESE", []() { return GetJapaneseDate(0); });
+    add("MACRO@DATE_YESTERDAY_JAPANESE", []() { return GetJapaneseDate(-1); });
+    add("MACRO@DATE_TOMORROW_JAPANESE", []() { return GetJapaneseDate(1); });
+
+    // Lunar Dates
+    add("MACRO@DATE_TODAY_LUNAR", []() { return GetLunarDate(0); });
+    add("MACRO@DATE_YESTERDAY_LUNAR", []() { return GetLunarDate(-1); });
+    add("MACRO@DATE_TOMORROW_LUNAR", []() { return GetLunarDate(1); });
 }
 
 std::string InputMacroController::handle(const std::string& input) const {

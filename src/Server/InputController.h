@@ -39,6 +39,10 @@ public:
     void SetCandidateKeysCount(int count);
     void SetCandidateWindowVertical(bool vertical);
 
+    void SetDataDirectory(const std::filesystem::path& dataDir);
+    void ToggleChineseConversion();
+    bool IsChineseConversionEnabled() const;
+
     int GetCandidateIndex() const { return candidateIndex_; }
 
 private:

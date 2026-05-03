@@ -28,6 +28,7 @@
     <StandardDirectory Id="AppDataFolder">
       <Directory Id="INSTALLFOLDER" Name="WinMcBopomofo">
         <Directory Id="DataFolder" Name="data">
+          <Directory Id="OpenCCFolder" Name="opencc" />
           <Directory Id="AppsFolder_16" Name="16x16" />
           <Directory Id="AppsFolder_22" Name="22x22" />
           <Directory Id="AppsFolder_24" Name="24x24" />
@@ -91,20 +92,26 @@
       </Component>
       
       <!-- OpenCC Data -->
-      <Component Id="cmp_OpenCC_Config_tw2s" Guid="*">
+      <Component Id="cmp_OpenCC_Config_tw2s" Guid="*" Directory="OpenCCFolder">
         <File Id="file_OpenCC_Config_tw2s" Source="third_party\OpenCC\data\config\tw2s.json" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_OpenCC_Dict_STCharacters" Guid="*">
+      <Component Id="cmp_OpenCC_Dict_STCharacters" Guid="*" Directory="OpenCCFolder">
         <File Id="file_OpenCC_Dict_STCharacters" Source="third_party\OpenCC\data\dictionary\STCharacters.txt" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_OpenCC_Dict_STPhrases" Guid="*">
+      <Component Id="cmp_OpenCC_Dict_STPhrases" Guid="*" Directory="OpenCCFolder">
         <File Id="file_OpenCC_Dict_STPhrases" Source="third_party\OpenCC\data\dictionary\STPhrases.txt" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_OpenCC_Dict_TWPhrases" Guid="*">
-        <File Id="file_OpenCC_Dict_TWPhrases" Source="third_party\OpenCC\data\dictionary\TWPhrases.txt" KeyPath="yes" />
+      <Component Id="cmp_OpenCC_Dict_TSCharacters" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Dict_TSCharacters" Source="third_party\OpenCC\data\dictionary\TSCharacters.txt" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_OpenCC_Dict_TWVariants" Guid="*">
+      <Component Id="cmp_OpenCC_Dict_TSPhrases" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Dict_TSPhrases" Source="third_party\OpenCC\data\dictionary\TSPhrases.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TWVariants" Guid="*" Directory="OpenCCFolder">
         <File Id="file_OpenCC_Dict_TWVariants" Source="third_party\OpenCC\data\dictionary\TWVariants.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TWVariantsRev" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Dict_TWVariantsRev" Source="third_party\OpenCC\data\dictionary\TWVariantsRev.txt" KeyPath="yes" />
       </Component>
     </ComponentGroup>
 
