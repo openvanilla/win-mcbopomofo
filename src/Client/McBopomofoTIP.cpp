@@ -241,6 +241,11 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lPara
         return E_INVALIDARG;
     }
 
+    if (wParam == VK_SHIFT || wParam == VK_CONTROL || wParam == VK_MENU) {
+        *pfEaten = FALSE;
+        return S_OK;
+    }
+
     BYTE keyboardState[256];
     GetKeyboardState(keyboardState);
 
@@ -329,67 +334,6 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
 
     McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
     std::string response;
-
-    // Local candidate handling disabled (moved to server)
-    if (false && !_lastState.candidates.empty()) {
-        int index = -1;
-        const int pageSize = 9;
-        int pageIndex = _lastState.cursorIndex / pageSize;
-        int startIndex = pageIndex * pageSize;
-        int totalPages = ((int)_lastState.candidates.size() + pageSize - 1) / pageSize;
-
-        if (wParam >= '1' && wParam <= '9') {
-            int num = (int)(wParam - '1');
-            if (startIndex + num < (int)_lastState.candidates.size()) {
-                index = startIndex + num;
-            }
-        } else if (wParam == VK_NUMPAD1 || (wParam >= VK_NUMPAD1 && wParam <= VK_NUMPAD9)) {
-             int num = (int)(wParam - VK_NUMPAD1);
-             if (startIndex + num < (int)_lastState.candidates.size()) {
-                 index = startIndex + num;
-             }
-        } else if (wParam == VK_SPACE || wParam == VK_RETURN) {
-            index = _lastState.cursorIndex;
-        } else if (wParam == VK_UP) {
-            _lastState.cursorIndex = (_lastState.cursorIndex - 1 + (int)_lastState.candidates.size()) % (int)_lastState.candidates.size();
-            GetCandidateWindow()->UpdateUI(_lastState.candidates, _lastState.cursorIndex, _lastState.forceVertical);
-            *pfEaten = TRUE;
-            return S_OK;
-        } else if (wParam == VK_DOWN) {
-            _lastState.cursorIndex = (_lastState.cursorIndex + 1) % (int)_lastState.candidates.size();
-            GetCandidateWindow()->UpdateUI(_lastState.candidates, _lastState.cursorIndex, _lastState.forceVertical);
-            *pfEaten = TRUE;
-            return S_OK;
-        } else if (wParam == VK_PRIOR) { // Page Up
-            int newIndex = std::max(0, _lastState.cursorIndex - pageSize);
-            _lastState.cursorIndex = newIndex;
-            GetCandidateWindow()->UpdateUI(_lastState.candidates, _lastState.cursorIndex, _lastState.forceVertical);
-            *pfEaten = TRUE;
-            return S_OK;
-        } else if (wParam == VK_NEXT) { // Page Down
-            int newIndex = std::min((int)_lastState.candidates.size() - 1, _lastState.cursorIndex + pageSize);
-            _lastState.cursorIndex = newIndex;
-            GetCandidateWindow()->UpdateUI(_lastState.candidates, _lastState.cursorIndex, _lastState.forceVertical);
-            *pfEaten = TRUE;
-            return S_OK;
-        }
-
-        if (index != -1) {
-            McBopomofo::IPC::SelectCandidatePayload selReq;
-            selReq.index = index;
-            std::string selPayload = McBopomofo::IPC::SerializeSelectCandidate(selReq);
-            if (pipe.Call(selPayload, response)) {
-                if (McBopomofo::IPC::DeserializeStateUpdate(response, _lastState)) {
-                    CStateEditSession *pEditSession = new CStateEditSession(pic, this, _lastState);
-                    HRESULT hr;
-                    pic->RequestEditSession(_tid, pEditSession, TF_ES_SYNC | TF_ES_READWRITE, &hr);
-                    pEditSession->Release();
-                    *pfEaten = TRUE;
-                    return S_OK;
-                }
-            }
-        }
-    }
 
     std::string payload = McBopomofo::IPC::SerializeKeyEvent(req);
     LogMessage("Sending IPC request: %s", payload.c_str());
