@@ -1,4 +1,4 @@
-add_library(McBopomofoTIP SHARED dllmain.cpp Globals.cpp McBopomofoTIP.cpp Register.cpp EditSession.cpp StateEditSession.cpp CandidateWindow.cpp DisplayAttributeInfo.cpp)
+add_library(McBopomofoTIP SHARED dllmain.cpp Globals.cpp McBopomofoTIP.cpp Register.cpp EditSession.cpp StateEditSession.cpp CandidateWindow.cpp DisplayAttributeInfo.cpp LangBarButton.cpp)
 set_target_properties(McBopomofoTIP PROPERTIES OUTPUT_NAME "McBopomofoTIP_v2")
 target_include_directories(McBopomofoTIP PRIVATE ${CMAKE_SOURCE_DIR}/src/Engine)
 target_link_libraries(McBopomofoTIP PRIVATE Common Ole32 OleAut32 Uuid Advapi32 d2d1 dwrite)

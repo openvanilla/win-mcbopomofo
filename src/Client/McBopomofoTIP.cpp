@@ -2,14 +2,15 @@
 #include "Globals.h"
 #include "NamedPipe.h"
 #include "StateEditSession.h"
-
+#include "LangBarButton.h"
 McBopomofoTIP::McBopomofoTIP()
     : _cRef(1),
       _ptim(nullptr),
       _tid(TF_CLIENTID_NULL),
       _dwThreadMgrEventSinkCookie(TF_INVALID_COOKIE),
       _dwThreadFocusSinkCookie(TF_INVALID_COOKIE),
-      _pComposition(nullptr) {
+      _pComposition(nullptr),
+      _pLangBarButton(nullptr) {
     DllAddRef();
 }
 
@@ -183,12 +184,32 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFla
     extern HINSTANCE g_hInst;
     _candidateWindow.Create(g_hInst);
 
+    // Register LangBar button
+    ITfLangBarItemMgr *pLangBarItemMgr = nullptr;
+    if (SUCCEEDED(_ptim->QueryInterface(IID_ITfLangBarItemMgr, (void **)&pLangBarItemMgr))) {
+        extern const GUID GUID_LBI_INPUTMODE; // defined in LangBarButton.cpp
+        _pLangBarButton = new CLangBarButton(this, GUID_LBI_INPUTMODE);
+        pLangBarItemMgr->AddItem(_pLangBarButton);
+        pLangBarItemMgr->Release();
+    }
+
     LogMessage("McBopomofoTIP::ActivateEx succeeded");
     return S_OK;
 }
 
 STDAPI McBopomofoTIP::Deactivate() {
     LogMessage("McBopomofoTIP::Deactivate called");
+
+    if (_pLangBarButton) {
+        ITfLangBarItemMgr *pLangBarItemMgr = nullptr;
+        if (SUCCEEDED(_ptim->QueryInterface(IID_ITfLangBarItemMgr, (void **)&pLangBarItemMgr))) {
+            pLangBarItemMgr->RemoveItem(_pLangBarButton);
+            pLangBarItemMgr->Release();
+        }
+        _pLangBarButton->Release();
+        _pLangBarButton = nullptr;
+    }
+
     _candidateWindow.Destroy();
 
     _UninitThreadFocusSink();
@@ -220,6 +241,26 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lPara
         return E_INVALIDARG;
     }
 
+    BYTE keyboardState[256];
+    GetKeyboardState(keyboardState);
+
+    // Ctrl+Space toggle
+    if (wParam == VK_SPACE && (keyboardState[VK_CONTROL] & 0x80)) {
+        *pfEaten = TRUE;
+        return S_OK;
+    }
+
+    if (!IsOpen()) {
+        *pfEaten = FALSE;
+        return S_OK;
+    }
+
+    // When candidate window is open, block all keys except ESC
+    if (!_lastState.candidates.empty()) {
+        *pfEaten = TRUE;
+        return S_OK;
+    }
+
     switch (wParam) {
     case VK_BACK:
     case VK_TAB:
@@ -240,16 +281,29 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lPara
         break;
     }
 
-    BYTE keyboardState[256];
     WCHAR chars[2] = {0};
-    *pfEaten = GetKeyboardState(keyboardState) &&
-                ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2, 0) == 1;
+    *pfEaten = ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2, 0) == 1;
     return S_OK;
 }
 
 STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
     if (pfEaten == nullptr) {
         return E_INVALIDARG;
+    }
+
+    BYTE keyboardState[256];
+    GetKeyboardState(keyboardState);
+
+    // Ctrl+Space toggle
+    if (wParam == VK_SPACE && (keyboardState[VK_CONTROL] & 0x80)) {
+        ToggleOpenClose();
+        *pfEaten = TRUE;
+        return S_OK;
+    }
+
+    if (!IsOpen()) {
+        *pfEaten = FALSE;
+        return S_OK;
     }
 
     BOOL eaten = FALSE;
@@ -265,7 +319,6 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
     req.shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
     req.ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
 
-    BYTE keyboardState[256];
     GetKeyboardState(keyboardState);
     WCHAR chars[2] = {0};
     if (ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2, 0) == 1) {
@@ -474,4 +527,49 @@ STDAPI McBopomofoTIP::OnSetThreadFocus() {
 STDAPI McBopomofoTIP::OnKillThreadFocus() {
     _candidateWindow.Hide();
     return S_OK;
+}
+
+bool McBopomofoTIP::IsOpen() {
+    bool isOpen = true;
+    if (_ptim) {
+        ITfCompartmentMgr *pCompMgr = nullptr;
+        if (SUCCEEDED(_ptim->QueryInterface(IID_ITfCompartmentMgr, (void **)&pCompMgr))) {
+            ITfCompartment *pComp = nullptr;
+            if (SUCCEEDED(pCompMgr->GetCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &pComp))) {
+                VARIANT var;
+                VariantInit(&var);
+                if (SUCCEEDED(pComp->GetValue(&var))) {
+                    if (var.vt == VT_I4) {
+                        isOpen = (var.lVal != 0);
+                    }
+                    VariantClear(&var);
+                }
+                pComp->Release();
+            }
+            pCompMgr->Release();
+        }
+    }
+    return isOpen;
+}
+
+void McBopomofoTIP::ToggleOpenClose() {
+    if (_ptim) {
+        bool currentOpen = IsOpen();
+        ITfCompartmentMgr *pCompMgr = nullptr;
+        if (SUCCEEDED(_ptim->QueryInterface(IID_ITfCompartmentMgr, (void **)&pCompMgr))) {
+            ITfCompartment *pComp = nullptr;
+            if (SUCCEEDED(pCompMgr->GetCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &pComp))) {
+                VARIANT var;
+                var.vt = VT_I4;
+                var.lVal = currentOpen ? 0 : 1;
+                pComp->SetValue(_tid, &var);
+                pComp->Release();
+                
+                if (_pLangBarButton) {
+                    _pLangBarButton->Update();
+                }
+            }
+            pCompMgr->Release();
+        }
+    }
 }

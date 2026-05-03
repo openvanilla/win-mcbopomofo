@@ -78,6 +78,12 @@ bool InputController::HandleKey(const Key& key) {
             }
             return true; // Consume but do nothing
         }
+
+        // When the candidate window appears, block other keys to control the candidate window.
+        // Allow ESC to dismiss the window.
+        if (key.ascii != Key::ESC) {
+            return true;
+        }
     }
 
     bool consumed = keyHandler_->handle(

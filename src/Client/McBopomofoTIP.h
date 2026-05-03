@@ -72,6 +72,11 @@ private:
 
     ITfComposition *_pComposition;
     CandidateWindow _candidateWindow;
+    class CLangBarButton* _pLangBarButton;
+
+public:
+    void ToggleOpenClose();
+    bool IsOpen();
 
 public:
     ITfComposition *GetComposition() const { return _pComposition; }
