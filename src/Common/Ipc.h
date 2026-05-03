@@ -31,6 +31,7 @@ struct StateUpdatePayload {
     std::string commitString;
     std::string composingBuffer;
     int cursorIndex = 0;
+    int candidateIndex = -1; // -1 means no candidate window
     int markStart = -1; // -1 means no mark
     int markEnd = -1;
     bool forceVertical = false; // Add flag to force vertical layout

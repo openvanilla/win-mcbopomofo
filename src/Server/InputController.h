@@ -33,6 +33,9 @@ public:
     void SetHalfWidthPunctuationEnabled(bool enabled);
     void SetRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
     void SetChooseCandidateUsingSpace(bool enabled);
+    void SetCandidateWindowVertical(bool vertical);
+
+    int GetCandidateIndex() const { return candidateIndex_; }
 
 private:
     void ChangeState(std::unique_ptr<InputState> newState);
@@ -40,6 +43,8 @@ private:
     std::shared_ptr<KeyHandler> keyHandler_;
     UIInterface* ui_;
     std::unique_ptr<InputState> currentState_;
+    int candidateIndex_ = -1;
+    bool candidateWindowVertical_ = false;
 };
 
 } // namespace McBopomofo

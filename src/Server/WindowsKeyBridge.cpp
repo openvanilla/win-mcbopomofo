@@ -19,6 +19,8 @@ Key MapIPCKey(const IPC::KeyEventPayload& payload) {
     case VK_DOWN: name = Key::KeyName::DOWN; break;
     case VK_HOME: name = Key::KeyName::HOME; break;
     case VK_END: name = Key::KeyName::END; break;
+    case VK_PRIOR: name = Key::KeyName::PAGE_UP; break;
+    case VK_NEXT: name = Key::KeyName::PAGE_DOWN; break;
     default:
         break;
     }

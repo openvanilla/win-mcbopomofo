@@ -103,6 +103,7 @@ void Settings::ApplyTo(InputController& controller) {
     controller.SetHalfWidthPunctuationEnabled(halfWidthPunctuationEnabled_);
     controller.SetRepeatedPunctuationToSelectCandidateEnabled(repeatedPunctuationToSelectCandidateEnabled_);
     controller.SetChooseCandidateUsingSpace(chooseCandidateUsingSpace_);
+    controller.SetCandidateWindowVertical(candidateWindowVertical_);
 }
 
 } // namespace McBopomofo

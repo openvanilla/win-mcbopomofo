@@ -277,8 +277,8 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
     McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
     std::string response;
 
-    // Local candidate handling if candidates are visible
-    if (!_lastState.candidates.empty()) {
+    // Local candidate handling disabled (moved to server)
+    if (false && !_lastState.candidates.empty()) {
         int index = -1;
         const int pageSize = 9;
         int pageIndex = _lastState.cursorIndex / pageSize;

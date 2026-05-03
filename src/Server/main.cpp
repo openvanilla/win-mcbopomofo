@@ -70,6 +70,7 @@ private:
 class ServerUI : public UIInterface {
 public:
     IPC::StateUpdatePayload currentState;
+    InputController* controller = nullptr;
 
     void Reset() override {
         std::string savedCommit = currentState.commitString;
@@ -86,6 +87,7 @@ public:
         currentState.forceVertical = false;
         currentState.markStart = -1;
         currentState.markEnd = -1;
+        currentState.candidateIndex = controller ? controller->GetCandidateIndex() : -1;
 
         // Determine if we need to force vertical layout
         if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||
@@ -262,6 +264,7 @@ int main(int argc, char* argv[]) {
 
     ServerUI ui;
     InputController controller(keyHandler, &ui);
+    ui.controller = &controller;
 
     Settings settings;
     settings.ApplyTo(controller);

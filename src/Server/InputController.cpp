@@ -8,6 +8,78 @@ InputController::InputController(std::shared_ptr<KeyHandler> keyHandler, UIInter
 }
 
 bool InputController::HandleKey(const Key& key) {
+    if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get())) {
+        const int pageSize = 9;
+        int count = (int)choosing->candidates.size();
+
+        if (key.name == Key::KeyName::UP || key.name == Key::KeyName::DOWN ||
+            key.name == Key::KeyName::LEFT || key.name == Key::KeyName::RIGHT ||
+            key.name == Key::KeyName::HOME || key.name == Key::KeyName::END ||
+            key.name == Key::KeyName::PAGE_UP || key.name == Key::KeyName::PAGE_DOWN) {
+            
+            bool isVertical = candidateWindowVertical_;
+            // Requirements:
+            // 1. Vertical: Up/Down changes selection, Left/Right pages.
+            // 2. Horizontal: Left/Right changes selection, Up/Down pages.
+            
+            if (key.name == Key::KeyName::HOME) {
+                candidateIndex_ = 0;
+            } else if (key.name == Key::KeyName::END) {
+                candidateIndex_ = count - 1;
+            } else if ((isVertical && key.name == Key::KeyName::UP) || (!isVertical && key.name == Key::KeyName::LEFT)) {
+                if (candidateIndex_ > 0) {
+                    candidateIndex_--;
+                } else {
+                    candidateIndex_ = count - 1;
+                }
+            } else if ((isVertical && key.name == Key::KeyName::DOWN) || (!isVertical && key.name == Key::KeyName::RIGHT)) {
+                if (candidateIndex_ < count - 1) {
+                    candidateIndex_++;
+                } else {
+                    candidateIndex_ = 0;
+                }
+            } else if (key.name == Key::KeyName::PAGE_UP || (isVertical && key.name == Key::KeyName::LEFT) || (!isVertical && key.name == Key::KeyName::UP)) {
+                // Page Up
+                candidateIndex_ = std::max(0, candidateIndex_ - pageSize);
+            } else if (key.name == Key::KeyName::PAGE_DOWN || (isVertical && key.name == Key::KeyName::RIGHT) || (!isVertical && key.name == Key::KeyName::DOWN)) {
+                // Page Down
+                candidateIndex_ = std::min(count - 1, candidateIndex_ + pageSize);
+            }
+
+            if (ui_) ui_->Update(currentState_.get());
+            return true;
+        }
+
+        if (key.ascii == Key::RETURN) {
+            SelectCandidate(candidateIndex_);
+            return true;
+        }
+
+        if (key.ascii == Key::SPACE) {
+            // Space to go to next page
+            int nextPageIndex = (candidateIndex_ / pageSize) + 1;
+            int nextStartIndex = nextPageIndex * pageSize;
+            if (nextStartIndex < count) {
+                candidateIndex_ = nextStartIndex;
+            } else {
+                candidateIndex_ = 0; // Wrap to first page
+            }
+            if (ui_) ui_->Update(currentState_.get());
+            return true;
+        }
+
+        if (key.ascii >= '1' && key.ascii <= '9') {
+            int pageIndex = candidateIndex_ / pageSize;
+            int indexOnPage = key.ascii - '1';
+            int actualIndex = pageIndex * pageSize + indexOnPage;
+            if (actualIndex < count) {
+                SelectCandidate(actualIndex);
+                return true;
+            }
+            return true; // Consume but do nothing
+        }
+    }
+
     bool consumed = keyHandler_->handle(
         key,
         currentState_.get(),
@@ -22,6 +94,7 @@ bool InputController::HandleKey(const Key& key) {
 }
 
 void InputController::Reset() {
+    candidateIndex_ = -1;
     keyHandler_->handleForceCommitAndReset(
         [this](std::unique_ptr<InputState> state) {
             this->ChangeState(std::move(state));
@@ -31,6 +104,7 @@ void InputController::Reset() {
 void InputController::SelectCandidate(int index) {
     if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get())) {
         if (index >= 0 && index < choosing->candidates.size()) {
+            candidateIndex_ = -1;
             keyHandler_->candidateSelected(
                 choosing->candidates[index],
                 choosing->originalCursor,
@@ -89,6 +163,10 @@ void InputController::SetChooseCandidateUsingSpace(bool enabled) {
     keyHandler_->setChooseCandidateUsingSpace(enabled);
 }
 
+void InputController::SetCandidateWindowVertical(bool vertical) {
+    candidateWindowVertical_ = vertical;
+}
+
 void InputController::ChangeState(std::unique_ptr<InputState> newState) {
     if (auto* sequence = dynamic_cast<InputStates::StateSequence*>(newState.get())) {
         for (auto& s : sequence->states) {
@@ -100,23 +178,34 @@ void InputController::ChangeState(std::unique_ptr<InputState> newState) {
     if (auto* commit = dynamic_cast<InputStates::Committing*>(newState.get())) {
         if (ui_) ui_->CommitString(commit->text);
         currentState_ = std::make_unique<InputStates::Empty>();
+        candidateIndex_ = -1;
         if (ui_) ui_->Reset();
         return;
     }
 
     if (auto* empty = dynamic_cast<InputStates::Empty*>(newState.get())) {
         currentState_ = std::move(newState);
+        candidateIndex_ = -1;
         if (ui_) ui_->Reset();
         return;
     }
 
     if (auto* emptyIgnore = dynamic_cast<InputStates::EmptyIgnoringPrevious*>(newState.get())) {
         currentState_ = std::make_unique<InputStates::Empty>();
+        candidateIndex_ = -1;
         if (ui_) ui_->Reset();
         return;
     }
 
     // Normal state update (Inputting, ChoosingCandidate, Marking, etc.)
+    if (dynamic_cast<InputStates::ChoosingCandidate*>(newState.get()) != nullptr) {
+        if (candidateIndex_ == -1) {
+            candidateIndex_ = 0; // Initialize highlight to the first candidate
+        }
+    } else {
+        candidateIndex_ = -1;
+    }
+
     currentState_ = std::move(newState);
     if (ui_) ui_->Update(currentState_.get());
 }

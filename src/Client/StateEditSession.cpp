@@ -150,14 +150,26 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 // Try to find the coordinates for the candidate window
                 if (!_state.candidates.empty()) {
                     ITfContextView* pView = nullptr;
+                    bool moved = false;
                     if (SUCCEEDED(_pContext->GetActiveView(&pView))) {
                         RECT rc = {0};
                         BOOL fClipped = FALSE;
                         
                         if (SUCCEEDED(pView->GetTextExt(ec, pCursorRange, &rc, &fClipped))) {
                             _pTIP->GetCandidateWindow()->Move(rc.left, rc.bottom + 2);
+                            moved = true;
                         }
                         pView->Release();
+                    }
+                    if (!moved) {
+                        // Fallback to GUI thread info for caret if TSF view layout isn't ready
+                        GUITHREADINFO gti = {0};
+                        gti.cbSize = sizeof(GUITHREADINFO);
+                        if (GetGUIThreadInfo(GetCurrentThreadId(), &gti) && gti.hwndCaret) {
+                            POINT pt = { gti.rcCaret.left, gti.rcCaret.bottom };
+                            ClientToScreen(gti.hwndCaret, &pt);
+                            _pTIP->GetCandidateWindow()->Move(pt.x, pt.y + 2);
+                        }
                     }
                 }
                 pCursorRange->Release();
@@ -185,7 +197,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
 
     // 4. Update Candidate Window UI
-    _pTIP->GetCandidateWindow()->UpdateUI(_state.candidates, _state.cursorIndex, _state.forceVertical);
+    _pTIP->GetCandidateWindow()->UpdateUI(_state.candidates, _state.candidateIndex, _state.forceVertical);
 
     return S_OK;
 }
