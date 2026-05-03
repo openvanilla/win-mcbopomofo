@@ -20,6 +20,9 @@ add_library(McBopomofoEngine STATIC
     ${ENGINE_DIR}/Log.cpp
     ${ENGINE_DIR}/VariantAnnotator.cpp
     ${ENGINE_DIR}/Big5Utils/Big5Utils.cpp
+    ${ENGINE_DIR}/ChineseNumbers/ChineseNumbers.cpp
+    ${ENGINE_DIR}/ChineseNumbers/StringUtils.cpp
+    ${ENGINE_DIR}/ChineseNumbers/SuzhouNumbers.cpp
     ${ENGINE_DIR}/NumberInputHelper.cpp
     ${ENGINE_DIR}/DictionaryService.cpp
     ${ENGINE_DIR}/InputMacro.cpp

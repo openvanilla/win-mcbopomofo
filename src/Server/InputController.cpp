@@ -151,28 +151,21 @@ void InputController::SetDataDirectory(const std::filesystem::path& dataDir) {
                 return input;
             });
             // We disable it by default. The user will toggle it via the tray menu.
-            lm->setExternalConverterEnabled(false);
+            keyHandler_->setChineseConversionEnabled(false);
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // Fallback or log if missing
         openccConverter_.reset();
     }
 }
 
 void InputController::ToggleChineseConversion() {
-    auto lm = std::dynamic_pointer_cast<McBopomofoLM>(keyHandler_->getLM());
-    if (lm) {
-        bool current = lm->externalConverterEnabled();
-        lm->setExternalConverterEnabled(!current);
-    }
+    bool current = keyHandler_->chineseConversionEnabled();
+    keyHandler_->setChineseConversionEnabled(!current);
 }
 
 bool InputController::IsChineseConversionEnabled() const {
-    auto lm = std::dynamic_pointer_cast<McBopomofoLM>(keyHandler_->getLM());
-    if (lm) {
-        return lm->externalConverterEnabled();
-    }
-    return false;
+    return keyHandler_->chineseConversionEnabled();
 }
 
 bool InputController::HandleKey(const Key& key) {
@@ -606,7 +599,8 @@ void InputController::SelectCandidate(int index) {
 
     if (auto* numberInput = dynamic_cast<InputStates::NumberInput*>(currentState_.get())) {
         if (index >= 0 && index < static_cast<int>(numberInput->candidates.size())) {
-            ChangeState(std::make_unique<InputStates::Committing>(numberInput->candidates[index]));
+            std::string text = numberInput->candidates[index];
+            ChangeState(std::make_unique<InputStates::Committing>(text));
         }
         return;
     }
@@ -620,15 +614,17 @@ void InputController::SelectCandidate(int index) {
 
     if (auto* selectingDateMacro = dynamic_cast<InputStates::SelectingDateMacro*>(currentState_.get())) {
         if (index >= 0 && index < static_cast<int>(selectingDateMacro->menu.size())) {
-            ChangeState(std::make_unique<InputStates::Committing>(selectingDateMacro->menu[index]));
+            std::string text = selectingDateMacro->menu[index];
+            ChangeState(std::make_unique<InputStates::Committing>(text));
         }
         return;
     }
 
     if (auto* iroha = dynamic_cast<InputStates::IrohaCandidate*>(currentState_.get())) {
         if (index >= 0 && index < static_cast<int>(iroha->candidates.size())) {
+            std::string text = iroha->candidates[index];
             auto seq = std::make_unique<InputStates::StateSequence>();
-            seq->push_back(std::make_unique<InputStates::Committing>(iroha->candidates[index]));
+            seq->push_back(std::make_unique<InputStates::Committing>(text));
             seq->push_back(std::make_unique<InputStates::Iroha>(""));
             ChangeState(std::move(seq));
         }

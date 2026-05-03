@@ -71,7 +71,36 @@ std::string GetJapaneseWeekday(int dayOffset) {
     return weekdays[tm.tm_wday];
 }
 
-std::string GetJapaneseDate(int dayOffset) {
+std::string GetChineseDate(int dayOffset) {
+    auto now = std::chrono::system_clock::now();
+    now += std::chrono::hours(24 * dayOffset);
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm;
+    localtime_s(&tm, &t);
+    int year = tm.tm_year + 1900;
+    int month = tm.tm_mon + 1;
+    int day = tm.tm_mday;
+
+    static const std::array<const char*, 10> digits = {"〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
+    
+    std::string yearStr;
+    std::string y = std::to_string(year);
+    for (char c : y) {
+        yearStr += digits[c - '0'];
+    }
+
+    auto toChinese = [&](int n) {
+        if (n < 10) return std::string(digits[n]);
+        if (n == 10) return std::string("十");
+        if (n < 20) return "十" + std::string(digits[n % 10]);
+        if (n % 10 == 0) return std::string(digits[n / 10]) + "十";
+        return std::string(digits[n / 10]) + "十" + std::string(digits[n % 10]);
+    };
+
+    return yearStr + "年" + toChinese(month) + "月" + toChinese(day) + "日";
+}
+
+std::string GetJapaneseYear(int dayOffset) {
     auto now = std::chrono::system_clock::now();
     now += std::chrono::hours(24 * dayOffset);
     std::time_t t = std::chrono::system_clock::to_time_t(now);
@@ -82,14 +111,25 @@ std::string GetJapaneseDate(int dayOffset) {
     int day = tm.tm_mday;
 
     if (year >= 2019) {
-        // Reiwa starts from 2019-05-01
         if (year > 2019 || (month > 5 || (month == 5 && day >= 1))) {
             int reiwaYear = year - 2018;
             std::string yearStr = (reiwaYear == 1) ? "元" : std::to_string(reiwaYear);
-            return "令和" + yearStr + "年" + std::to_string(month) + "月" + std::to_string(day) + "日";
+            return "令和" + yearStr + "年";
         }
     }
-    return std::to_string(year) + "年" + std::to_string(month) + "月" + std::to_string(day) + "日";
+    return std::to_string(year) + "年";
+}
+
+std::string GetJapaneseDate(int dayOffset) {
+    auto now = std::chrono::system_clock::now();
+    now += std::chrono::hours(24 * dayOffset);
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm;
+    localtime_s(&tm, &t);
+    int month = tm.tm_mon + 1;
+    int day = tm.tm_mday;
+
+    return GetJapaneseYear(dayOffset) + std::to_string(month) + "月" + std::to_string(day) + "日";
 }
 
 // Very simplified Lunar calendar helper
@@ -172,6 +212,11 @@ InputMacroController::InputMacroController() {
     add("MACRO@DATE_TODAY_MEDIUM_ROC", []() { return FormatRocDate(0, true, "%m月%d日"); });
     add("MACRO@DATE_YESTERDAY_MEDIUM_ROC", []() { return FormatRocDate(-1, true, "%m月%d日"); });
     add("MACRO@DATE_TOMORROW_MEDIUM_ROC", []() { return FormatRocDate(1, true, "%m月%d日"); });
+
+    add("MACRO@DATE_TODAY_MEDIUM_CHINESE", []() { return GetChineseDate(0); });
+    add("MACRO@DATE_TODAY_MEDIUM_JAPANESE", []() { return GetJapaneseDate(0); });
+    add("MACRO@THIS_YEAR_JAPANESE", []() { return GetJapaneseYear(0); });
+    add("MACRO@DATE_TODAY2_WEEKDAY", []() { return FormatDate(0, "(%a)"); });
 
     // Time
     add("MACRO@TIME_NOW_SHORT", []() { return FormatDate(0, "%H:%M"); });

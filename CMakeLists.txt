@@ -11,7 +11,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # Common settings for MSVC
 if(MSVC)
-    add_compile_options(/W4 /WX- /EHsc /utf-8 /FS)
+    add_compile_options(/W4 /WX- /EHsc /utf-8 /FS /GR)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS -DNOMINMAX)
 
     # Use Static CRT (/MT) for Release builds to avoid VCRUNTIME140.dll dependency issues in COM host processes
@@ -25,6 +25,7 @@ set(USE_SYSTEM_DARTS OFF CACHE BOOL "Use bundled darts" FORCE)
 set(USE_SYSTEM_MARISA OFF CACHE BOOL "Use bundled marisa" FORCE)
 set(USE_SYSTEM_TINYXML2 OFF CACHE BOOL "Use bundled tinyxml2" FORCE)
 set(BUILD_DOCUMENTATION OFF CACHE BOOL "Do not build OpenCC docs" FORCE)
+set(ENABLE_GTEST ON CACHE BOOL "Enable GTest" FORCE)
 add_subdirectory(third_party/OpenCC EXCLUDE_FROM_ALL)
 
 add_subdirectory(src)
@@ -35,3 +36,25 @@ add_executable(CandidateWindowTest tests/test_candidate_window.cpp src/Client/Ca
 target_include_directories(CandidateWindowTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Client ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/src/Engine)
 target_link_libraries(CandidateWindowTest PRIVATE user32 gdi32 d2d1 dwrite advapi32 ole32 shell32)
 add_test(NAME CandidateWindowTest COMMAND CandidateWindowTest)
+
+# Add BugReproTest
+add_executable(BugReproTest 
+    tests/BugReproTest.cpp 
+    src/Server/InputController.cpp
+)
+target_include_directories(BugReproTest PRIVATE 
+    ${CMAKE_SOURCE_DIR}/src/Client 
+    ${CMAKE_SOURCE_DIR}/src/Common 
+    ${CMAKE_SOURCE_DIR}/src/Engine
+    ${CMAKE_SOURCE_DIR}/src/Server
+    ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src
+    ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include
+)
+target_link_libraries(BugReproTest PRIVATE 
+    McBopomofoEngine 
+    Common 
+    libopencc 
+    gtest_main
+    shell32
+)
+add_test(NAME BugReproTest COMMAND BugReproTest)

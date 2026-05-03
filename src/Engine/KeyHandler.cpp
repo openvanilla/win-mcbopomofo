@@ -1253,7 +1253,7 @@ bool KeyHandler::handleBig5(Key key, McBopomofo::InputStates::Big5* state,
   }
 
   if ((key.ascii >= '0' && key.ascii <= '9') ||
-      (key.ascii >= 'a' && key.ascii <= 'f')) {
+      (std::tolower(key.ascii) >= 'a' && std::tolower(key.ascii) <= 'f')) {
     std::string newHexCode =
         state->hexCode + static_cast<char>(std::tolower(key.ascii));
 
@@ -1292,9 +1292,9 @@ bool KeyHandler::handleIroha(Key key, McBopomofo::InputStates::Iroha* state,
       return true;
     }
 
-    std::string unigram = "_kana_" + code;
-    if (lm_->hasUnigrams(unigram)) {
-      auto unigrams = lm_->getUnigrams(unigram);
+    std::string unigramKey = "_kana_" + code;
+    if (lm_->hasUnigrams(unigramKey)) {
+      auto unigrams = lm_->getUnigrams(unigramKey);
       if (unigrams.size() == 1) {
         std::string value = unigrams[0].value();
         auto seq = std::make_unique<InputStates::StateSequence>();
@@ -1333,11 +1333,10 @@ bool KeyHandler::handleIroha(Key key, McBopomofo::InputStates::Iroha* state,
 
   if ((key.ascii >= 'a' && key.ascii <= 'z') ||
       (key.ascii >= 'A' && key.ascii <= 'Z')) {
-    std::string code = state->code;
-    if (code.length() <= 4)  // Iroha code is 4 hex digits.
+    char lowerAscii = static_cast<char>(std::tolower(key.ascii));
+    if (state->code.length() <= 4)  // Iroha code is 4 hex digits.
     {
-      std::string code =
-          state->code + static_cast<char>(std::tolower(key.ascii));
+      std::string code = state->code + lowerAscii;
       auto newState = std::make_unique<InputStates::Iroha>(code);
       stateCallback(std::move(newState));
     } else {

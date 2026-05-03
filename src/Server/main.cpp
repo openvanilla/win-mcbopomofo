@@ -163,6 +163,14 @@ public:
             for (const auto& c : numInput->candidates) {
                 currentState.candidates.push_back(c);
             }
+        } else if (auto* big5 = dynamic_cast<InputStates::Big5*>(state)) {
+            currentState.composingBuffer = big5->composingBuffer();
+            currentState.cursorIndex = (int)currentState.composingBuffer.length();
+            currentState.candidates.clear();
+        } else if (auto* iroha = dynamic_cast<InputStates::Iroha*>(state)) {
+            currentState.composingBuffer = iroha->composingBuffer();
+            currentState.cursorIndex = (int)currentState.composingBuffer.length();
+            currentState.candidates.clear();
         } else if (auto* selectingFeature = dynamic_cast<InputStates::SelectingFeature*>(state)) {
             currentState.composingBuffer.clear();
             currentState.cursorIndex = 0;
