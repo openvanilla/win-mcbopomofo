@@ -219,9 +219,13 @@ int main(int argc, char* argv[]) {
     lm->loadLanguageModel(dataPath.c_str());
 
     std::string assocPath = (exeDir / "data" / "associated-phrases-v2.txt").string();
-    
     if (std::filesystem::exists(assocPath)) {
         lm->loadAssociatedPhrasesV2(assocPath.c_str());
+    }
+
+    std::string variantsPath = (exeDir / "data" / "bpmfvs-variants.txt").string();
+    if (std::filesystem::exists(variantsPath)) {
+        lm->loadPhraseReplacementMap(variantsPath.c_str());
     }
 
     if (!lm->isDataModelLoaded()) {
