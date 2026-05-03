@@ -18,7 +18,8 @@ namespace {
 constexpr UINT MENU_TOGGLE_OPEN_CLOSE = 100;
 constexpr UINT MENU_TOGGLE_ASSOCIATED_PHRASES = 101;
 constexpr UINT MENU_TOGGLE_HALF_WIDTH_PUNCTUATION = 102;
-constexpr UINT MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION = 103;
+constexpr UINT MENU_TOGGLE_CHINESE_CONVERSION = 103;
+constexpr UINT MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION = 104;
 
 std::wstring SettingsPath() {
     std::filesystem::path path(McBopomofo::fcitx5_compat::userDirectory());
@@ -165,6 +166,11 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt, const RECT *prc
                 L"使用半形標點");
             AppendMenuW(
                 menu,
+                MF_STRING | (ReadBoolSetting(L"ChineseConversionEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
+                MENU_TOGGLE_CHINESE_CONVERSION,
+                L"繁簡轉換 (輸出簡體)");
+            AppendMenuW(
+                menu,
                 MF_STRING | (ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
                 MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION,
                 L"啟用注音標示");
@@ -216,6 +222,14 @@ STDMETHODIMP CLangBarButton::InitMenu(ITfMenu *pMenu) {
         (ULONG)wcslen(L"使用半形標點"),
         nullptr);
     pMenu->AddMenuItem(
+        MENU_TOGGLE_CHINESE_CONVERSION,
+        ReadBoolSetting(L"ChineseConversionEnabled", false) ? TF_LBMENUF_CHECKED : 0,
+        nullptr,
+        nullptr,
+        L"繁簡轉換 (輸出簡體)",
+        (ULONG)wcslen(L"繁簡轉換 (輸出簡體)"),
+        nullptr);
+    pMenu->AddMenuItem(
         MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION,
         ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false) ? TF_LBMENUF_CHECKED : 0,
         nullptr,
@@ -246,6 +260,12 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
     case MENU_TOGGLE_HALF_WIDTH_PUNCTUATION: {
         bool enabled = !ReadBoolSetting(L"HalfWidthPunctuationEnabled", false);
         WriteBoolSetting(L"HalfWidthPunctuationEnabled", enabled);
+        NotifySettingsChanged();
+        break;
+    }
+    case MENU_TOGGLE_CHINESE_CONVERSION: {
+        bool enabled = !ReadBoolSetting(L"ChineseConversionEnabled", false);
+        WriteBoolSetting(L"ChineseConversionEnabled", enabled);
         NotifySettingsChanged();
         break;
     }

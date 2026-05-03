@@ -129,6 +129,9 @@ class KeyHandler {
   void setBopomofoFontAnnotationSupportEnabled(bool enabled);
   bool bopomofoFontAnnotationSupportEnabled() const { return bopomofoFontAnnotationSupportEnabled_; }
 
+  void setChineseConversionEnabled(bool enabled);
+  bool chineseConversionEnabled() const { return chineseConversionEnabled_; }
+
   size_t actualCandidateCursorIndex();
   size_t computeActualCandidateCursorIndex(size_t index);
   size_t candidateCursorIndex();
@@ -222,6 +225,7 @@ class KeyHandler {
   bool repeatedPunctuationToSelectCandidateEnabled_ = false;
   bool chooseCandidateUsingSpace_ = true;
   bool bopomofoFontAnnotationSupportEnabled_ = false;
+  bool chineseConversionEnabled_ = false;
   KeyHandlerCtrlEnter ctrlEnterKey_ = KeyHandlerCtrlEnter::Disabled;
   std::function<void(const std::string&)> onAddNewPhrase_ = [](const std::string&){};
 };

@@ -133,6 +133,12 @@ bool HasInvalidDictionaryPrefix(const std::string& reading) {
 
 InputController::InputController(std::shared_ptr<KeyHandler> keyHandler, UIInterface* ui)
     : keyHandler_(std::move(keyHandler)), ui_(ui) {
+    try {
+        openccConverter_ = std::make_unique<opencc::SimpleConverter>("tw2s.json");
+    } catch (const std::exception& e) {
+        // Fallback or log if missing
+        openccConverter_.reset();
+    }
     currentState_ = std::make_unique<InputStates::Empty>();
 }
 
@@ -683,18 +689,18 @@ void InputController::ChangeState(std::unique_ptr<InputState> newState) {
             ChangeState(std::move(s));
         }
         return;
+    } else if (auto* commit = dynamic_cast<InputStates::Committing*>(newState.get())) {
+        if (ui_) {
+            std::string text = commit->text;
+            if (keyHandler_->chineseConversionEnabled() && openccConverter_) {
+                text = openccConverter_->Convert(text);
+            }
+            ui_->CommitString(text);
+        }
+        newState = std::make_unique<InputStates::Empty>();
     }
 
-    if (auto* commit = dynamic_cast<InputStates::Committing*>(newState.get())) {
-        if (ui_) ui_->CommitString(commit->text);
-        currentState_ = std::make_unique<InputStates::Empty>();
-        candidateIndex_ = -1;
-        if (ui_) ui_->Reset();
-        return;
-    }
-
-    if (dynamic_cast<InputStates::Empty*>(newState.get()) != nullptr) {
-        currentState_ = std::move(newState);
+    if (dynamic_cast<InputStates::Empty*>(newState.get()) != nullptr) {        currentState_ = std::move(newState);
         candidateIndex_ = -1;
         if (ui_) ui_->Reset();
         return;

@@ -89,6 +89,23 @@
       <Component Id="cmp_Pua" Guid="*">
         <File Id="file_Pua" Source="data\bpmfvs-pua.txt" KeyPath="yes" />
       </Component>
+      
+      <!-- OpenCC Data -->
+      <Component Id="cmp_OpenCC_Config_tw2s" Guid="*">
+        <File Id="file_OpenCC_Config_tw2s" Source="third_party\OpenCC\data\config\tw2s.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_STCharacters" Guid="*">
+        <File Id="file_OpenCC_Dict_STCharacters" Source="third_party\OpenCC\data\dictionary\STCharacters.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_STPhrases" Guid="*">
+        <File Id="file_OpenCC_Dict_STPhrases" Source="third_party\OpenCC\data\dictionary\STPhrases.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TWPhrases" Guid="*">
+        <File Id="file_OpenCC_Dict_TWPhrases" Source="third_party\OpenCC\data\dictionary\TWPhrases.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TWVariants" Guid="*">
+        <File Id="file_OpenCC_Dict_TWVariants" Source="third_party\OpenCC\data\dictionary\TWVariants.txt" KeyPath="yes" />
+      </Component>
     </ComponentGroup>
 
     <!-- Custom Actions to register/unregister the TSF DLL and manage Server process -->

@@ -3,6 +3,7 @@
 #include "KeyHandler.h"
 #include "InputState.h"
 #include "UIInterface.h"
+#include <SimpleConverter.hpp>
 
 namespace McBopomofo {
 
@@ -59,6 +60,8 @@ private:
     std::string candidateKeys_ = "123456789";
     int candidateKeysCount_ = 9;
     bool candidateWindowVertical_ = false;
+    
+    std::unique_ptr<opencc::SimpleConverter> openccConverter_;
 };
 
 } // namespace McBopomofo

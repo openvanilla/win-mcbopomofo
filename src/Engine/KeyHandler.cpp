@@ -784,6 +784,13 @@ void KeyHandler::setBopomofoFontAnnotationSupportEnabled(bool enabled) {
   bopomofoFontAnnotationSupportEnabled_ = enabled;
 }
 
+void KeyHandler::setChineseConversionEnabled(bool enabled) {
+  chineseConversionEnabled_ = enabled;
+  if (auto* lm = dynamic_cast<McBopomofoLM*>(this->lm_.get())) {
+    lm->setExternalConverterEnabled(enabled);
+  }
+}
+
 #pragma endregion Settings
 
 #pragma region Key_Handling

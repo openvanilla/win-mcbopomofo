@@ -31,6 +31,7 @@ target_include_directories(McBopomofoEngine PUBLIC
     ${ENGINE_DIR}/gramambular2
     ${ENGINE_DIR}/Mandarin
     ${CMAKE_CURRENT_SOURCE_DIR} # For sys/mman.h
+    ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src
 )
 
 # Force C++17 for the engine to maintain compatibility with std::string_view iterators
@@ -48,4 +49,5 @@ add_executable(McBopomofoServer
     WindowsKeyBridge.cpp
     Settings.cpp
 )
-target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common)
+target_include_directories(McBopomofoServer PRIVATE ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src)
+target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common libopencc)

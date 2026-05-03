@@ -18,6 +18,15 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
+# Add external dependencies first
+set(ENABLE_GETTEXT OFF CACHE BOOL "Disable Gettext for OpenCC" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build OpenCC as static" FORCE)
+set(USE_SYSTEM_DARTS OFF CACHE BOOL "Use bundled darts" FORCE)
+set(USE_SYSTEM_MARISA OFF CACHE BOOL "Use bundled marisa" FORCE)
+set(USE_SYSTEM_TINYXML2 OFF CACHE BOOL "Use bundled tinyxml2" FORCE)
+set(BUILD_DOCUMENTATION OFF CACHE BOOL "Do not build OpenCC docs" FORCE)
+add_subdirectory(third_party/OpenCC EXCLUDE_FROM_ALL)
+
 add_subdirectory(src)
 
 # Add tests

@@ -60,6 +60,7 @@ void Settings::Load() {
     ctrlEnterKeyBehavior_ = (KeyHandlerCtrlEnter)ReadInt(L"General", L"CtrlEnterKeyBehavior", (int)KeyHandlerCtrlEnter::Disabled);
     associatedPhrasesEnabled_ = ReadBool(L"General", L"AssociatedPhrasesEnabled", false);
     halfWidthPunctuationEnabled_ = ReadBool(L"General", L"HalfWidthPunctuationEnabled", false);
+    chineseConversionEnabled_ = ReadBool(L"General", L"ChineseConversionEnabled", false);
     bopomofoFontAnnotationSupportEnabled_ = ReadBool(L"General", L"BopomofoFontAnnotationSupportEnabled", false);
     repeatedPunctuationToSelectCandidateEnabled_ = ReadBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", false);
     chooseCandidateUsingSpace_ = ReadBool(L"General", L"ChooseCandidateUsingSpace", true);
@@ -85,6 +86,7 @@ void Settings::Save() {
     WriteInt(L"General", L"CtrlEnterKeyBehavior", (int)ctrlEnterKeyBehavior_);
     WriteBool(L"General", L"AssociatedPhrasesEnabled", associatedPhrasesEnabled_);
     WriteBool(L"General", L"HalfWidthPunctuationEnabled", halfWidthPunctuationEnabled_);
+    WriteBool(L"General", L"ChineseConversionEnabled", chineseConversionEnabled_);
     WriteBool(L"General", L"BopomofoFontAnnotationSupportEnabled", bopomofoFontAnnotationSupportEnabled_);
     WriteBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", repeatedPunctuationToSelectCandidateEnabled_);
     WriteBool(L"General", L"ChooseCandidateUsingSpace", chooseCandidateUsingSpace_);
