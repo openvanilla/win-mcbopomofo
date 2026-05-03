@@ -21,6 +21,9 @@ if (Test-Path "$installDir\McBopomofoTIP_x64.dll") {
 if (Test-Path "$installDir\McBopomofoTIP_x86.dll") {
     Start-Process -FilePath "C:\Windows\SysWOW64\regsvr32.exe" -ArgumentList "/u /s `"$installDir\McBopomofoTIP_x86.dll`"" -Wait
 }
+if ((Test-Path "$installDir\McBopomofoTIP_arm64.dll") -and $env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
+    Start-Process -FilePath "C:\Windows\System32\regsvr32.exe" -ArgumentList "/u /s `"$installDir\McBopomofoTIP_arm64.dll`"" -Wait
+}
 
 Write-Host "3. Restarting TSF..."
 Stop-Process -Name "ctfmon" -Force -ErrorAction SilentlyContinue

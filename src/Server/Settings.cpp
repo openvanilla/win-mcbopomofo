@@ -62,6 +62,14 @@ void Settings::Load() {
     halfWidthPunctuationEnabled_ = ReadBool(L"General", L"HalfWidthPunctuationEnabled", false);
     repeatedPunctuationToSelectCandidateEnabled_ = ReadBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", false);
     chooseCandidateUsingSpace_ = ReadBool(L"General", L"ChooseCandidateUsingSpace", true);
+    candidateKeys_ = Utf16ToUtf8(ReadString(L"General", L"CandidateKeys", L"123456789"));
+    if (candidateKeys_ != "123456789" && candidateKeys_ != "asdfghjkl" && candidateKeys_ != "asdfzxcvb") {
+        candidateKeys_ = "123456789";
+    }
+    candidateKeysCount_ = ReadInt(L"General", L"CandidateKeysCount", 9);
+    if (candidateKeysCount_ < 4 || candidateKeysCount_ > 9) {
+        candidateKeysCount_ = 9;
+    }
     candidateWindowVertical_ = ReadBool(L"UI", L"CandidateWindowVertical", false);
 }
 
@@ -78,6 +86,8 @@ void Settings::Save() {
     WriteBool(L"General", L"HalfWidthPunctuationEnabled", halfWidthPunctuationEnabled_);
     WriteBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", repeatedPunctuationToSelectCandidateEnabled_);
     WriteBool(L"General", L"ChooseCandidateUsingSpace", chooseCandidateUsingSpace_);
+    WriteString(L"General", L"CandidateKeys", Utf8ToUtf16(candidateKeys_));
+    WriteInt(L"General", L"CandidateKeysCount", candidateKeysCount_);
     WriteBool(L"UI", L"CandidateWindowVertical", candidateWindowVertical_);
 }
 
@@ -103,6 +113,8 @@ void Settings::ApplyTo(InputController& controller) {
     controller.SetHalfWidthPunctuationEnabled(halfWidthPunctuationEnabled_);
     controller.SetRepeatedPunctuationToSelectCandidateEnabled(repeatedPunctuationToSelectCandidateEnabled_);
     controller.SetChooseCandidateUsingSpace(chooseCandidateUsingSpace_);
+    controller.SetCandidateKeys(candidateKeys_);
+    controller.SetCandidateKeysCount(candidateKeysCount_);
     controller.SetCandidateWindowVertical(candidateWindowVertical_);
 }
 

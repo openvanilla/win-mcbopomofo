@@ -33,6 +33,8 @@ public:
     void SetHalfWidthPunctuationEnabled(bool enabled);
     void SetRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
     void SetChooseCandidateUsingSpace(bool enabled);
+    void SetCandidateKeys(const std::string& keys);
+    void SetCandidateKeysCount(int count);
     void SetCandidateWindowVertical(bool vertical);
 
     int GetCandidateIndex() const { return candidateIndex_; }
@@ -53,6 +55,8 @@ private:
     UIInterface* ui_;
     std::unique_ptr<InputState> currentState_;
     int candidateIndex_ = -1;
+    std::string candidateKeys_ = "123456789";
+    int candidateKeysCount_ = 9;
     bool candidateWindowVertical_ = false;
 };
 

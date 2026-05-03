@@ -11,7 +11,8 @@
 const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
 CandidateWindow::CandidateWindow() 
-    : _hwnd(nullptr), _dpiScale(1.0f), _cursorIndex(0), _isVertical(false), _isDarkMode(false),
+    : _hwnd(nullptr), _dpiScale(1.0f), _cursorIndex(0), _candidateKeys(L"123456789"),
+      _candidateKeysCount(9), _isVertical(false), _isDarkMode(false),
       _pD2DFactory(nullptr), _pRenderTarget(nullptr), _pDWriteFactory(nullptr), 
       _pTextFormat(nullptr), _pTextLayout(nullptr),
       _pTextBrush(nullptr), _pBgBrush(nullptr), _pBorderBrush(nullptr),
@@ -132,6 +133,16 @@ void CandidateWindow::OnSettingChange() {
     std::string dir = McBopomofo::fcitx5_compat::userDirectory();
     std::wstring iniPath = McBopomofo::Utf8ToUtf16(dir) + L"\\mcbopomofo.ini";
     _isVertical = GetPrivateProfileIntW(L"UI", L"CandidateWindowVertical", 0, iniPath.c_str()) != 0;
+    wchar_t keys[32] = {};
+    GetPrivateProfileStringW(L"General", L"CandidateKeys", L"123456789", keys, 32, iniPath.c_str());
+    _candidateKeys = keys;
+    if (_candidateKeys != L"123456789" && _candidateKeys != L"asdfghjkl" && _candidateKeys != L"asdfzxcvb") {
+        _candidateKeys = L"123456789";
+    }
+    _candidateKeysCount = GetPrivateProfileIntW(L"General", L"CandidateKeysCount", 9, iniPath.c_str());
+    if (_candidateKeysCount < 4 || _candidateKeysCount > 9) {
+        _candidateKeysCount = 9;
+    }
 }
 
 bool CandidateWindow::Create(HINSTANCE hInstance) {
@@ -187,8 +198,7 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
 
     bool drawVertical = _isVertical || forceVertical;
 
-    // Pagination logic: 9 candidates per page
-    const int pageSize = 9;
+    const int pageSize = _candidateKeysCount;
     int pageIndex = _cursorIndex / pageSize;
     int startIndex = pageIndex * pageSize;
     int endIndex = std::min((int)_candidates.size(), startIndex + pageSize);
@@ -199,9 +209,10 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
     UINT32 currentPos = 0;
 
     for (int i = startIndex; i < endIndex; ++i) {
-        int displayNum = (i - startIndex) + 1;
-        
-        std::wstring keyStr = std::to_wstring(displayNum) + L". ";
+        int displayIndex = i - startIndex;
+        wchar_t key = displayIndex < static_cast<int>(_candidateKeys.length()) ? _candidateKeys[displayIndex] : L'?';
+        std::wstring keyStr(1, key);
+        keyStr += L". ";
         std::wstring candStr = _candidates[i];
 
         if (i == _cursorIndex) {
@@ -227,8 +238,8 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
     }
     
     // Add page indicator if there are multiple pages
-    if (_candidates.size() > pageSize) {
-        int totalPages = ((int)_candidates.size() + pageSize - 1) / pageSize;
+    if (static_cast<int>(_candidates.size()) > pageSize) {
+        int totalPages = (static_cast<int>(_candidates.size()) + pageSize - 1) / pageSize;
         std::wstring indStr = (drawVertical ? L"\n(" : L"  (");
         indStr += std::to_wstring(pageIndex + 1) + L"/" + std::to_wstring(totalPages) + L")";
         

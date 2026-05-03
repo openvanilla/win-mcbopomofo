@@ -1,6 +1,7 @@
 #include "InputController.h"
 
 #include <algorithm>
+#include <cctype>
 #include <shellapi.h>
 #include <windows.h>
 
@@ -10,7 +11,6 @@ namespace McBopomofo {
 
 namespace {
 
-constexpr int kPageSize = 9;
 constexpr size_t kForceVerticalCandidateThreshold = 8;
 
 int CandidateCount(InputState* state) {
@@ -82,7 +82,7 @@ bool IsForcedVerticalCandidateState(InputState* state) {
     return false;
 }
 
-int SelectionIndexFromKey(const Key& key, bool useShiftKey) {
+int SelectionIndexFromKey(const Key& key, bool useShiftKey, const std::string& candidateKeys, int candidateKeysCount) {
     if (useShiftKey) {
         if (!key.shiftPressed) {
             return -1;
@@ -104,8 +104,11 @@ int SelectionIndexFromKey(const Key& key, bool useShiftKey) {
         }
     }
 
-    if (key.ascii >= '1' && key.ascii <= '9') {
-        return key.ascii - '1';
+    char ascii = static_cast<char>(key.ascii);
+    ascii = static_cast<char>(std::tolower(static_cast<unsigned char>(ascii)));
+    auto found = candidateKeys.find(ascii);
+    if (found != std::string::npos && found < static_cast<size_t>(candidateKeysCount)) {
+        return static_cast<int>(found);
     }
     return -1;
 }
@@ -186,10 +189,10 @@ bool InputController::HandleCandidateKey(const Key& key) {
     bool useShiftKey = numberInput != nullptr || associatedPlain != nullptr ||
                        (associated != nullptr && associated->useShiftKey);
 
-    int selectionIndex = SelectionIndexFromKey(key, useShiftKey);
+    int selectionIndex = SelectionIndexFromKey(key, useShiftKey, candidateKeys_, candidateKeysCount_);
     if (selectionIndex != -1) {
         int actualIndex = useShiftKey ? selectionIndex
-                                      : (candidateIndex_ / kPageSize) * kPageSize + selectionIndex;
+                                      : (candidateIndex_ / candidateKeysCount_) * candidateKeysCount_ + selectionIndex;
         if (actualIndex < count) {
             SelectCandidate(actualIndex);
         }
@@ -340,14 +343,14 @@ void InputController::MoveCandidatePage(bool forward) {
         candidateIndex_ = -1;
         return;
     }
-    int totalPages = (count + kPageSize - 1) / kPageSize;
-    int page = candidateIndex_ / kPageSize;
+    int totalPages = (count + candidateKeysCount_ - 1) / candidateKeysCount_;
+    int page = candidateIndex_ / candidateKeysCount_;
     if (forward) {
         page = page + 1 < totalPages ? page + 1 : 0;
     } else {
         page = page > 0 ? page - 1 : totalPages - 1;
     }
-    candidateIndex_ = page * kPageSize;
+    candidateIndex_ = page * candidateKeysCount_;
 }
 
 void InputController::MoveReadingCursorInCandidatePanel(bool forward) {
@@ -648,6 +651,22 @@ void InputController::SetRepeatedPunctuationToSelectCandidateEnabled(bool enable
 
 void InputController::SetChooseCandidateUsingSpace(bool enabled) {
     keyHandler_->setChooseCandidateUsingSpace(enabled);
+}
+
+void InputController::SetCandidateKeys(const std::string& keys) {
+    if (keys == "123456789" || keys == "asdfghjkl" || keys == "asdfzxcvb") {
+        candidateKeys_ = keys;
+    } else {
+        candidateKeys_ = "123456789";
+    }
+}
+
+void InputController::SetCandidateKeysCount(int count) {
+    if (count >= 4 && count <= 9) {
+        candidateKeysCount_ = count;
+    } else {
+        candidateKeysCount_ = 9;
+    }
 }
 
 void InputController::SetCandidateWindowVertical(bool vertical) {

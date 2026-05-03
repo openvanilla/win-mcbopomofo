@@ -56,6 +56,12 @@ public:
     bool GetChooseCandidateUsingSpace() const { return chooseCandidateUsingSpace_; }
     void SetChooseCandidateUsingSpace(bool v) { chooseCandidateUsingSpace_ = v; }
 
+    std::string GetCandidateKeys() const { return candidateKeys_; }
+    void SetCandidateKeys(const std::string& v) { candidateKeys_ = v; }
+
+    int GetCandidateKeysCount() const { return candidateKeysCount_; }
+    void SetCandidateKeysCount(int v) { candidateKeysCount_ = v; }
+
     bool GetCandidateWindowVertical() const { return candidateWindowVertical_; }
     void SetCandidateWindowVertical(bool v) { candidateWindowVertical_ = v; }
 
@@ -82,6 +88,8 @@ private:
     bool halfWidthPunctuationEnabled_ = false;
     bool repeatedPunctuationToSelectCandidateEnabled_ = false;
     bool chooseCandidateUsingSpace_ = true;
+    std::string candidateKeys_ = "123456789";
+    int candidateKeysCount_ = 9;
     bool candidateWindowVertical_ = false;
 };
 

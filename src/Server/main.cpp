@@ -26,6 +26,8 @@ using namespace McBopomofo;
 #define IDM_RESTART 1001
 #define IDM_EXIT 1002
 
+constexpr const wchar_t* kServerSingleInstanceMutexName = L"Local\\WinMcBopomofoServerSingleInstance";
+
 class WinUserPhraseAdder : public UserPhraseAdder {
 public:
     WinUserPhraseAdder(std::shared_ptr<McBopomofoLM> lm) : lm_(lm) {
@@ -342,6 +344,11 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 }
 
 int main(int argc, char* argv[]) {
+    HANDLE hSingleInstanceMutex = CreateMutexW(nullptr, TRUE, kServerSingleInstanceMutexName);
+    if (hSingleInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+        return 0;
+    }
+
     FCITX_MCBOPOMOFO_INFO() << "Win-McBopomofo Server daemon starting...";
     
     WCHAR szExePath[MAX_PATH];
@@ -368,6 +375,10 @@ int main(int argc, char* argv[]) {
 
     if (!lm->isDataModelLoaded()) {
         FCITX_MCBOPOMOFO_ERROR() << "Failed to load language model from: " << dataPath;
+        if (hSingleInstanceMutex) {
+            ReleaseMutex(hSingleInstanceMutex);
+            CloseHandle(hSingleInstanceMutex);
+        }
         return 1;
     }
 
@@ -521,6 +532,11 @@ int main(int argc, char* argv[]) {
     server.Stop();
     Shell_NotifyIconW(NIM_DELETE, &nid);
     DestroyWindow(hwndTray);
+
+    if (hSingleInstanceMutex) {
+        ReleaseMutex(hSingleInstanceMutex);
+        CloseHandle(hSingleInstanceMutex);
+    }
 
     return 0;
 }

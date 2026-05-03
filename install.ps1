@@ -24,27 +24,37 @@ Write-Host "3. Building Win32 (32-bit)..."
 cmake -S . -B build_x86 -A Win32
 cmake --build build_x86 --config Release --target McBopomofoTIP
 
-Write-Host "4. Staging files to 'dist' folder..."
+Write-Host "4. Building ARM64..."
+cmake -S . -B build_arm64 -A ARM64
+cmake --build build_arm64 --config Release --target McBopomofoTIP
+
+Write-Host "5. Staging files to 'dist' folder..."
 Copy-Item "build_x64\bin\Release\McBopomofoServer.exe" "$installDir\"
 Copy-Item "build_x64\bin\Release\McBopomofoConfig.exe" "$installDir\"
 Copy-Item "build_x64\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_x64.dll"
 Copy-Item "build_x86\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_x86.dll"
+Copy-Item "build_arm64\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_arm64.dll"
 Copy-Item "data\data.txt" "$installDir\data\"
 Copy-Item "data\associated-phrases-v2.txt" "$installDir\data\"
 
-Write-Host "5. Granting AppContainer (UWP) permissions to dist folder..."
+Write-Host "6. Granting AppContainer (UWP) permissions to dist folder..."
 icacls "$installDir" /grant "ALL APPLICATION PACKAGES:(OI)(CI)(RX)" /T /Q
 
-Write-Host "6. Registering TSF DLLs..."
+Write-Host "7. Registering TSF DLLs..."
 Start-Process -FilePath "C:\Windows\System32\regsvr32.exe" -ArgumentList "/s `"$installDir\McBopomofoTIP_x64.dll`"" -Wait
 Start-Process -FilePath "C:\Windows\SysWOW64\regsvr32.exe" -ArgumentList "/s `"$installDir\McBopomofoTIP_x86.dll`"" -Wait
+if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
+    Start-Process -FilePath "C:\Windows\System32\regsvr32.exe" -ArgumentList "/s `"$installDir\McBopomofoTIP_arm64.dll`"" -Wait
+} else {
+    Write-Host "Skipping ARM64 DLL registration on non-ARM64 host."
+}
 
-Write-Host "7. Restarting TSF..."
+Write-Host "8. Restarting TSF..."
 Stop-Process -Name "ctfmon" -Force -ErrorAction SilentlyContinue
 Start-Process "ctfmon.exe"
 Start-Sleep -Seconds 1
 
-Write-Host "8. Starting McBopomofoServer..."
+Write-Host "9. Starting McBopomofoServer..."
 $serverPath = "$installDir\McBopomofoServer.exe"
 $dataPath = "$installDir\data\data.txt"
 Start-Process -FilePath $serverPath -ArgumentList "`"$dataPath`"" -WorkingDirectory "$installDir" -WindowStyle Hidden

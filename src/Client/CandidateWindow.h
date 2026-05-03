@@ -40,6 +40,8 @@ private:
     std::vector<std::wstring> _candidates;
     int _cursorIndex;
     std::wstring _displayString;
+    std::wstring _candidateKeys;
+    int _candidateKeysCount;
     bool _isVertical;
     bool _isDarkMode;
 
