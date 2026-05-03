@@ -282,6 +282,10 @@ private:
     std::function<void()> reloadUserPhrases_;
 };
 
+bool IsCtrlSpace(const IPC::KeyEventPayload& key) {
+    return key.vk == VK_SPACE && key.ctrl;
+}
+
 #define IDM_SETTINGS 1003
 #define IDM_OPEN_USER_PHRASES 1004
 #define IDM_OPEN_EXCLUDED_PHRASES 1005
@@ -428,7 +432,12 @@ int main(int argc, char* argv[]) {
         IPC::KeyEventPayload keyReq;
         if (IPC::DeserializeKeyEvent(req, keyReq)) {
             FCITX_MCBOPOMOFO_INFO() << "IPC Recv: VK=" << keyReq.vk << ", ASCII=" << keyReq.ascii << ", SHIFT=" << keyReq.shift << ", CTRL=" << keyReq.ctrl;
-            bool consumed = controller.HandleKey(MapIPCKey(keyReq));
+            bool consumed = true;
+            if (IsCtrlSpace(keyReq)) {
+                FCITX_MCBOPOMOFO_INFO() << "IPC Ctrl+Space: Chinese/English mode toggle handled before input controller.";
+            } else {
+                consumed = controller.HandleKey(MapIPCKey(keyReq));
+            }
             ui.currentState.consumed = consumed;
             return IPC::SerializeStateUpdate(ui.currentState);
         }
