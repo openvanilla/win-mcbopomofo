@@ -14,6 +14,29 @@ extern const GUID GUID_LBI_SWITCH_LANG = { 0x5C7D0E31, 0x28C0, 0x4D1F, { 0xB3, 0
 
 namespace {
 constexpr UINT MENU_TOGGLE_OPEN_CLOSE = 100;
+
+bool ShellOpenPath(const std::filesystem::path& path) {
+    HINSTANCE result = ShellExecuteW(nullptr, L"open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    return reinterpret_cast<INT_PTR>(result) > 32;
+}
+
+bool OpenSettingsAppFromModule(HMODULE module) {
+    WCHAR path[MAX_PATH] = {};
+    if (!module || GetModuleFileNameW(module, path, MAX_PATH) == 0) {
+        return false;
+    }
+
+    std::filesystem::path configPath(path);
+    configPath.replace_filename(L"McBopomofoConfig.exe");
+    return ShellOpenPath(configPath);
+}
+
+void OpenSettingsApp() {
+    if (OpenSettingsAppFromModule(g_hInst)) {
+        return;
+    }
+    OpenSettingsAppFromModule(GetModuleHandleW(L"McBopomofoTIP_v2.dll"));
+}
 }
 
 std::atomic<DWORD> CLangBarButton::_nextCookie = 1;
@@ -148,11 +171,7 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
         _pTIP->ToggleOpenClose();
         break;
     case 1: {
-        WCHAR path[MAX_PATH];
-        GetModuleFileNameW(GetModuleHandleW(L"McBopomofoTIP_v2.dll"), path, MAX_PATH);
-        std::filesystem::path p(path);
-        p.replace_filename("McBopomofoConfig.exe");
-        ShellExecuteW(NULL, L"open", p.c_str(), NULL, NULL, SW_SHOW);
+        OpenSettingsApp();
         break;
     }
     case 2: {

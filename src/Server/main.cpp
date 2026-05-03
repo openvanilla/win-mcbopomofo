@@ -292,6 +292,17 @@ bool IsCtrlSpace(const IPC::KeyEventPayload& key) {
 #define IDM_OPEN_USER_DIR 1006
 #define IDM_EXIT 1002
 
+void OpenSettingsApp() {
+    WCHAR path[MAX_PATH] = {};
+    if (GetModuleFileNameW(nullptr, path, MAX_PATH) == 0) {
+        return;
+    }
+
+    std::filesystem::path configPath(path);
+    configPath.replace_filename(L"McBopomofoConfig.exe");
+    ShellExecuteW(nullptr, L"open", configPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+}
+
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_USER_TRAY) {
         if (LOWORD(lParam) == WM_RBUTTONUP) {
@@ -314,11 +325,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (LOWORD(wParam) == IDM_EXIT) {
             PostQuitMessage(0);
         } else if (LOWORD(wParam) == IDM_SETTINGS) {
-            WCHAR path[MAX_PATH];
-            GetModuleFileNameW(NULL, path, MAX_PATH);
-            std::filesystem::path p(path);
-            p.replace_filename("McBopomofoConfig.exe");
-            ShellExecuteW(NULL, L"open", p.c_str(), NULL, NULL, SW_SHOW);
+            OpenSettingsApp();
         } else if (LOWORD(wParam) == IDM_OPEN_USER_PHRASES) {
             std::string path = fcitx5_compat::userDirectory() + "/user.txt";
             ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
