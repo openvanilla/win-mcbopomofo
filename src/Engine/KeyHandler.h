@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Mandarin/Mandarin.h"
+#include "DictionaryService.h"
 #include "UserOverrideModel.h"
 #include "gramambular2/language_model.h"
 #include "gramambular2/reading_grid.h"
@@ -104,6 +105,7 @@ class KeyHandler {
   void reset();
 
   bool hasDictionaryServices();
+  DictionaryServices* getDictionaryServices() { return &dictionaryServices_; }
 
   std::unique_ptr<InputStates::SelectingDictionary>
   buildSelectingDictionaryState(
@@ -207,6 +209,7 @@ class KeyHandler {
   UserOverrideModel userOverrideModel_;
   Formosa::Mandarin::BopomofoReadingBuffer reading_;
   Formosa::Gramambular2::ReadingGrid::WalkResult latestWalk_;
+  DictionaryServices dictionaryServices_;
 
   McBopomofo::InputMode inputMode_ = McBopomofo::InputMode::McBopomofo;
   bool selectPhraseAfterCursorAsCandidate_ = false;

@@ -107,14 +107,20 @@ public:
             currentState.candidates.clear();
             for (const auto& c : choosing->candidates) {
                 currentState.candidates.push_back(c.value);
-                
+
                 // If any candidate string length > 8, force vertical
                 if (c.value.length() > 8 * 3) { // Approximate check for UTF-8 lengths
                     currentState.forceVertical = true;
                 }
             }
-        } else if (auto* marking = dynamic_cast<InputStates::Marking*>(state)) {
-            currentState.composingBuffer = marking->composingBuffer;
+        } else if (auto* selDict = dynamic_cast<InputStates::SelectingDictionary*>(state)) {
+            currentState.composingBuffer = selDict->composingBuffer;
+            currentState.cursorIndex = (int)selDict->cursorIndex;
+            currentState.candidates.clear();
+            for (const auto& m : selDict->menu) {
+                currentState.candidates.push_back(m);
+            }
+        } else if (auto* marking = dynamic_cast<InputStates::Marking*>(state)) {            currentState.composingBuffer = marking->composingBuffer;
             currentState.cursorIndex = (int)marking->cursorIndex;
             currentState.candidates.clear();
             currentState.markStart = (int)marking->head.length();

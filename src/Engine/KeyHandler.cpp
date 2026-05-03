@@ -580,10 +580,17 @@ void KeyHandler::candidateAssociatedPhraseSelected(
   stateCallback(buildInputtingState());
 }
 
+bool KeyHandler::hasDictionaryServices() {
+  return dictionaryServices_.hasServices();
+}
+
 void KeyHandler::dictionaryServiceSelected(std::string phrase, size_t index,
                                            InputState* currentState,
                                            StateCallback stateCallback) {
-  // Dictionary services removed.
+  dictionaryServices_.lookup(phrase, index, currentState, stateCallback);
+  if (auto* selDict = dynamic_cast<InputStates::SelectingDictionary*>(currentState)) {
+      stateCallback(std::move(selDict->previousState));
+  }
 }
 
 bool KeyHandler::candidatePanelPunctuationMaybeEntered(

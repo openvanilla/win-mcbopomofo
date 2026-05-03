@@ -76,6 +76,8 @@ class DictionaryServices {
    */
   std::vector<std::string> menuForPhrase(const std::string& phrase);
 
+  std::string getUrlForPhrase(const std::string& phrase, size_t serviceIndex) const;
+
  protected:
   std::vector<std::unique_ptr<DictionaryService>> services_;
 };

@@ -1,4 +1,6 @@
 #include "InputController.h"
+#include <windows.h>
+#include <shellapi.h>
 
 namespace McBopomofo {
 
@@ -8,6 +10,86 @@ InputController::InputController(std::shared_ptr<KeyHandler> keyHandler, UIInter
 }
 
 bool InputController::HandleKey(const Key& key) {
+    if (auto* selDict = dynamic_cast<InputStates::SelectingDictionary*>(currentState_.get())) {
+        const int pageSize = 9;
+        int count = (int)selDict->menu.size();
+
+        if (key.name == Key::KeyName::UP || key.name == Key::KeyName::DOWN ||
+            key.name == Key::KeyName::LEFT || key.name == Key::KeyName::RIGHT ||
+            key.name == Key::KeyName::HOME || key.name == Key::KeyName::END ||
+            key.name == Key::KeyName::PAGE_UP || key.name == Key::KeyName::PAGE_DOWN) {
+            
+            if (key.name == Key::KeyName::HOME) {
+                candidateIndex_ = 0;
+            } else if (key.name == Key::KeyName::END) {
+                candidateIndex_ = count - 1;
+            } else if (key.name == Key::KeyName::UP || key.name == Key::KeyName::LEFT) {
+                if (candidateIndex_ > 0) {
+                    candidateIndex_--;
+                } else {
+                    candidateIndex_ = count - 1;
+                }
+            } else if (key.name == Key::KeyName::DOWN || key.name == Key::KeyName::RIGHT) {
+                if (candidateIndex_ < count - 1) {
+                    candidateIndex_++;
+                } else {
+                    candidateIndex_ = 0;
+                }
+            } else if (key.name == Key::KeyName::PAGE_UP) {
+                candidateIndex_ = std::max(0, candidateIndex_ - pageSize);
+            } else if (key.name == Key::KeyName::PAGE_DOWN) {
+                candidateIndex_ = std::min(count - 1, candidateIndex_ + pageSize);
+            }
+            if (ui_) ui_->Update(currentState_.get());
+            return true;
+        }
+
+        if (key.ascii == Key::RETURN) {
+            auto* dictionaryServices = keyHandler_->getDictionaryServices();
+            if (dictionaryServices && candidateIndex_ >= 0 && candidateIndex_ < count) {
+                std::string url = dictionaryServices->getUrlForPhrase(selDict->selectedPhrase, candidateIndex_);
+                if (!url.empty()) {
+                    // Send to client to open URL via ui_->CommitString or another mechanism, 
+                    // or open directly here.
+                    // Wait, earlier I added ShellExecuteW in CLangBarButton. Here we can use ShellExecuteA in the server.
+#ifdef _WIN32
+                    ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOW);
+#endif
+                }
+                
+                // Return to previous state
+                ChangeState(std::move(selDict->previousState));
+            }
+            return true;
+        }
+
+        if (key.ascii >= '1' && key.ascii <= '9') {
+            int pageIndex = candidateIndex_ / pageSize;
+            int indexOnPage = key.ascii - '1';
+            int actualIndex = pageIndex * pageSize + indexOnPage;
+            if (actualIndex < count) {
+                auto* dictionaryServices = keyHandler_->getDictionaryServices();
+                if (dictionaryServices) {
+                    std::string url = dictionaryServices->getUrlForPhrase(selDict->selectedPhrase, actualIndex);
+                    if (!url.empty()) {
+#ifdef _WIN32
+                        ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOW);
+#endif
+                    }
+                    ChangeState(std::move(selDict->previousState));
+                }
+            }
+            return true;
+        }
+
+        if (key.ascii == Key::ESC) {
+            ChangeState(std::move(selDict->previousState));
+            return true;
+        }
+
+        return true; // Block all other keys
+    }
+
     if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get())) {
         const int pageSize = 9;
         int count = (int)choosing->candidates.size();
@@ -113,6 +195,22 @@ bool InputController::HandleKey(const Key& key) {
                 return true;
             }
             return true; // Consume but do nothing
+        }
+
+        if (key.ascii == '?') {
+            if (candidateIndex_ >= 0 && candidateIndex_ < count) {
+                auto* dictionaryServices = keyHandler_->getDictionaryServices();
+                if (dictionaryServices && dictionaryServices->hasServices()) {
+                    std::string phrase = choosing->candidates[candidateIndex_].value;
+                    std::vector<std::string> menu = dictionaryServices->menuForPhrase(phrase);
+                    auto copy = std::make_unique<InputStates::ChoosingCandidate>(*choosing);
+                    auto newState = std::make_unique<InputStates::SelectingDictionary>(
+                        std::move(copy), phrase, candidateIndex_, std::move(menu)
+                    );
+                    ChangeState(std::move(newState));
+                    return true;
+                }
+            }
         }
 
         // When the candidate window appears, block other keys to control the candidate window.
