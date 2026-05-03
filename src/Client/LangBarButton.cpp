@@ -49,7 +49,7 @@ STDMETHODIMP CLangBarButton::GetInfo(TF_LANGBARITEMINFO *pInfo) {
     if (!pInfo) return E_INVALIDARG;
     pInfo->clsidService = c_clsidMcBopomofoTIP;
     pInfo->guidItem = _guid;
-    pInfo->dwStyle = TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_BTN_MENU;
+    pInfo->dwStyle = TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_BTN_MENU | TF_LBI_STYLE_SHOWNINTRAY;
     pInfo->ulSort = 0;
     wcscpy_s(pInfo->szDescription, L"Win-McBopomofo");
     return S_OK;
@@ -120,42 +120,49 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
     return S_OK;
 }
 
+#include "resource.h"
+extern HINSTANCE g_hInst;
+
 STDMETHODIMP CLangBarButton::GetIcon(HICON *phIcon) {
     if (!phIcon) return E_INVALIDARG;
     
     bool isOpen = _pTIP->IsOpen();
     
-    // Instead of drawing text into an icon, we can load standard icons from exe
-    // or just draw a simple box with "中" or "英"
-    HDC hdc = GetDC(NULL);
-    HDC hMemDC = CreateCompatibleDC(hdc);
-    HBITMAP hBitmap = CreateCompatibleBitmap(hdc, 16, 16);
-    HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
-    
-    RECT rc = {0, 0, 16, 16};
-    FillRect(hMemDC, &rc, (HBRUSH)(COLOR_WINDOW+1));
-    SetBkMode(hMemDC, TRANSPARENT);
-    SetTextColor(hMemDC, RGB(0,0,0));
-    
-    HFONT hFont = CreateFontW(14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-    HFONT hOldFont = (HFONT)SelectObject(hMemDC, hFont);
-    
-    const wchar_t* txt = isOpen ? L"中" : L"英";
-    DrawTextW(hMemDC, txt, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    
-    SelectObject(hMemDC, hOldFont);
-    DeleteObject(hFont);
-    SelectObject(hMemDC, hOldBitmap);
-    
-    ICONINFO ii = {0};
-    ii.fIcon = TRUE;
-    ii.hbmMask = hBitmap;
-    ii.hbmColor = hBitmap;
-    *phIcon = CreateIconIndirect(&ii);
-    
-    DeleteObject(hBitmap);
-    DeleteDC(hMemDC);
-    ReleaseDC(NULL, hdc);
+    UINT iconId = isOpen ? IDI_ICON_ZH : IDI_ICON_EN;
+    *phIcon = LoadIconW(g_hInst, MAKEINTRESOURCEW(iconId));
+
+    if (!*phIcon) {
+        // Fallback drawing if icon fails to load
+        HDC hdc = GetDC(NULL);
+        HDC hMemDC = CreateCompatibleDC(hdc);
+        HBITMAP hBitmap = CreateCompatibleBitmap(hdc, 16, 16);
+        HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
+        
+        RECT rc = {0, 0, 16, 16};
+        FillRect(hMemDC, &rc, (HBRUSH)(COLOR_WINDOW+1));
+        SetBkMode(hMemDC, TRANSPARENT);
+        SetTextColor(hMemDC, RGB(0,0,0));
+        
+        HFONT hFont = CreateFontW(14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+        HFONT hOldFont = (HFONT)SelectObject(hMemDC, hFont);
+        
+        const wchar_t* txt = isOpen ? L"中" : L"英";
+        DrawTextW(hMemDC, txt, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        
+        SelectObject(hMemDC, hOldFont);
+        DeleteObject(hFont);
+        SelectObject(hMemDC, hOldBitmap);
+        
+        ICONINFO ii = {0};
+        ii.fIcon = TRUE;
+        ii.hbmMask = hBitmap;
+        ii.hbmColor = hBitmap;
+        *phIcon = CreateIconIndirect(&ii);
+        
+        DeleteObject(hBitmap);
+        DeleteDC(hMemDC);
+        ReleaseDC(NULL, hdc);
+    }
 
     return S_OK;
 }
