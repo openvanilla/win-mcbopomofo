@@ -1,5 +1,6 @@
 #include "Register.h"
 #include "Globals.h"
+#include "DisplayAttributeInfo.h"
 #include <strsafe.h>
 
 // Profile GUID for McBopomofo (Genereted a new random one)

@@ -3,6 +3,7 @@
 #include "PathCompat.h"
 #include <sstream>
 #include <cmath>
+#include <algorithm>
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
@@ -156,13 +157,36 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
 
     bool drawVertical = _isVertical || forceVertical;
 
+    // Pagination logic: 9 candidates per page
+    const int pageSize = 9;
+    int pageIndex = _cursorIndex / pageSize;
+    int startIndex = pageIndex * pageSize;
+    int endIndex = std::min((int)_candidates.size(), startIndex + pageSize);
+
     std::wstringstream ss;
-    for (size_t i = 0; i < _candidates.size(); ++i) {
-        ss << (i + 1) << L"." << _candidates[i];
-        if (i < _candidates.size() - 1) {
+    for (int i = startIndex; i < endIndex; ++i) {
+        int displayNum = (i - startIndex) + 1;
+        if (i == _cursorIndex) {
+            ss << L"[" << displayNum << L"." << _candidates[i] << L"]";
+        } else {
+            ss << displayNum << L"." << _candidates[i];
+        }
+        
+        if (i < endIndex - 1) {
             ss << (drawVertical ? L"\n" : L"   ");
         }
     }
+    
+    // Add page indicator if there are multiple pages
+    if (_candidates.size() > pageSize) {
+        int totalPages = ((int)_candidates.size() + pageSize - 1) / pageSize;
+        if (drawVertical) {
+            ss << L"\n(" << (pageIndex + 1) << L"/" << totalPages << L")";
+        } else {
+            ss << L"  (" << (pageIndex + 1) << L"/" << totalPages << L")";
+        }
+    }
+
     _displayString = ss.str();
 
     if (_pTextLayout) {
@@ -196,6 +220,7 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
     if (_pRenderTarget) {
         _pRenderTarget->Resize(D2D1::SizeU(width, height));
     }
+    ShowWindow(_hwnd, SW_SHOWNOACTIVATE);
     InvalidateRect(_hwnd, nullptr, FALSE);
 }
 

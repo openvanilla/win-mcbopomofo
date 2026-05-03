@@ -210,10 +210,12 @@ STDAPI McBopomofoTIP::Deactivate() {
 }
 
 STDAPI McBopomofoTIP::OnSetFocus(BOOL fForeground) {
+    UNREFERENCED_PARAMETER(fForeground);
     return S_OK;
 }
 
 STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+    UNREFERENCED_PARAMETER(pic);
     if (pfEaten == nullptr) {
         return E_INVALIDARG;
     }
@@ -305,6 +307,9 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
 }
 
 STDAPI McBopomofoTIP::OnTestKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+    UNREFERENCED_PARAMETER(pic);
+    UNREFERENCED_PARAMETER(wParam);
+    UNREFERENCED_PARAMETER(lParam);
     if (pfEaten == nullptr) {
         return E_INVALIDARG;
     }
@@ -313,6 +318,9 @@ STDAPI McBopomofoTIP::OnTestKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam,
 }
 
 STDAPI McBopomofoTIP::OnKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+    UNREFERENCED_PARAMETER(pic);
+    UNREFERENCED_PARAMETER(wParam);
+    UNREFERENCED_PARAMETER(lParam);
     if (pfEaten == nullptr) {
         return E_INVALIDARG;
     }
@@ -321,6 +329,8 @@ STDAPI McBopomofoTIP::OnKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOO
 }
 
 STDAPI McBopomofoTIP::OnPreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEaten) {
+    UNREFERENCED_PARAMETER(pic);
+    UNREFERENCED_PARAMETER(rguid);
     if (pfEaten == nullptr) {
         return E_INVALIDARG;
     }
@@ -329,6 +339,7 @@ STDAPI McBopomofoTIP::OnPreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEat
 }
 
 STDAPI McBopomofoTIP::OnCompositionTerminated(TfEditCookie ecWrite, ITfComposition *pComposition) {
+    UNREFERENCED_PARAMETER(ecWrite);
     if (_pComposition == pComposition) {
         _pComposition->Release();
         _pComposition = nullptr;
@@ -336,39 +347,62 @@ STDAPI McBopomofoTIP::OnCompositionTerminated(TfEditCookie ecWrite, ITfCompositi
     return S_OK;
 }
 
+#include "DisplayAttributeInfo.h"
+
 STDAPI McBopomofoTIP::EnumDisplayAttributeInfo(IEnumTfDisplayAttributeInfo **ppEnum) {
-    if (ppEnum == nullptr) {
-        return E_INVALIDARG;
-    }
-    *ppEnum = nullptr;
-    return E_NOTIMPL;
+    if (ppEnum == nullptr) return E_INVALIDARG;
+    *ppEnum = new CEnumDisplayAttributeInfo();
+    return (*ppEnum != nullptr) ? S_OK : E_OUTOFMEMORY;
 }
 
 STDAPI McBopomofoTIP::GetDisplayAttributeInfo(REFGUID guidInfo, ITfDisplayAttributeInfo **ppInfo) {
-    if (ppInfo == nullptr) {
-        return E_INVALIDARG;
-    }
+    if (ppInfo == nullptr) return E_INVALIDARG;
     *ppInfo = nullptr;
-    return E_NOTIMPL;
+
+    if (IsEqualGUID(guidInfo, c_guidDisplayAttributeInput)) {
+        TF_DISPLAYATTRIBUTE da;
+        ZeroMemory(&da, sizeof(da));
+        da.lsStyle = TF_LS_SQUIGGLE;
+        da.crLine.type = TF_CT_SYSCOLOR;
+        da.crLine.nIndex = COLOR_WINDOWTEXT;
+        *ppInfo = new CDisplayAttributeInfo(c_guidDisplayAttributeInput, da, L"Win-McBopomofo Input");
+    } else if (IsEqualGUID(guidInfo, c_guidDisplayAttributeMarked)) {
+        TF_DISPLAYATTRIBUTE da;
+        ZeroMemory(&da, sizeof(da));
+        da.lsStyle = TF_LS_NONE;
+        da.crText.type = TF_CT_SYSCOLOR;
+        da.crText.nIndex = COLOR_HIGHLIGHTTEXT;
+        da.crBk.type = TF_CT_SYSCOLOR;
+        da.crBk.nIndex = COLOR_HIGHLIGHT;
+        *ppInfo = new CDisplayAttributeInfo(c_guidDisplayAttributeMarked, da, L"Win-McBopomofo Marked");
+    }
+
+    return (*ppInfo != nullptr) ? S_OK : E_INVALIDARG;
 }
 
 STDAPI McBopomofoTIP::OnInitDocumentMgr(ITfDocumentMgr *pDocMgr) {
+    UNREFERENCED_PARAMETER(pDocMgr);
     return S_OK;
 }
 
 STDAPI McBopomofoTIP::OnUninitDocumentMgr(ITfDocumentMgr *pDocMgr) {
+    UNREFERENCED_PARAMETER(pDocMgr);
     return S_OK;
 }
 
 STDAPI McBopomofoTIP::OnSetFocus(ITfDocumentMgr *pDocMgrFocus, ITfDocumentMgr *pDocMgrPrevFocus) {
+    UNREFERENCED_PARAMETER(pDocMgrFocus);
+    UNREFERENCED_PARAMETER(pDocMgrPrevFocus);
     return S_OK;
 }
 
 STDAPI McBopomofoTIP::OnPushContext(ITfContext *pic) {
+    UNREFERENCED_PARAMETER(pic);
     return S_OK;
 }
 
 STDAPI McBopomofoTIP::OnPopContext(ITfContext *pic) {
+    UNREFERENCED_PARAMETER(pic);
     return S_OK;
 }
 

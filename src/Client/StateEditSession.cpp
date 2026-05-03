@@ -1,5 +1,6 @@
 #include "StateEditSession.h"
 #include "UTFHelper.h"
+#include "DisplayAttributeInfo.h"
 
 CStateEditSession::CStateEditSession(ITfContext *pContext, McBopomofoTIP *pTIP, const McBopomofo::IPC::StateUpdatePayload& state)
     : CEditSessionBase(pContext), _pTIP(pTIP), _state(state) {
@@ -8,6 +9,17 @@ CStateEditSession::CStateEditSession(ITfContext *pContext, McBopomofoTIP *pTIP, 
 
 CStateEditSession::~CStateEditSession() {
     if (_pTIP) _pTIP->Release();
+}
+
+void SetDisplayAttribute(TfEditCookie ec, ITfContext* pContext, ITfRange* pRange, TfGuidAtom guidAtom) {
+    ITfProperty *pProp = nullptr;
+    if (SUCCEEDED(pContext->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
+        VARIANT var;
+        var.vt = VT_I4;
+        var.lVal = guidAtom;
+        pProp->SetValue(ec, pRange, &var);
+        pProp->Release();
+    }
 }
 
 STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
@@ -20,6 +32,21 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             ITfRange* pRange = nullptr;
             if (SUCCEEDED(_pTIP->GetComposition()->GetRange(&pRange))) {
                 pRange->SetText(ec, 0, commitStr.c_str(), (LONG)commitStr.length());
+                
+                // Clear display attributes when committing
+                ITfProperty *pProp = nullptr;
+                if (SUCCEEDED(_pContext->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
+                    pProp->Clear(ec, pRange);
+                    pProp->Release();
+                }
+
+                pRange->Collapse(ec, TF_ANCHOR_END);
+                TF_SELECTION sel;
+                sel.range = pRange;
+                sel.style.ase = TF_AE_NONE;
+                sel.style.fInterimChar = FALSE;
+                _pContext->SetSelection(ec, 1, &sel);
+
                 _pTIP->GetComposition()->EndComposition(ec);
                 _pTIP->GetComposition()->Release();
                 _pTIP->SetComposition(nullptr);
@@ -31,7 +58,15 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             if (SUCCEEDED(_pContext->QueryInterface(IID_ITfInsertAtSelection, (void**)&pInsert))) {
                 ITfRange* pRange = nullptr;
                 pInsert->InsertTextAtSelection(ec, TF_IAS_NOQUERY, commitStr.c_str(), (LONG)commitStr.length(), &pRange);
-                if (pRange) pRange->Release();
+                if (pRange) {
+                    pRange->Collapse(ec, TF_ANCHOR_END);
+                    TF_SELECTION sel;
+                    sel.range = pRange;
+                    sel.style.ase = TF_AE_NONE;
+                    sel.style.fInterimChar = FALSE;
+                    _pContext->SetSelection(ec, 1, &sel);
+                    pRange->Release();
+                }
                 pInsert->Release();
             }
         }
@@ -64,28 +99,49 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         if (pRange && _pTIP->GetComposition()) {
             pRange->SetText(ec, 0, compStr.c_str(), (LONG)compStr.length());
             
-            // Try to find the coordinates for the candidate window
-            if (!_state.candidates.empty()) {
-                ITfContextView* pView = nullptr;
-                if (SUCCEEDED(_pContext->GetActiveView(&pView))) {
-                    RECT rc = {0};
-                    BOOL fClipped = FALSE;
-                    
-                    // Collapse the range to the cursor index for getting the precise coordinate
-                    ITfRange* pCursorRange = nullptr;
-                    if (SUCCEEDED(pRange->Clone(&pCursorRange))) {
-                        LONG cch = 0;
-                        pCursorRange->Collapse(ec, TF_ANCHOR_START);
-                        pCursorRange->ShiftEnd(ec, _state.cursorIndex, &cch, nullptr);
-                        pCursorRange->Collapse(ec, TF_ANCHOR_END);
+            // Apply Display Attributes
+            ITfCategoryMgr *pCategoryMgr = nullptr;
+            if (SUCCEEDED(CoCreateInstance(CLSID_TF_CategoryMgr, nullptr, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr, (void**)&pCategoryMgr))) {
+                TfGuidAtom gaInput = TF_INVALID_GUIDATOM;
+                TfGuidAtom gaMarked = TF_INVALID_GUIDATOM;
+                pCategoryMgr->RegisterGUID(c_guidDisplayAttributeInput, &gaInput);
+                pCategoryMgr->RegisterGUID(c_guidDisplayAttributeMarked, &gaMarked);
+                
+                // For now, apply the 'Input' squiggle to the whole composition buffer.
+                // Later, we can slice pRange to apply gaMarked if McBopomofo gives us the mark bounds.
+                SetDisplayAttribute(ec, _pContext, pRange, gaInput);
+                
+                pCategoryMgr->Release();
+            }
+
+            // Set caret at cursorIndex
+            ITfRange* pCursorRange = nullptr;
+            if (SUCCEEDED(pRange->Clone(&pCursorRange))) {
+                LONG cch = 0;
+                pCursorRange->Collapse(ec, TF_ANCHOR_START);
+                pCursorRange->ShiftEnd(ec, _state.cursorIndex, &cch, nullptr);
+                pCursorRange->Collapse(ec, TF_ANCHOR_END);
+
+                TF_SELECTION sel;
+                sel.range = pCursorRange;
+                sel.style.ase = TF_AE_NONE;
+                sel.style.fInterimChar = FALSE;
+                _pContext->SetSelection(ec, 1, &sel);
+            
+                // Try to find the coordinates for the candidate window
+                if (!_state.candidates.empty()) {
+                    ITfContextView* pView = nullptr;
+                    if (SUCCEEDED(_pContext->GetActiveView(&pView))) {
+                        RECT rc = {0};
+                        BOOL fClipped = FALSE;
                         
                         if (SUCCEEDED(pView->GetTextExt(ec, pCursorRange, &rc, &fClipped))) {
                             _pTIP->GetCandidateWindow()->Move(rc.left, rc.bottom + 2);
                         }
-                        pCursorRange->Release();
+                        pView->Release();
                     }
-                    pView->Release();
                 }
+                pCursorRange->Release();
             }
         }
         if (pRange) pRange->Release();
@@ -95,6 +151,13 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         ITfRange* pRange = nullptr;
         if (SUCCEEDED(_pTIP->GetComposition()->GetRange(&pRange))) {
             pRange->SetText(ec, 0, L"", 0);
+            
+            ITfProperty *pProp = nullptr;
+            if (SUCCEEDED(_pContext->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
+                pProp->Clear(ec, pRange);
+                pProp->Release();
+            }
+
             _pTIP->GetComposition()->EndComposition(ec);
             _pTIP->GetComposition()->Release();
             _pTIP->SetComposition(nullptr);
