@@ -199,6 +199,26 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
     UINT32 currentPos = 0;
 
     for (int i = startIndex; i < endIndex; ++i) {
+        std::wstring keyStr = std::to_wstring(i - startIndex + 1) + L". ";
+        _keyRanges.push_back({currentPos, (UINT32)keyStr.length()});
+        ss << keyStr;
+        currentPos += (UINT32)keyStr.length();
+
+        std::wstring candText = _candidates[i];
+        if (i == _cursorIndex) {
+            _selectedRange = {currentPos, (UINT32)candText.length()};
+        }
+        ss << candText;
+        currentPos += (UINT32)candText.length();
+
+        if (i < endIndex - 1) {
+            std::wstring sep = drawVertical ? L"\n" : L"  ";
+            ss << sep;
+            currentPos += (UINT32)sep.length();
+        }
+    }
+
+    for (int i = startIndex; i < endIndex; ++i) {
         int displayNum = (i - startIndex) + 1;
         
         std::wstring keyStr = std::to_wstring(displayNum) + L". ";
