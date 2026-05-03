@@ -45,15 +45,15 @@
       <!-- Core Executables and DLLs -->
       <Component Id="cmp_ServerExe" Guid="96a40a8a-e9fa-48b4-aeb2-e64fc5a9d8c0">
         <!-- We use the Release build output -->
-        <File Id="file_ServerExe" Source="build_new_2\bin\Release\McBopomofoServer.exe" KeyPath="yes" />
+        <File Id="file_ServerExe" Source="build\bin\Release\McBopomofoServer.exe" KeyPath="yes" />
         <!-- Automatically run the server on startup -->
         <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExe]&quot;" />
       </Component>
       <Component Id="cmp_ConfigExe" Guid="316f73db-24da-44a6-9bd6-239634e9e4f3">
-        <File Id="file_ConfigExe" Source="build_new_2\bin\Release\McBopomofoConfig.exe" KeyPath="yes" />
+        <File Id="file_ConfigExe" Source="build\bin\Release\McBopomofoConfig.exe" KeyPath="yes" />
       </Component>
       <Component Id="cmp_TipDll" Guid="0de249ed-cc13-41a4-927b-2e915f0ebfc6">
-        <File Id="file_TipDll" Source="build_new_2\bin\Release\McBopomofoTIP_v2.dll" KeyPath="yes" />
+        <File Id="file_TipDll" Source="build\bin\Release\McBopomofoTIP_v2.dll" KeyPath="yes" />
       </Component>
       
       <!-- Start Menu Shortcut -->

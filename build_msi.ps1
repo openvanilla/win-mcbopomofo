@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Ensure the build artifacts exist
-$BinDir = "build_new_2\bin\$Configuration"
+$BinDir = "build\bin\$Configuration"
 if (-not (Test-Path "$BinDir\McBopomofoTIP_v2.dll")) {
     Write-Host "Error: Cannot find built artifacts in $BinDir. Please build the project first." -ForegroundColor Red
     exit 1
