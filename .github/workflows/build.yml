@@ -25,6 +25,9 @@ jobs:
     - name: Run Tests
       run: ctest --test-dir build -C Release --output-on-failure
 
+    - name: Install WiX Toolset
+      run: dotnet tool install --global wix --version 4.0.5
+
     - name: Build MSI Installer
       run: .\build_msi.ps1
 
