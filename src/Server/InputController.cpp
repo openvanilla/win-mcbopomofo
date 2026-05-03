@@ -197,7 +197,7 @@ bool InputController::HandleKey(const Key& key) {
             return true; // Consume but do nothing
         }
 
-        if (key.ascii == '?') {
+        if (key.ascii == '?' || (key.ascii == '/' && key.shiftPressed)) {
             if (candidateIndex_ >= 0 && candidateIndex_ < count) {
                 auto* dictionaryServices = keyHandler_->getDictionaryServices();
                 if (dictionaryServices && dictionaryServices->hasServices()) {
