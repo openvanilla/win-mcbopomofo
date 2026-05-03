@@ -111,6 +111,7 @@ BOOL RegisterCategories() {
         hr = pCategoryMgr->RegisterCategory(c_clsidMcBopomofoTIP, GUID_TFCAT_TIPCAP_UIELEMENTENABLED, c_clsidMcBopomofoTIP);
         hr = pCategoryMgr->RegisterCategory(c_clsidMcBopomofoTIP, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, c_clsidMcBopomofoTIP);
         hr = pCategoryMgr->RegisterCategory(c_clsidMcBopomofoTIP, GUID_TFCAT_TIPCAP_COMLESS, c_clsidMcBopomofoTIP);
+        hr = pCategoryMgr->RegisterCategory(c_clsidMcBopomofoTIP, GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT, c_clsidMcBopomofoTIP);
     }
 
     pCategoryMgr->Release();
