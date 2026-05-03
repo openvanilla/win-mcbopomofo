@@ -39,6 +39,15 @@ public:
 
 private:
     void ChangeState(std::unique_ptr<InputState> newState);
+    bool HandleCandidateKey(const Key& key);
+    bool HandleCandidateNavigation(const Key& key);
+    void MoveCandidateCursor(bool forward);
+    void MoveCandidatePage(bool forward);
+    void MoveReadingCursorInCandidatePanel(bool forward);
+    void CancelCandidatePanel();
+    void BuildAssociatedPhrasesForCurrentCandidate(InputStates::ChoosingCandidate& choosing);
+    void EnterDictionaryState(InputStates::ChoosingCandidate& choosing);
+    void EnterPhraseActionMenu(InputStates::ChoosingCandidate& choosing, bool boost);
 
     std::shared_ptr<KeyHandler> keyHandler_;
     UIInterface* ui_;

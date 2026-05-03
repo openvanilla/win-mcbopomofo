@@ -10,6 +10,7 @@
 #include "UIInterface.h"
 #include "Settings.h"
 #include "UTFHelper.h"
+#include "UTF8Helper.h"
 #include "NamedPipe.h"
 #include "Log.h"
 
@@ -92,6 +93,7 @@ public:
         // Determine if we need to force vertical layout
         if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||
             dynamic_cast<InputStates::SelectingDictionary*>(state) != nullptr ||
+            dynamic_cast<InputStates::ShowingCharInfo*>(state) != nullptr ||
             dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr ||
             dynamic_cast<InputStates::SelectingDateMacro*>(state) != nullptr) {
             currentState.forceVertical = true;
@@ -109,7 +111,7 @@ public:
                 currentState.candidates.push_back(c.value);
 
                 // If any candidate string length > 8, force vertical
-                if (c.value.length() > 8 * 3) { // Approximate check for UTF-8 lengths
+                if (CodePointCount(c.value) > 8) {
                     currentState.forceVertical = true;
                 }
             }
@@ -120,6 +122,13 @@ public:
             for (const auto& m : selDict->menu) {
                 currentState.candidates.push_back(m);
             }
+        } else if (auto* charInfo = dynamic_cast<InputStates::ShowingCharInfo*>(state)) {
+            currentState.composingBuffer = charInfo->composingBuffer;
+            currentState.cursorIndex = (int)charInfo->cursorIndex;
+            currentState.candidates = {
+                "UTF8 String Length: " + std::to_string(charInfo->selectedPhrase.length()),
+                "Code Point Count: " + std::to_string(CodePointCount(charInfo->selectedPhrase))
+            };
         } else if (auto* marking = dynamic_cast<InputStates::Marking*>(state)) {            currentState.composingBuffer = marking->composingBuffer;
             currentState.cursorIndex = (int)marking->cursorIndex;
             currentState.candidates.clear();
@@ -132,12 +141,41 @@ public:
             for (const auto& c : assoc->candidates) {
                 currentState.candidates.push_back(c.value);
             }
+        } else if (auto* assocPlain = dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state)) {
+            currentState.composingBuffer.clear();
+            currentState.cursorIndex = 0;
+            currentState.candidates.clear();
+            for (const auto& c : assocPlain->candidates) {
+                currentState.candidates.push_back(c.value);
+            }
         } else if (auto* numInput = dynamic_cast<InputStates::NumberInput*>(state)) {
             currentState.composingBuffer = numInput->composingBuffer;
             currentState.cursorIndex = (int)numInput->cursorIndex;
             currentState.candidates.clear();
             for (const auto& c : numInput->candidates) {
                 currentState.candidates.push_back(c);
+            }
+        } else if (auto* selectingFeature = dynamic_cast<InputStates::SelectingFeature*>(state)) {
+            currentState.composingBuffer.clear();
+            currentState.cursorIndex = 0;
+            currentState.candidates.clear();
+            for (const auto& feature : selectingFeature->features) {
+                currentState.candidates.push_back(feature.name);
+            }
+        } else if (auto* selectingDateMacro = dynamic_cast<InputStates::SelectingDateMacro*>(state)) {
+            currentState.composingBuffer.clear();
+            currentState.cursorIndex = 0;
+            currentState.candidates = selectingDateMacro->menu;
+        } else if (auto* iroha = dynamic_cast<InputStates::IrohaCandidate*>(state)) {
+            currentState.composingBuffer = iroha->composingBuffer();
+            currentState.cursorIndex = (int)currentState.composingBuffer.length();
+            currentState.candidates = iroha->candidates;
+        } else if (auto* customMenu = dynamic_cast<InputStates::CustomMenu*>(state)) {
+            currentState.composingBuffer = customMenu->composingBuffer;
+            currentState.cursorIndex = (int)customMenu->cursorIndex;
+            currentState.candidates.clear();
+            for (const auto& entry : customMenu->entries) {
+                currentState.candidates.push_back(entry.name);
             }
         } else {
             currentState.composingBuffer.clear();
