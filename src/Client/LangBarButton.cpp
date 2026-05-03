@@ -4,17 +4,32 @@
 #include "Register.h"
 #include "PathCompat.h"
 #include <shellapi.h>
+#include <algorithm>
 #include <filesystem>
 
 // GUID of the IME mode icon in Windows 8/10
-const GUID GUID_LBI_INPUTMODE = { 0x2C77A81E, 0x41CC, 0x4178, { 0xA3, 0xA7, 0x5F, 0x8A, 0x98, 0x75, 0x68, 0xE6 } };
+extern const GUID GUID_LBI_INPUTMODE = { 0x2C77A81E, 0x41CC, 0x4178, { 0xA3, 0xA7, 0x5F, 0x8A, 0x98, 0x75, 0x68, 0xE6 } };
+// Regular language bar button, equivalent to PIME's "switch-lang" button.
+extern const GUID GUID_LBI_SWITCH_LANG = { 0x5C7D0E31, 0x28C0, 0x4D1F, { 0xB3, 0xD5, 0x91, 0x6D, 0x57, 0xC9, 0x11, 0x7A } };
 
-CLangBarButton::CLangBarButton(McBopomofoTIP* pTIP, const GUID& guid)
-    : _refCount(1), _pTIP(pTIP), _guid(guid) {
+namespace {
+constexpr UINT MENU_TOGGLE_OPEN_CLOSE = 100;
+}
+
+std::atomic<DWORD> CLangBarButton::_nextCookie = 1;
+
+CLangBarButton::CLangBarButton(McBopomofoTIP* pTIP, const GUID& guid, Kind kind)
+    : _refCount(1), _pTIP(pTIP), _guid(guid), _kind(kind) {
     if (_pTIP) _pTIP->AddRef();
 }
 
 CLangBarButton::~CLangBarButton() {
+    for (auto& sink : _sinks) {
+        if (sink.second) {
+            sink.second->Release();
+            sink.second = nullptr;
+        }
+    }
     if (_pTIP) _pTIP->Release();
 }
 
@@ -49,9 +64,11 @@ STDMETHODIMP CLangBarButton::GetInfo(TF_LANGBARITEMINFO *pInfo) {
     if (!pInfo) return E_INVALIDARG;
     pInfo->clsidService = c_clsidMcBopomofoTIP;
     pInfo->guidItem = _guid;
-    pInfo->dwStyle = TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_BTN_MENU | TF_LBI_STYLE_SHOWNINTRAY;
+    pInfo->dwStyle = (_kind == Kind::ModeIcon)
+        ? (TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_SHOWNINTRAY)
+        : TF_LBI_STYLE_BTN_MENU;
     pInfo->ulSort = 0;
-    wcscpy_s(pInfo->szDescription, L"Win-McBopomofo");
+    wcscpy_s(pInfo->szDescription, L" ");
     return S_OK;
 }
 
@@ -62,6 +79,7 @@ STDMETHODIMP CLangBarButton::GetStatus(DWORD *pdwStatus) {
 }
 
 STDMETHODIMP CLangBarButton::Show(BOOL fShow) {
+    UNREFERENCED_PARAMETER(fShow);
     return E_NOTIMPL;
 }
 
@@ -72,10 +90,39 @@ STDMETHODIMP CLangBarButton::GetTooltipString(BSTR *pbstrToolTip) {
 }
 
 STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt, const RECT *prcArea) {
+    UNREFERENCED_PARAMETER(prcArea);
+
+    if (_kind == Kind::SwitchLanguageMenu) {
+        return S_OK;
+    }
+
     if (click == TF_LBI_CLK_LEFT) {
         _pTIP->ToggleOpenClose();
     } else if (click == TF_LBI_CLK_RIGHT) {
-        // Right click is handled by InitMenu if style includes TF_LBI_STYLE_BTN_MENU
+        HMENU menu = CreatePopupMenu();
+        if (menu) {
+            bool isOpen = _pTIP->IsOpen();
+            AppendMenuW(menu, MF_STRING, MENU_TOGGLE_OPEN_CLOSE, isOpen ? L"切換到英文模式 (A)" : L"切換到中文模式 (中)");
+            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+            AppendMenuW(menu, MF_STRING, 1, L"設定 (Settings)");
+            AppendMenuW(menu, MF_STRING, 2, L"編輯使用者詞庫 (Edit User Phrases)");
+            AppendMenuW(menu, MF_STRING, 3, L"編輯排除詞庫 (Edit Excluded Phrases)");
+            AppendMenuW(menu, MF_STRING, 4, L"開啟使用者資料夾 (Open Data Folder)");
+
+            HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0, HWND_DESKTOP, nullptr, g_hInst, nullptr);
+            if (!hwnd) {
+                hwnd = GetDesktopWindow();
+            }
+
+            UINT command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_LEFTALIGN | TPM_BOTTOMALIGN, pt.x, pt.y, 0, hwnd, nullptr);
+            if (command != 0) {
+                OnMenuSelect(command);
+            }
+            if (hwnd && hwnd != GetDesktopWindow()) {
+                DestroyWindow(hwnd);
+            }
+            DestroyMenu(menu);
+        }
     }
     return S_OK;
 }
@@ -83,6 +130,10 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt, const RECT *prc
 STDMETHODIMP CLangBarButton::InitMenu(ITfMenu *pMenu) {
     if (!pMenu) return E_INVALIDARG;
 
+    bool isOpen = _pTIP->IsOpen();
+    const wchar_t* toggleText = isOpen ? L"切換到英文模式 (A)" : L"切換到中文模式 (中)";
+    pMenu->AddMenuItem(MENU_TOGGLE_OPEN_CLOSE, 0, nullptr, nullptr, toggleText, (ULONG)wcslen(toggleText), nullptr);
+    pMenu->AddMenuItem(0, TF_LBMENUF_SEPARATOR, nullptr, nullptr, nullptr, 0, nullptr);
     pMenu->AddMenuItem(1, 0, nullptr, nullptr, L"設定 (Settings)", (ULONG)wcslen(L"設定 (Settings)"), nullptr);
     pMenu->AddMenuItem(2, 0, nullptr, nullptr, L"編輯使用者詞庫 (Edit User Phrases)", (ULONG)wcslen(L"編輯使用者詞庫 (Edit User Phrases)"), nullptr);
     pMenu->AddMenuItem(3, 0, nullptr, nullptr, L"編輯排除詞庫 (Edit Excluded Phrases)", (ULONG)wcslen(L"編輯排除詞庫 (Edit Excluded Phrases)"), nullptr);
@@ -93,6 +144,9 @@ STDMETHODIMP CLangBarButton::InitMenu(ITfMenu *pMenu) {
 
 STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
     switch (wID) {
+    case MENU_TOGGLE_OPEN_CLOSE:
+        _pTIP->ToggleOpenClose();
+        break;
     case 1: {
         WCHAR path[MAX_PATH];
         GetModuleFileNameW(GetModuleHandleW(L"McBopomofoTIP_v2.dll"), path, MAX_PATH);
@@ -125,11 +179,15 @@ extern HINSTANCE g_hInst;
 
 STDMETHODIMP CLangBarButton::GetIcon(HICON *phIcon) {
     if (!phIcon) return E_INVALIDARG;
+    *phIcon = nullptr;
     
     bool isOpen = _pTIP->IsOpen();
     
     UINT iconId = isOpen ? IDI_ICON_ZH : IDI_ICON_EN;
-    *phIcon = LoadIconW(g_hInst, MAKEINTRESOURCEW(iconId));
+    HICON hIcon = LoadIconW(g_hInst, MAKEINTRESOURCEW(iconId));
+    if (hIcon) {
+        *phIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, 0, 0, LR_COPYRETURNORG);
+    }
 
     if (!*phIcon) {
         // Fallback drawing if icon fails to load
@@ -175,29 +233,38 @@ STDMETHODIMP CLangBarButton::GetText(BSTR *pbstrText) {
 }
 
 STDMETHODIMP CLangBarButton::AdviseSink(REFIID riid, IUnknown *punk, DWORD *pdwCookie) {
-    if (!IsEqualIID(riid, IID_ITfLangBarItemSink)) return E_INVALIDARG;
-    ITfLangBarItemSink* pSink;
+    if (!pdwCookie || !punk) return E_INVALIDARG;
+    *pdwCookie = TF_INVALID_COOKIE;
+    if (!IsEqualIID(riid, IID_ITfLangBarItemSink)) return E_NOINTERFACE;
+
+    ITfLangBarItemSink* pSink = nullptr;
     if (FAILED(punk->QueryInterface(IID_ITfLangBarItemSink, (void**)&pSink))) return E_NOINTERFACE;
     
-    _sinks.push_back(pSink);
-    *pdwCookie = (DWORD)_sinks.size();
+    *pdwCookie = _nextCookie++;
+    _sinks.emplace_back(*pdwCookie, pSink);
     return S_OK;
 }
 
 STDMETHODIMP CLangBarButton::UnadviseSink(DWORD dwCookie) {
-    if (dwCookie == 0 || dwCookie > _sinks.size()) return E_INVALIDARG;
-    ITfLangBarItemSink* pSink = _sinks[dwCookie - 1];
-    if (pSink) {
-        pSink->Release();
-        _sinks[dwCookie - 1] = nullptr;
+    auto it = std::find_if(_sinks.begin(), _sinks.end(),
+        [dwCookie](const auto& item) {
+            return item.first == dwCookie;
+        });
+    if (it == _sinks.end()) {
+        return E_INVALIDARG;
     }
+
+    if (it->second) {
+        it->second->Release();
+    }
+    _sinks.erase(it);
     return S_OK;
 }
 
 void CLangBarButton::Update() {
-    for (auto sink : _sinks) {
-        if (sink) {
-            sink->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
+    for (const auto& sink : _sinks) {
+        if (sink.second) {
+            sink.second->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
         }
     }
 }

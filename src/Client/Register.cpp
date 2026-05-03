@@ -1,6 +1,7 @@
 #include "Register.h"
 #include "Globals.h"
 #include "DisplayAttributeInfo.h"
+#include "resource.h"
 #include <strsafe.h>
 
 // Profile GUID for McBopomofo (Genereted a new random one)
@@ -74,7 +75,7 @@ BOOL RegisterProfiles() {
         (ULONG)wcslen(L"Win-McBopomofo"),
         szModulePath,
         (ULONG)wcslen(szModulePath),
-        0, // Icon index
+        IDI_ICON_APP, // Icon index
         0, // hkl substitute
         0, // Preferred layout
         TRUE, // Enabled by default

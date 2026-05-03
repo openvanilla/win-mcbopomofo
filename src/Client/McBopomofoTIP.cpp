@@ -10,7 +10,8 @@ McBopomofoTIP::McBopomofoTIP()
       _dwThreadMgrEventSinkCookie(TF_INVALID_COOKIE),
       _dwThreadFocusSinkCookie(TF_INVALID_COOKIE),
       _pComposition(nullptr),
-      _pLangBarButton(nullptr) {
+      _pModeIconButton(nullptr),
+      _pSwitchLangButton(nullptr) {
     DllAddRef();
 }
 
@@ -187,9 +188,10 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFla
     // Register LangBar button
     ITfLangBarItemMgr *pLangBarItemMgr = nullptr;
     if (SUCCEEDED(_ptim->QueryInterface(IID_ITfLangBarItemMgr, (void **)&pLangBarItemMgr))) {
-        extern const GUID GUID_LBI_INPUTMODE; // defined in LangBarButton.cpp
-        _pLangBarButton = new CLangBarButton(this, GUID_LBI_INPUTMODE);
-        pLangBarItemMgr->AddItem(_pLangBarButton);
+        _pModeIconButton = new CLangBarButton(this, GUID_LBI_INPUTMODE, CLangBarButton::Kind::ModeIcon);
+        _pSwitchLangButton = new CLangBarButton(this, GUID_LBI_SWITCH_LANG, CLangBarButton::Kind::SwitchLanguageMenu);
+        pLangBarItemMgr->AddItem(_pModeIconButton);
+        pLangBarItemMgr->AddItem(_pSwitchLangButton);
         pLangBarItemMgr->Release();
     }
 
@@ -200,14 +202,25 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFla
 STDAPI McBopomofoTIP::Deactivate() {
     LogMessage("McBopomofoTIP::Deactivate called");
 
-    if (_pLangBarButton) {
+    if (_pModeIconButton || _pSwitchLangButton) {
         ITfLangBarItemMgr *pLangBarItemMgr = nullptr;
         if (SUCCEEDED(_ptim->QueryInterface(IID_ITfLangBarItemMgr, (void **)&pLangBarItemMgr))) {
-            pLangBarItemMgr->RemoveItem(_pLangBarButton);
+            if (_pModeIconButton) {
+                pLangBarItemMgr->RemoveItem(_pModeIconButton);
+            }
+            if (_pSwitchLangButton) {
+                pLangBarItemMgr->RemoveItem(_pSwitchLangButton);
+            }
             pLangBarItemMgr->Release();
         }
-        _pLangBarButton->Release();
-        _pLangBarButton = nullptr;
+        if (_pModeIconButton) {
+            _pModeIconButton->Release();
+            _pModeIconButton = nullptr;
+        }
+        if (_pSwitchLangButton) {
+            _pSwitchLangButton->Release();
+            _pSwitchLangButton = nullptr;
+        }
     }
 
     _candidateWindow.Destroy();
@@ -509,8 +522,11 @@ void McBopomofoTIP::ToggleOpenClose() {
                 pComp->SetValue(_tid, &var);
                 pComp->Release();
                 
-                if (_pLangBarButton) {
-                    _pLangBarButton->Update();
+                if (_pModeIconButton) {
+                    _pModeIconButton->Update();
+                }
+                if (_pSwitchLangButton) {
+                    _pSwitchLangButton->Update();
                 }
             }
             pCompMgr->Release();

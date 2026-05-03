@@ -1,14 +1,24 @@
 #pragma once
 #include <windows.h>
 #include <msctf.h>
+#include <atomic>
 #include <string>
+#include <utility>
 #include <vector>
 
 class McBopomofoTIP;
 
+extern const GUID GUID_LBI_INPUTMODE;
+extern const GUID GUID_LBI_SWITCH_LANG;
+
 class CLangBarButton : public ITfLangBarItemButton, public ITfSource {
 public:
-    CLangBarButton(McBopomofoTIP* pTIP, const GUID& guid);
+    enum class Kind {
+        ModeIcon,
+        SwitchLanguageMenu,
+    };
+
+    CLangBarButton(McBopomofoTIP* pTIP, const GUID& guid, Kind kind);
     ~CLangBarButton();
 
     // IUnknown
@@ -39,5 +49,7 @@ private:
     long _refCount;
     McBopomofoTIP* _pTIP;
     GUID _guid;
-    std::vector<ITfLangBarItemSink*> _sinks;
+    Kind _kind;
+    std::vector<std::pair<DWORD, ITfLangBarItemSink*>> _sinks;
+    static std::atomic<DWORD> _nextCookie;
 };

@@ -72,7 +72,8 @@ private:
 
     ITfComposition *_pComposition;
     CandidateWindow _candidateWindow;
-    class CLangBarButton* _pLangBarButton;
+    class CLangBarButton* _pModeIconButton;
+    class CLangBarButton* _pSwitchLangButton;
 
 public:
     void ToggleOpenClose();
