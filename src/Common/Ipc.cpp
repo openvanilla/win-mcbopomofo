@@ -12,7 +12,8 @@ namespace IPC {
 
 std::string SerializeKeyEvent(const KeyEventPayload& payload) {
     std::ostringstream ss;
-    ss << payload.vk << "\n"
+    ss << (int)Command::CMD_KEY_EVENT << "\n"
+       << payload.vk << "\n"
        << payload.ascii << "\n"
        << (payload.shift ? 1 : 0) << "\n"
        << (payload.ctrl ? 1 : 0) << "\n";
@@ -23,6 +24,9 @@ bool DeserializeKeyEvent(const std::string& data, KeyEventPayload& payload) {
     std::istringstream ss(data);
     std::string line;
     
+    if (!std::getline(ss, line)) return false;
+    if (std::stoi(line) != (int)Command::CMD_KEY_EVENT) return false;
+
     if (!std::getline(ss, line)) return false;
     payload.vk = std::stoul(line);
     
@@ -36,6 +40,52 @@ bool DeserializeKeyEvent(const std::string& data, KeyEventPayload& payload) {
     payload.ctrl = (line == "1");
 
     return true;
+}
+
+std::string SerializeSelectCandidate(const SelectCandidatePayload& payload) {
+    std::ostringstream ss;
+    ss << (int)Command::CMD_SELECT_CANDIDATE << "\n"
+       << payload.index << "\n";
+    return ss.str();
+}
+
+bool DeserializeSelectCandidate(const std::string& data, SelectCandidatePayload& payload) {
+    std::istringstream ss(data);
+    std::string line;
+
+    if (!std::getline(ss, line)) return false;
+    if (std::stoi(line) != (int)Command::CMD_SELECT_CANDIDATE) return false;
+
+    if (!std::getline(ss, line)) return false;
+    payload.index = std::stoi(line);
+
+    return true;
+}
+
+std::string SerializeReset() {
+    std::ostringstream ss;
+    ss << (int)Command::CMD_RESET << "\n";
+    return ss.str();
+}
+
+bool IsResetCommand(const std::string& data) {
+    std::istringstream ss(data);
+    std::string line;
+    if (!std::getline(ss, line)) return false;
+    try { return std::stoi(line) == (int)Command::CMD_RESET; } catch(...) { return false; }
+}
+
+std::string SerializeReloadSettings() {
+    std::ostringstream ss;
+    ss << (int)Command::CMD_RELOAD_SETTINGS << "\n";
+    return ss.str();
+}
+
+bool IsReloadSettingsCommand(const std::string& data) {
+    std::istringstream ss(data);
+    std::string line;
+    if (!std::getline(ss, line)) return false;
+    try { return std::stoi(line) == (int)Command::CMD_RELOAD_SETTINGS; } catch(...) { return false; }
 }
 
 // Format for StateUpdate:
@@ -53,6 +103,8 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
     ss << (payload.consumed ? 1 : 0) << "\n"
        << payload.cursorIndex << "\n"
        << (payload.forceVertical ? 1 : 0) << "\n"
+       << payload.markStart << "\n"
+       << payload.markEnd << "\n"
        << payload.commitString << "\n"
        << payload.composingBuffer << "\n"
        << payload.candidates.size() << "\n";
@@ -75,6 +127,12 @@ bool DeserializeStateUpdate(const std::string& data, StateUpdatePayload& payload
 
     if (!std::getline(ss, line)) return false;
     payload.forceVertical = (line == "1");
+
+    if (!std::getline(ss, line)) return false;
+    payload.markStart = std::stoi(line);
+
+    if (!std::getline(ss, line)) return false;
+    payload.markEnd = std::stoi(line);
 
     if (!std::getline(ss, line)) return false;
     payload.commitString = line;

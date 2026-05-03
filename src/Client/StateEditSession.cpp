@@ -107,9 +107,27 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 pCategoryMgr->RegisterGUID(c_guidDisplayAttributeInput, &gaInput);
                 pCategoryMgr->RegisterGUID(c_guidDisplayAttributeMarked, &gaMarked);
                 
-                // For now, apply the 'Input' squiggle to the whole composition buffer.
-                // Later, we can slice pRange to apply gaMarked if McBopomofo gives us the mark bounds.
-                SetDisplayAttribute(ec, _pContext, pRange, gaInput);
+                if (_state.markStart >= 0 && _state.markEnd >= 0) {
+                    // Apply marking attribute
+                    size_t startOffset = McBopomofo::Utf8OffsetToUtf16Offset(_state.composingBuffer, _state.markStart);
+                    size_t endOffset = McBopomofo::Utf8OffsetToUtf16Offset(_state.composingBuffer, _state.markEnd);
+                    
+                    ITfRange* pMarkRange = nullptr;
+                    if (SUCCEEDED(pRange->Clone(&pMarkRange))) {
+                        LONG cch = 0;
+                        pMarkRange->Collapse(ec, TF_ANCHOR_START);
+                        pMarkRange->ShiftEnd(ec, (LONG)endOffset, &cch, nullptr);
+                        pMarkRange->ShiftStart(ec, (LONG)startOffset, &cch, nullptr);
+                        SetDisplayAttribute(ec, _pContext, pMarkRange, gaMarked);
+                        pMarkRange->Release();
+                    }
+                    
+                    // Also apply input attribute to the rest? 
+                    // TSF usually allows multiple attributes. Let's apply input to the whole thing first, then mark over it.
+                    SetDisplayAttribute(ec, _pContext, pRange, gaInput);
+                } else {
+                    SetDisplayAttribute(ec, _pContext, pRange, gaInput);
+                }
                 
                 pCategoryMgr->Release();
             }
@@ -118,8 +136,9 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             ITfRange* pCursorRange = nullptr;
             if (SUCCEEDED(pRange->Clone(&pCursorRange))) {
                 LONG cch = 0;
+                size_t utf16CursorIndex = McBopomofo::Utf8OffsetToUtf16Offset(_state.composingBuffer, _state.cursorIndex);
                 pCursorRange->Collapse(ec, TF_ANCHOR_START);
-                pCursorRange->ShiftEnd(ec, _state.cursorIndex, &cch, nullptr);
+                pCursorRange->ShiftEnd(ec, (LONG)utf16CursorIndex, &cch, nullptr);
                 pCursorRange->Collapse(ec, TF_ANCHOR_END);
 
                 TF_SELECTION sel;

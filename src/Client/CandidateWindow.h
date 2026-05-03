@@ -26,8 +26,10 @@ private:
     void CreateDeviceResources();
     void DiscardDeviceResources();
     void UpdateTheme();
+    float GetDpiScale();
 
     HWND _hwnd;
+    float _dpiScale;
     std::vector<std::wstring> _candidates;
     int _cursorIndex;
     std::wstring _displayString;

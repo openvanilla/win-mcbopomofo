@@ -62,6 +62,7 @@ void Settings::Load() {
     halfWidthPunctuationEnabled_ = ReadBool(L"General", L"HalfWidthPunctuationEnabled", false);
     repeatedPunctuationToSelectCandidateEnabled_ = ReadBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", false);
     chooseCandidateUsingSpace_ = ReadBool(L"General", L"ChooseCandidateUsingSpace", true);
+    candidateWindowVertical_ = ReadBool(L"UI", L"CandidateWindowVertical", false);
 }
 
 void Settings::Save() {
@@ -77,6 +78,7 @@ void Settings::Save() {
     WriteBool(L"General", L"HalfWidthPunctuationEnabled", halfWidthPunctuationEnabled_);
     WriteBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", repeatedPunctuationToSelectCandidateEnabled_);
     WriteBool(L"General", L"ChooseCandidateUsingSpace", chooseCandidateUsingSpace_);
+    WriteBool(L"UI", L"CandidateWindowVertical", candidateWindowVertical_);
 }
 
 void Settings::ApplyTo(InputController& controller) {

@@ -11,7 +11,7 @@
 const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
 CandidateWindow::CandidateWindow() 
-    : _hwnd(nullptr), _cursorIndex(0), _isVertical(false), _isDarkMode(false),
+    : _hwnd(nullptr), _dpiScale(1.0f), _cursorIndex(0), _isVertical(false), _isDarkMode(false),
       _pD2DFactory(nullptr), _pRenderTarget(nullptr), _pDWriteFactory(nullptr), 
       _pTextFormat(nullptr), _pTextLayout(nullptr),
       _pTextBrush(nullptr), _pBgBrush(nullptr), _pBorderBrush(nullptr) {
@@ -26,6 +26,23 @@ CandidateWindow::~CandidateWindow() {
     if (_pTextFormat) { _pTextFormat->Release(); }
     if (_pDWriteFactory) { _pDWriteFactory->Release(); }
     if (_pD2DFactory) { _pD2DFactory->Release(); }
+}
+
+float CandidateWindow::GetDpiScale() {
+    if (!_hwnd) return 1.0f;
+    UINT dpi = 96;
+    HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
+    auto pGetDpiForWindow = (UINT(WINAPI*)(HWND))GetProcAddress(hUser32, "GetDpiForWindow");
+    if (pGetDpiForWindow) {
+        dpi = pGetDpiForWindow(_hwnd);
+    } else {
+        HDC hdc = GetDC(_hwnd);
+        if (hdc) {
+            dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+            ReleaseDC(_hwnd, hdc);
+        }
+    }
+    return (float)dpi / 96.0f;
 }
 
 void CandidateWindow::CreateDeviceIndependentResources() {
@@ -144,6 +161,8 @@ void CandidateWindow::Destroy() {
 void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical) {
     if (!_hwnd) return;
 
+    _dpiScale = GetDpiScale();
+
     _candidates.clear();
     for (const auto& c : candidates) {
         _candidates.push_back(McBopomofo::Utf8ToUtf16(c));
@@ -213,8 +232,8 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
         textHeight = metrics.height;
     }
 
-    int width = (int)std::ceil(textWidth) + 24;
-    int height = (int)std::ceil(textHeight) + 16;
+    int width = (int)std::ceil(textWidth * _dpiScale) + (int)(24 * _dpiScale);
+    int height = (int)std::ceil(textHeight * _dpiScale) + (int)(16 * _dpiScale);
 
     SetWindowPos(_hwnd, HWND_TOPMOST, 0, 0, width, height, SWP_NOMOVE | SWP_NOACTIVATE);
     if (_pRenderTarget) {
@@ -252,6 +271,15 @@ LRESULT CALLBACK CandidateWindow::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, L
             return pThis->OnPaint(hwnd);
         } else if (uMsg == WM_SETTINGCHANGE) {
             pThis->OnSettingChange();
+        } else if (uMsg == WM_DPICHANGED) {
+            pThis->_dpiScale = (float)LOWORD(wParam) / 96.0f;
+            RECT* prcNewWindow = (RECT*)lParam;
+            SetWindowPos(hwnd, NULL, prcNewWindow->left, prcNewWindow->top, 
+                         prcNewWindow->right - prcNewWindow->left, 
+                         prcNewWindow->bottom - prcNewWindow->top, 
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
         } else if (uMsg == WM_DISPLAYCHANGE) {
             ::InvalidateRect(hwnd, nullptr, FALSE);
         }
@@ -267,6 +295,7 @@ LRESULT CandidateWindow::OnPaint(HWND hwnd) {
     CreateDeviceResources();
     if (_pRenderTarget) {
         _pRenderTarget->BeginDraw();
+        _pRenderTarget->SetTransform(D2D1::Matrix3x2F::Scale(_dpiScale, _dpiScale));
         _pRenderTarget->Clear(_pBgBrush->GetColor());
 
         if (_pTextLayout && _pTextBrush) {
@@ -280,6 +309,9 @@ LRESULT CandidateWindow::OnPaint(HWND hwnd) {
 
         // Draw border
         D2D1_SIZE_F size = _pRenderTarget->GetSize();
+        // border should be in pixels, but SetTransform is active. 
+        // We should probably draw the border without transform or compensate.
+        _pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
         _pRenderTarget->DrawRectangle(D2D1::RectF(0.5f, 0.5f, size.width - 0.5f, size.height - 0.5f), _pBorderBrush, 1.0f);
 
         HRESULT hr = _pRenderTarget->EndDraw();

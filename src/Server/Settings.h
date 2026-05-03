@@ -56,6 +56,9 @@ public:
     bool GetChooseCandidateUsingSpace() const { return chooseCandidateUsingSpace_; }
     void SetChooseCandidateUsingSpace(bool v) { chooseCandidateUsingSpace_ = v; }
 
+    bool GetCandidateWindowVertical() const { return candidateWindowVertical_; }
+    void SetCandidateWindowVertical(bool v) { candidateWindowVertical_ = v; }
+
 private:
     std::wstring GetIniFilePath() const;
     std::wstring ReadString(const wchar_t* section, const wchar_t* key, const wchar_t* defaultVal);
@@ -79,6 +82,7 @@ private:
     bool halfWidthPunctuationEnabled_ = false;
     bool repeatedPunctuationToSelectCandidateEnabled_ = false;
     bool chooseCandidateUsingSpace_ = true;
+    bool candidateWindowVertical_ = false;
 };
 
 } // namespace McBopomofo

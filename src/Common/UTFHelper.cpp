@@ -31,4 +31,11 @@ std::string Utf16ToUtf8(const std::wstring& utf16) {
     return utf8;
 }
 
+size_t Utf8OffsetToUtf16Offset(const std::string& utf8, size_t utf8Offset) {
+    if (utf8Offset == 0) return 0;
+    if (utf8Offset >= utf8.length()) return Utf8ToUtf16(utf8).length();
+    std::string sub = utf8.substr(0, utf8Offset);
+    return Utf8ToUtf16(sub).length();
+}
+
 }  // namespace McBopomofo

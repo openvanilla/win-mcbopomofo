@@ -17,6 +17,9 @@ public:
     // Forces the current composing string to be committed and resets the state.
     void Reset();
 
+    // Selects a candidate by its index in the current candidate list.
+    void SelectCandidate(int index);
+
     // Settings passthrough
     void SetInputMode(InputMode mode);
     void SetKeyboardLayout(const Formosa::Mandarin::BopomofoKeyboardLayout* layout);

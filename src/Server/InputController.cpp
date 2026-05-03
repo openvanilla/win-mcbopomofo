@@ -28,6 +28,19 @@ void InputController::Reset() {
         });
 }
 
+void InputController::SelectCandidate(int index) {
+    if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get())) {
+        if (index >= 0 && index < choosing->candidates.size()) {
+            keyHandler_->candidateSelected(
+                choosing->candidates[index],
+                choosing->originalCursor,
+                [this](std::unique_ptr<InputState> state) {
+                    this->ChangeState(std::move(state));
+                });
+        }
+    }
+}
+
 void InputController::SetInputMode(InputMode mode) {
     keyHandler_->setInputMode(mode);
 }
