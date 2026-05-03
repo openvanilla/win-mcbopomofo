@@ -19,6 +19,7 @@ public:
 
     // For testing purposes
     std::wstring GetDisplayString() const { return _displayString; }
+    void SetVertical(bool vertical) { _isVertical = vertical; }
 private:
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     LRESULT OnPaint(HWND hwnd);

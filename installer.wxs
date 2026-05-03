@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <!-- Use a static upgrade code to allow seamless upgrades later -->
+  <Package Name="Win-McBopomofo"
+           Manufacturer="McBopomofo Authors"
+           Version="1.0.0.0"
+           UpgradeCode="4e4b52c0-cf52-47b1-9b7e-976c6dfcbb17"
+           Scope="perUser"
+           InstallerVersion="200"
+           Compressed="yes">
+
+    <!-- Use a simple UI -->
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <!-- Ensure cab files are embedded in the MSI -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Detect and close applications to prevent file locks during installation/uninstallation -->
+    <util:CloseApplication Id="CloseServerApp" Target="McBopomofoServer.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseConfigApp" Target="McBopomofoConfig.exe" CloseMessage="yes" RebootPrompt="no" />
+
+    <!-- Define the directory structure -->
+    <StandardDirectory Id="AppDataFolder">
+      <Directory Id="INSTALLFOLDER" Name="WinMcBopomofo">
+        <Directory Id="DataFolder" Name="data">
+          <Directory Id="AppsFolder_16" Name="16x16" />
+          <Directory Id="AppsFolder_22" Name="22x22" />
+          <Directory Id="AppsFolder_24" Name="24x24" />
+          <Directory Id="AppsFolder_32" Name="32x32" />
+          <Directory Id="AppsFolder_64" Name="64x64" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Win-McBopomofo"/>
+    </StandardDirectory>
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <!-- Core Executables and DLLs -->
+      <Component Id="cmp_ServerExe" Guid="96a40a8a-e9fa-48b4-aeb2-e64fc5a9d8c0">
+        <!-- We use the Release build output -->
+        <File Id="file_ServerExe" Source="build_new_2\bin\Release\McBopomofoServer.exe" KeyPath="yes" />
+        <!-- Automatically run the server on startup -->
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExe]&quot;" />
+      </Component>
+      <Component Id="cmp_ConfigExe" Guid="316f73db-24da-44a6-9bd6-239634e9e4f3">
+        <File Id="file_ConfigExe" Source="build_new_2\bin\Release\McBopomofoConfig.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_TipDll" Guid="0de249ed-cc13-41a4-927b-2e915f0ebfc6">
+        <File Id="file_TipDll" Source="build_new_2\bin\Release\McBopomofoTIP_v2.dll" KeyPath="yes" />
+      </Component>
+      
+      <!-- Start Menu Shortcut -->
+      <Component Id="ApplicationShortcut" Guid="7ab59b8a-b853-4702-abaa-281ceeb7357c">
+        <Shortcut Id="ApplicationStartMenuShortcut" 
+                  Name="McBopomofo Configuration" 
+                  Description="Configure Win-McBopomofo Settings"
+                  Target="[INSTALLFOLDER]McBopomofoConfig.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Directory="ApplicationProgramsFolder" />
+        <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\McBopomofo\Installer" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </ComponentGroup>
+
+    <!-- Data Files -->
+    <ComponentGroup Id="DataComponents" Directory="DataFolder">
+      <Component Id="cmp_DataTxt" Guid="*">
+        <File Id="file_DataTxt" Source="data\data.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_DataPlainBpmf" Guid="*">
+        <File Id="file_DataPlainBpmf" Source="data\data-plain-bpmf.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_AssocPhrases" Guid="*">
+        <File Id="file_AssocPhrases" Source="data\associated-phrases-v2.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_DictService" Guid="*">
+        <File Id="file_DictService" Source="data\dictionary_service.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_Variants" Guid="*">
+        <File Id="file_Variants" Source="data\bpmfvs-variants.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_Pua" Guid="*">
+        <File Id="file_Pua" Source="data\bpmfvs-pua.txt" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Custom Actions to register/unregister the TSF DLL and manage Server process -->
+    <CustomAction Id="RegisterTIP" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="regsvr32.exe /s &quot;[#file_TipDll]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="ignore" />
+
+    <CustomAction Id="UnregisterTIP" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="regsvr32.exe /u /s &quot;[#file_TipDll]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="ignore" />
+
+    <CustomAction Id="StartServer" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="cmd.exe /c start &quot;&quot; &quot;[#file_ServerExe]&quot;" 
+                  Execute="commit" 
+                  Impersonate="yes" 
+                  Return="asyncNoWait" />
+
+    <InstallExecuteSequence>
+      <Custom Action="UnregisterTIP" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot;" />
+      <Custom Action="RegisterTIP" After="InstallFiles" Condition="NOT REMOVE=&quot;ALL&quot;" />
+      <Custom Action="StartServer" After="InstallFinalize" Condition="NOT REMOVE=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+
+    <Feature Id="MainFeature" Title="Win-McBopomofo Core" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="DataComponents" />
+    </Feature>
+  </Package>
+</Wix>

@@ -67,7 +67,8 @@ const BPMF BPMF::FromHanyuPinyin(const std::string& str) {
   }
 
   std::string pinyin = str;
-  transform(pinyin.begin(), pinyin.end(), pinyin.begin(), ::tolower);
+  std::transform(pinyin.begin(), pinyin.end(), pinyin.begin(), 
+                 [](unsigned char c){ return std::tolower(c); });
 
   BPMF::Component firstComponent = 0;
   BPMF::Component secondComponent = 0;

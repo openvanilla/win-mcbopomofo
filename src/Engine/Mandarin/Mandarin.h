@@ -24,6 +24,7 @@
 #ifndef SRC_ENGINE_MANDARIN_MANDARIN_H_
 #define SRC_ENGINE_MANDARIN_MANDARIN_H_
 
+#include <cctype>
 #include <cstdint>
 #include <iostream>
 #include <map>
@@ -386,7 +387,7 @@ class BopomofoReadingBuffer {
       return layout_ ? (layout_->keyToComponents(k)).size() > 0 : false;
     }
 
-    char lk = tolower(k);
+    char lk = static_cast<char>(std::tolower(static_cast<unsigned char>(k)));
     if (lk >= 'a' && lk <= 'z') {
       // if a tone marker is already in place
       if (pinyin_sequence_.length()) {
@@ -410,7 +411,7 @@ class BopomofoReadingBuffer {
     if (!isValidKey(k)) return false;
 
     if (pinyin_mode_) {
-      pinyin_sequence_ += std::string(1, tolower(k));
+      pinyin_sequence_ += std::string(1, static_cast<char>(std::tolower(static_cast<unsigned char>(k))));
       syllable_ = BPMF::FromHanyuPinyin(pinyin_sequence_);
       return true;
     }

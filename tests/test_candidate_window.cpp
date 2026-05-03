@@ -14,6 +14,7 @@
 int test_single_candidate() {
     CandidateWindow window;
     window.Create(GetModuleHandle(NULL));
+    window.SetVertical(false);
 
     std::vector<std::string> candidates = {"A"}; // Use simple ascii for test to avoid encoding issues in console
     
@@ -31,6 +32,7 @@ int test_single_candidate() {
 int test_multiple_candidates() {
     CandidateWindow window;
     window.Create(GetModuleHandle(NULL));
+    window.SetVertical(false);
 
     std::vector<std::string> candidates = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"};
     
@@ -54,6 +56,7 @@ int test_multiple_candidates() {
 int test_single_candidate_on_second_page() {
     CandidateWindow window;
     window.Create(GetModuleHandle(NULL));
+    window.SetVertical(false);
 
     std::vector<std::string> candidates = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"};
     

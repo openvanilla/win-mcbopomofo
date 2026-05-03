@@ -7,16 +7,6 @@
 
 namespace Big5Utils {
 
-static bool IsValidSingleUtf8Character(const char* str, int32_t length) {
-    if (str == nullptr || length <= 0) return false;
-    unsigned char c = (unsigned char)str[0];
-    if (c < 0x80) return length == 1;
-    if ((c & 0xE0) == 0xC0) return length == 2;
-    if ((c & 0xF0) == 0xE0) return length == 3;
-    if ((c & 0xF8) == 0xF0) return length == 4;
-    return false;
-}
-
 std::string ConvertBig5fromUint16(uint16_t codePoint) {
     char big5[3] = {0};
     int big5Len = 0;
