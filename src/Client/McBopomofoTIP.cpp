@@ -184,6 +184,7 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFla
 
     extern HINSTANCE g_hInst;
     _candidateWindow.Create(g_hInst);
+    _tooltipWindow.Create(g_hInst);
 
     // Register LangBar button
     ITfLangBarItemMgr *pLangBarItemMgr = nullptr;

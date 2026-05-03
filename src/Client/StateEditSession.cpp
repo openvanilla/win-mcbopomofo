@@ -147,57 +147,65 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 sel.style.fInterimChar = FALSE;
                 _pContext->SetSelection(ec, 1, &sel);
             
-                // Try to find the coordinates for the candidate window
-                if (!_state.candidates.empty()) {
-                    ITfContextView* pView = nullptr;
-                    bool moved = false;
-                    if (SUCCEEDED(_pContext->GetActiveView(&pView))) {
-                        RECT rc = {0};
-                        BOOL fClipped = FALSE;
-                        
-                        if (SUCCEEDED(pView->GetTextExt(ec, pCursorRange, &rc, &fClipped))) {
-                            _pTIP->GetCandidateWindow()->Move(rc.left, rc.bottom + 2);
-                            moved = true;
-                        }
-                        pView->Release();
+            // Try to find the coordinates for the candidate window or tooltip
+            if (!_state.candidates.empty() || !_state.tooltip.empty()) {
+                ITfContextView* pView = nullptr;
+                bool moved = false;
+                if (SUCCEEDED(_pContext->GetActiveView(&pView))) {
+                    RECT rc = {0};
+                    BOOL fClipped = FALSE;
+                    
+                    if (SUCCEEDED(pView->GetTextExt(ec, pCursorRange, &rc, &fClipped))) {
+                        _pTIP->GetCandidateWindow()->Move(rc.left, rc.bottom + 2);
+                        _pTIP->GetTooltipWindow()->Move(rc.left, rc.bottom + 2);
+                        moved = true;
                     }
-                    if (!moved) {
-                        // Fallback to GUI thread info for caret if TSF view layout isn't ready
-                        GUITHREADINFO gti = {0};
-                        gti.cbSize = sizeof(GUITHREADINFO);
-                        if (GetGUIThreadInfo(GetCurrentThreadId(), &gti) && gti.hwndCaret) {
-                            POINT pt = { gti.rcCaret.left, gti.rcCaret.bottom };
-                            ClientToScreen(gti.hwndCaret, &pt);
-                            _pTIP->GetCandidateWindow()->Move(pt.x, pt.y + 2);
-                        }
+                    pView->Release();
+                }
+                if (!moved) {
+                    // Fallback to GUI thread info for caret if TSF view layout isn't ready
+                    GUITHREADINFO gti = {0};
+                    gti.cbSize = sizeof(GUITHREADINFO);
+                    if (GetGUIThreadInfo(GetCurrentThreadId(), &gti) && gti.hwndCaret) {
+                        POINT pt = { gti.rcCaret.left, gti.rcCaret.bottom };
+                        ClientToScreen(gti.hwndCaret, &pt);
+                        _pTIP->GetCandidateWindow()->Move(pt.x, pt.y + 2);
+                        _pTIP->GetTooltipWindow()->Move(pt.x, pt.y + 2);
                     }
                 }
-                pCursorRange->Release();
             }
-        }
-        if (pRange) pRange->Release();
-        
-    } else if (commitStr.empty() && _pTIP->GetComposition()) {
-        // 3. Handle clearing the composition (e.g., user backspaced the last character)
-        ITfRange* pRange = nullptr;
-        if (SUCCEEDED(_pTIP->GetComposition()->GetRange(&pRange))) {
-            pRange->SetText(ec, 0, L"", 0);
-            
-            ITfProperty *pProp = nullptr;
-            if (SUCCEEDED(_pContext->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
-                pProp->Clear(ec, pRange);
-                pProp->Release();
-            }
-
-            _pTIP->GetComposition()->EndComposition(ec);
-            _pTIP->GetComposition()->Release();
-            _pTIP->SetComposition(nullptr);
-            pRange->Release();
+            pCursorRange->Release();
         }
     }
+    if (pRange) pRange->Release();
+    
+} else if (commitStr.empty() && _pTIP->GetComposition()) {
+    // 3. Handle clearing the composition (e.g., user backspaced the last character)
+    ITfRange* pRange = nullptr;
+    if (SUCCEEDED(_pTIP->GetComposition()->GetRange(&pRange))) {
+        pRange->SetText(ec, 0, L"", 0);
+        
+        ITfProperty *pProp = nullptr;
+        if (SUCCEEDED(_pContext->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
+            pProp->Clear(ec, pRange);
+            pProp->Release();
+        }
 
-    // 4. Update Candidate Window UI
+        _pTIP->GetComposition()->EndComposition(ec);
+        _pTIP->GetComposition()->Release();
+        _pTIP->SetComposition(nullptr);
+        pRange->Release();
+    }
+}
+
+// 4. Update Candidate and Tooltip Window UI
+if (!_state.tooltip.empty()) {
+    _pTIP->GetTooltipWindow()->UpdateUI(_state.tooltip);
+    _pTIP->GetCandidateWindow()->Hide();
+} else {
+    _pTIP->GetTooltipWindow()->Hide();
     _pTIP->GetCandidateWindow()->UpdateUI(_state.candidates, _state.candidateIndex, _state.forceVertical);
+}
 
-    return S_OK;
+return S_OK;
 }

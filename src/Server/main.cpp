@@ -93,6 +93,10 @@ public:
         currentState.markStart = -1;
         currentState.markEnd = -1;
         currentState.candidateIndex = controller ? controller->GetCandidateIndex() : -1;
+        currentState.tooltip = "";
+        if (auto* notEmptyState = dynamic_cast<InputStates::NotEmpty*>(state)) {
+            currentState.tooltip = notEmptyState->tooltip;
+        }
 
         // Determine if we need to force vertical layout
         if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||

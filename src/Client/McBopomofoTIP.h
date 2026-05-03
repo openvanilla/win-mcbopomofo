@@ -3,6 +3,7 @@
 #include <msctf.h>
 #include "Ipc.h"
 #include "CandidateWindow.h"
+#include "TooltipWindow.h"
 
 class McBopomofoTIP : public ITfTextInputProcessorEx,
                       public ITfKeyEventSink,
@@ -72,6 +73,7 @@ private:
 
     ITfComposition *_pComposition;
     CandidateWindow _candidateWindow;
+    TooltipWindow _tooltipWindow;
     class CLangBarButton* _pModeIconButton;
     class CLangBarButton* _pSwitchLangButton;
 
@@ -83,4 +85,5 @@ public:
     ITfComposition *GetComposition() const { return _pComposition; }
     void SetComposition(ITfComposition *pComp) { _pComposition = pComp; }
     CandidateWindow* GetCandidateWindow() { return &_candidateWindow; }
+    TooltipWindow* GetTooltipWindow() { return &_tooltipWindow; }
 };

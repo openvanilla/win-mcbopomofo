@@ -108,6 +108,7 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
        << payload.markEnd << "\n"
        << payload.commitString << "\n"
        << payload.composingBuffer << "\n"
+       << payload.tooltip << "\n"
        << payload.candidates.size() << "\n";
     
     for (const auto& cand : payload.candidates) {
@@ -143,6 +144,9 @@ bool DeserializeStateUpdate(const std::string& data, StateUpdatePayload& payload
 
     if (!std::getline(ss, line)) return false;
     payload.composingBuffer = line;
+
+    if (!std::getline(ss, line)) return false;
+    payload.tooltip = line;
 
     if (!std::getline(ss, line)) return false;
     size_t count = std::stoul(line);
