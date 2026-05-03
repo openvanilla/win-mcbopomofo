@@ -19,3 +19,10 @@ if(MSVC)
 endif()
 
 add_subdirectory(src)
+
+# Add tests
+enable_testing()
+add_executable(CandidateWindowTest test_candidate_window.cpp src/Client/CandidateWindow.cpp src/Common/UTFHelper.cpp)
+target_include_directories(CandidateWindowTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Client ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/src/Engine)
+target_link_libraries(CandidateWindowTest PRIVATE user32 gdi32 d2d1 dwrite advapi32 ole32 shell32)
+add_test(NAME CandidateWindowTest COMMAND CandidateWindowTest)

@@ -13,10 +13,12 @@ public:
     bool Create(HINSTANCE hInstance);
     void Destroy();
 
-    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical = false);
+    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical = false);     
     void Move(int x, int y);
     void Hide();
 
+    // For testing purposes
+    std::wstring GetDisplayString() const { return _displayString; }
 private:
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     LRESULT OnPaint(HWND hwnd);

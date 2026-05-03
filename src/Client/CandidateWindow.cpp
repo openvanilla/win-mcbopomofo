@@ -235,6 +235,10 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
     int width = (int)std::ceil(textWidth * _dpiScale) + (int)(24 * _dpiScale);
     int height = (int)std::ceil(textHeight * _dpiScale) + (int)(16 * _dpiScale);
 
+    // Enforce a minimum size to prevent the window from collapsing or being rejected by the OS
+    width = std::max(width, (int)(50 * _dpiScale));
+    height = std::max(height, (int)(24 * _dpiScale));
+
     SetWindowPos(_hwnd, HWND_TOPMOST, 0, 0, width, height, SWP_NOMOVE | SWP_NOACTIVATE);
     if (_pRenderTarget) {
         _pRenderTarget->Resize(D2D1::SizeU(width, height));
