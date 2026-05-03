@@ -4,10 +4,10 @@
 #include "McBopomofoTIP.h"
 #include "Register.h"
 
-// TODO: Replace with an actual generated CLSID later
-// {810B8D97-0DAB-4E87-9551-76A3D49D0E76}
+// The actual generated CLSID
+// {8C9D652A-9B99-4B77-BA9A-3B0F76923B7B}
 const CLSID c_clsidMcBopomofoTIP = 
-{ 0x810b8d97, 0xdab, 0x4e87, { 0x95, 0x51, 0x76, 0xa3, 0xd4, 0x9d, 0xe, 0x76 } };
+{ 0x8c9d652a, 0x9b99, 0x4b77, { 0xba, 0x9a, 0x3b, 0xf, 0x76, 0x92, 0x3b, 0x7b } };
 
 HINSTANCE g_hInst = nullptr;
 LONG g_cRefDll = 0;
@@ -81,8 +81,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     case DLL_PROCESS_ATTACH:
         g_hInst = hModule;
         DisableThreadLibraryCalls(hModule);
+        LogMessage("DLL_PROCESS_ATTACH loaded");
         break;
     case DLL_PROCESS_DETACH:
+        LogMessage("DLL_PROCESS_DETACH unloaded");
         break;
     }
     return TRUE;

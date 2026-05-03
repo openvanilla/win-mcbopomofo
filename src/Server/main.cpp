@@ -24,11 +24,13 @@ public:
     IPC::StateUpdatePayload currentState;
 
     void Reset() override {
+        std::string savedCommit = currentState.commitString;
         currentState = IPC::StateUpdatePayload();
+        currentState.commitString = savedCommit;
     }
 
     void CommitString(const std::string& text) override {
-        currentState.commitString = text;
+        currentState.commitString += text;
     }
 
     void Update(InputState* state) override {

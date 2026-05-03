@@ -9,14 +9,15 @@ void LogMessage(const char* format, ...) {
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    // Also write to a file in TEMP
-    char tempPath[MAX_PATH];
-    if (GetTempPathA(MAX_PATH, tempPath)) {
-        strcat_s(tempPath, "mcbopomofo_tip.log");
-        FILE* fp = nullptr;
-        if (fopen_s(&fp, tempPath, "a") == 0) {
-            fprintf(fp, "[%lu] %s\n", GetCurrentProcessId(), buffer);
-            fclose(fp);
-        }
+    // Send to debugger
+    char dbgBuffer[1050];
+    sprintf_s(dbgBuffer, "[WinMcBopomofo] [%lu] %s\n", GetCurrentProcessId(), buffer);
+    OutputDebugStringA(dbgBuffer);
+
+    // Also write to a file in Public Documents
+    FILE* fp = nullptr;
+    if (fopen_s(&fp, "C:\\Users\\Public\\mcbopomofo_tip.log", "a") == 0) {
+        fprintf(fp, "[%lu] %s\n", GetCurrentProcessId(), buffer);
+        fclose(fp);
     }
 }
