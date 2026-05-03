@@ -82,6 +82,9 @@ Copy-Item "$sourceDir\McBopomofoTIP_x86.dll" "$installDir\" -Force -ErrorAction 
 Copy-Item "$sourceDir\McBopomofoTIP_arm64.dll" "$installDir\" -Force -ErrorAction SilentlyContinue
 Copy-Item "$sourceDir\data\*" "$installDir\data\" -Recurse -Force
 
+if (!(Test-Path "$installDir\opencc")) { New-Item -ItemType Directory -Path "$installDir\opencc" -Force }
+Copy-Item "$sourceDir\opencc\*" "$installDir\opencc\" -Recurse -Force
+
 Write-Host "4. Granting AppContainer permissions..."
 icacls "$installDir" /grant "ALL APPLICATION PACKAGES:(OI)(CI)(RX)" /T /Q
 

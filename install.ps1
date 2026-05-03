@@ -35,7 +35,18 @@ Copy-Item "build_x64\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTI
 Copy-Item "build_x86\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_x86.dll"
 Copy-Item "build_arm64\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_arm64.dll"
 Copy-Item "data\data.txt" "$installDir\data\"
+Copy-Item "data\data-plain-bpmf.txt" "$installDir\data\"
 Copy-Item "data\associated-phrases-v2.txt" "$installDir\data\"
+Copy-Item "data\dictionary_service.json" "$installDir\data\"
+Copy-Item "data\bpmfvs-variants.txt" "$installDir\data\"
+Copy-Item "data\bpmfvs-pua.txt" "$installDir\data\"
+
+if (!(Test-Path "$installDir\opencc")) { New-Item -ItemType Directory -Path "$installDir\opencc" }
+Copy-Item "third_party\OpenCC\data\config\tw2s.json" "$installDir\opencc\" -Force
+Copy-Item "third_party\OpenCC\data\dictionary\STCharacters.txt" "$installDir\opencc\" -Force
+Copy-Item "third_party\OpenCC\data\dictionary\STPhrases.txt" "$installDir\opencc\" -Force
+Copy-Item "third_party\OpenCC\data\dictionary\TWPhrases.txt" "$installDir\opencc\" -Force
+Copy-Item "third_party\OpenCC\data\dictionary\TWVariants.txt" "$installDir\opencc\" -Force
 
 Write-Host "6. Granting AppContainer (UWP) permissions to dist folder..."
 icacls "$installDir" /grant "ALL APPLICATION PACKAGES:(OI)(CI)(RX)" /T /Q

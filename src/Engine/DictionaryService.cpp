@@ -1,9 +1,55 @@
 #include "DictionaryService.h"
 #include "UTF8Helper.h"
 
+#include <fstream>
+
 namespace McBopomofo {
 
+// Minimal helper to extract string values from JSON
+std::string ExtractJsonString(const std::string& json, const std::string& key, size_t& pos) {
+    std::string searchKey = "\"" + key + "\":";
+    size_t keyPos = json.find(searchKey, pos);
+    if (keyPos == std::string::npos) return "";
+    
+    size_t startQuote = json.find("\"", keyPos + searchKey.length());
+    if (startQuote == std::string::npos) return "";
+    
+    size_t endQuote = startQuote + 1;
+    bool inEscape = false;
+    while (endQuote < json.length()) {
+        if (json[endQuote] == '\\' && !inEscape) {
+            inEscape = true;
+        } else if (json[endQuote] == '"' && !inEscape) {
+            break;
+        } else {
+            inEscape = false;
+        }
+        endQuote++;
+    }
+    
+    if (endQuote == std::string::npos || endQuote >= json.length()) return "";
+    
+    pos = endQuote;
+    std::string val = json.substr(startQuote + 1, endQuote - startQuote - 1);
+    
+    // basic unescape
+    std::string unescaped;
+    for (size_t i = 0; i < val.length(); ++i) {
+        if (val[i] == '\\' && i + 1 < val.length()) {
+            if (val[i+1] == '"') { unescaped += '"'; ++i; }
+            else if (val[i+1] == '\\') { unescaped += '\\'; ++i; }
+            else if (val[i+1] == '/') { unescaped += '/'; ++i; }
+            else if (val[i+1] == 'n') { unescaped += '\n'; ++i; }
+            else { unescaped += val[i]; }
+        } else {
+            unescaped += val[i];
+        }
+    }
+    return unescaped;
+}
+
 class SimpleDictionaryService : public DictionaryService {
+
 public:
     SimpleDictionaryService(std::string name, std::string urlTemplate)
         : name_(std::move(name)), urlTemplate_(std::move(urlTemplate)) {}
@@ -49,20 +95,34 @@ DictionaryServices::~DictionaryServices() {}
 
 void DictionaryServices::load() {
     services_.clear();
-    services_.push_back(std::make_unique<SimpleDictionaryService>("萌典", "https://www.moedict.tw/(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("萌典 (台語)", "https://www.moedict.tw/'(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("萌典 (客語)", "https://www.moedict.tw/:(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("Google", "https://www.google.com/search?q=(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("教育部重編國語辭典修訂本", "https://dict.revised.moe.edu.tw/search.jsp?md=1&word=(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("教育部國語辭典簡編本", "https://dict.concised.moe.edu.tw/search.jsp?md=1&word=(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("教育部成語典", "https://dict.idioms.moe.edu.tw/idiomList.jsp?idiom=(encoded)&qMd=0&qTp=1&qTp=2"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("教育部異體字字典", "https://dict.variants.moe.edu.tw/variants/rbt/query_result.do?from=standard&search_text=(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("教育部國字標準字體筆順學習網", "https://stroke-order.learningweb.moe.edu.tw/charactersQueryResult.do?words=(encoded)&lang=zh_TW&csrfPreventionSalt=null"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("教育部臺灣閩南語常用詞辭典", "https://sutian.moe.edu.tw/zh-hant/tshiau/?lui=tai_su&tsha=(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("Wiktionary", "https://zh.wiktionary.org/wiki/Special:Search?search=(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("康熙字典網上版", "https://www.kangxizidian.com/search/index.php?stype=Word&sword=(encoded)&detail=n"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("Unihan Database", "https://www.unicode.org/cgi-bin/GetUnihanData.pl?codepoint=(encoded)"));
-    services_.push_back(std::make_unique<SimpleDictionaryService>("國際電腦漢字及異體字知識庫", "https://chardb.iis.sinica.edu.tw/search.jsp?q=(encoded)&stype=1"));
+
+    std::string jsonPath = "data\\dictionary_service.json";
+#if defined(_WIN32)
+    // If we are in the server, we might want to load from the executable's directory.
+    // For now, assume it's in the current working directory's "data" folder,
+    // which the server sets to the installation directory.
+    // A more robust way is to pass the path to `load(const std::string& dataPath)`.
+    // Let's modify the signature or assume the path. Since we can't easily change
+    // the signature without changing callers, we'll try to find it.
+#endif
+
+    std::ifstream file(jsonPath);
+    if (!file.is_open()) {
+        return;
+    }
+
+    std::string json((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    size_t pos = 0;
+
+    while (pos < json.length()) {
+        std::string name = ExtractJsonString(json, "name", pos);
+        if (name.empty()) break;
+        
+        std::string urlTemplate = ExtractJsonString(json, "url_template", pos);
+        if (urlTemplate.empty()) break;
+        
+        services_.push_back(std::make_unique<SimpleDictionaryService>(name, urlTemplate));
+    }
 }
 
 void DictionaryServices::lookup(std::string phrase, size_t serviceIndex, InputState* state, const StateCallback& stateCallback) {
