@@ -22,7 +22,7 @@ int test_single_candidate() {
     
     // Check if the formatted string is not empty and matches expected
     std::wstring result = window.GetDisplayString();
-    ASSERT_EQ(L"[1.A]", result);
+    ASSERT_EQ(L"1. A", result);
 
     std::cout << "test_single_candidate passed." << std::endl;
     return 0;
@@ -38,13 +38,13 @@ int test_multiple_candidates() {
     window.UpdateUI(candidates, 0, false);
     std::wstring result1 = window.GetDisplayString();
     // It should have 9 items and page indicator
-    std::wstring expected1 = L"[1.1]   2.2   3.3   4.4   5.5   6.6   7.7   8.8   9.9  (1/2)";
+    std::wstring expected1 = L"1. 1   2. 2   3. 3   4. 4   5. 5   6. 6   7. 7   8. 8   9. 9  (1/2)";
     ASSERT_EQ(expected1, result1);
 
     // Page 2
     window.UpdateUI(candidates, 9, false);
     std::wstring result2 = window.GetDisplayString();
-    std::wstring expected2 = L"[1.0]  (2/2)";
+    std::wstring expected2 = L"1. 0  (2/2)";
     ASSERT_EQ(expected2, result2);
 
     std::cout << "test_multiple_candidates passed." << std::endl;
@@ -61,7 +61,7 @@ int test_single_candidate_on_second_page() {
     window.UpdateUI(candidates, 9, false);
     
     std::wstring result = window.GetDisplayString();
-    std::wstring expected = L"[1.0]  (2/2)";
+    std::wstring expected = L"1. 0  (2/2)";
     ASSERT_EQ(expected, result);
 
     std::cout << "test_single_candidate_on_second_page passed." << std::endl;

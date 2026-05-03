@@ -14,7 +14,8 @@ CandidateWindow::CandidateWindow()
     : _hwnd(nullptr), _dpiScale(1.0f), _cursorIndex(0), _isVertical(false), _isDarkMode(false),
       _pD2DFactory(nullptr), _pRenderTarget(nullptr), _pDWriteFactory(nullptr), 
       _pTextFormat(nullptr), _pTextLayout(nullptr),
-      _pTextBrush(nullptr), _pBgBrush(nullptr), _pBorderBrush(nullptr) {
+      _pTextBrush(nullptr), _pBgBrush(nullptr), _pBorderBrush(nullptr),
+      _pHighlightBgBrush(nullptr), _pHighlightTextBrush(nullptr) {
     UpdateTheme();
     CreateDeviceIndependentResources();
 }
@@ -88,6 +89,14 @@ void CandidateWindow::CreateDeviceResources() {
                 _isDarkMode ? D2D1::ColorF(0x404040) : D2D1::ColorF(0xCCCCCC),
                 &_pBorderBrush
             );
+            _pRenderTarget->CreateSolidColorBrush(
+                D2D1::ColorF(0x0078D7), // Windows Blue
+                &_pHighlightBgBrush
+            );
+            _pRenderTarget->CreateSolidColorBrush(
+                D2D1::ColorF(0xFFFFFF), // White text on highlight
+                &_pHighlightTextBrush
+            );
         }
     }
 }
@@ -97,6 +106,8 @@ void CandidateWindow::DiscardDeviceResources() {
     if (_pTextBrush) { _pTextBrush->Release(); _pTextBrush = nullptr; }
     if (_pBgBrush) { _pBgBrush->Release(); _pBgBrush = nullptr; }
     if (_pBorderBrush) { _pBorderBrush->Release(); _pBorderBrush = nullptr; }
+    if (_pHighlightBgBrush) { _pHighlightBgBrush->Release(); _pHighlightBgBrush = nullptr; }
+    if (_pHighlightTextBrush) { _pHighlightTextBrush->Release(); _pHighlightTextBrush = nullptr; }
 }
 
 void CandidateWindow::UpdateTheme() {
@@ -183,27 +194,47 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
     int endIndex = std::min((int)_candidates.size(), startIndex + pageSize);
 
     std::wstringstream ss;
+    _keyRanges.clear();
+    _selectedRange = {0, 0};
+    UINT32 currentPos = 0;
+
     for (int i = startIndex; i < endIndex; ++i) {
         int displayNum = (i - startIndex) + 1;
-        if (i == _cursorIndex) {
-            ss << L"[" << displayNum << L"." << _candidates[i] << L"]";
-        } else {
-            ss << displayNum << L"." << _candidates[i];
-        }
         
+        std::wstring keyStr = std::to_wstring(displayNum) + L". ";
+        std::wstring candStr = _candidates[i];
+
+        if (i == _cursorIndex) {
+            _selectedRange.start = currentPos;
+        }
+
+        _keyRanges.push_back({currentPos, (UINT32)keyStr.length()});
+        ss << keyStr;
+        currentPos += (UINT32)keyStr.length();
+
+        ss << candStr;
+        currentPos += (UINT32)candStr.length();
+
+        if (i == _cursorIndex) {
+            _selectedRange.length = currentPos - _selectedRange.start;
+        }
+
         if (i < endIndex - 1) {
-            ss << (drawVertical ? L"\n" : L"   ");
+            std::wstring sep = (drawVertical ? L"\n" : L"   ");
+            ss << sep;
+            currentPos += (UINT32)sep.length();
         }
     }
     
     // Add page indicator if there are multiple pages
     if (_candidates.size() > pageSize) {
         int totalPages = ((int)_candidates.size() + pageSize - 1) / pageSize;
-        if (drawVertical) {
-            ss << L"\n(" << (pageIndex + 1) << L"/" << totalPages << L")";
-        } else {
-            ss << L"  (" << (pageIndex + 1) << L"/" << totalPages << L")";
-        }
+        std::wstring indStr = (drawVertical ? L"\n(" : L"  (");
+        indStr += std::to_wstring(pageIndex + 1) + L"/" + std::to_wstring(totalPages) + L")";
+        
+        _keyRanges.push_back({currentPos, (UINT32)indStr.length()});
+        ss << indStr;
+        currentPos += (UINT32)indStr.length();
     }
 
     _displayString = ss.str();
@@ -222,6 +253,14 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
             10000.0f,
             &_pTextLayout
         );
+
+        if (_pTextLayout) {
+            for (const auto& range : _keyRanges) {
+                DWRITE_TEXT_RANGE dwriteRange = { range.start, range.length };
+                _pTextLayout->SetFontFamilyName(L"Segoe UI", dwriteRange);
+                _pTextLayout->SetFontSize(15.0f, dwriteRange);
+            }
+        }
     }
 
     float textWidth = 0, textHeight = 0;
@@ -303,12 +342,49 @@ LRESULT CandidateWindow::OnPaint(HWND hwnd) {
         _pRenderTarget->Clear(_pBgBrush->GetColor());
 
         if (_pTextLayout && _pTextBrush) {
+            // Draw highlight background if we have a selected range
+            if (_selectedRange.length > 0 && _pHighlightBgBrush) {
+                UINT32 actualHitTestCount = 0;
+                _pTextLayout->HitTestTextRange(
+                    _selectedRange.start, _selectedRange.length,
+                    0, 0, nullptr, 0, &actualHitTestCount
+                );
+                
+                if (actualHitTestCount > 0) {
+                    std::vector<DWRITE_HIT_TEST_METRICS> hitTestMetrics(actualHitTestCount);
+                    _pTextLayout->HitTestTextRange(
+                        _selectedRange.start, _selectedRange.length,
+                        12.0f, 8.0f, hitTestMetrics.data(), actualHitTestCount, &actualHitTestCount
+                    );
+
+                    for (const auto& metrics : hitTestMetrics) {
+                        D2D1_RECT_F rect = D2D1::RectF(
+                            metrics.left - 4.0f, 
+                            metrics.top - 2.0f, 
+                            metrics.left + metrics.width + 4.0f, 
+                            metrics.top + metrics.height + 2.0f
+                        );
+                        _pRenderTarget->FillRectangle(rect, _pHighlightBgBrush);
+                    }
+                }
+
+                // Apply highlight text color effect
+                DWRITE_TEXT_RANGE dwriteRange = { _selectedRange.start, _selectedRange.length };
+                _pTextLayout->SetDrawingEffect(_pHighlightTextBrush, dwriteRange);
+            }
+
             _pRenderTarget->DrawTextLayout(
                 D2D1::Point2F(12.0f, 8.0f),
                 _pTextLayout,
                 _pTextBrush,
                 D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
             );
+
+            // Revert drawing effect so it doesn't leak into subsequent frames if brush is destroyed
+            if (_selectedRange.length > 0) {
+                DWRITE_TEXT_RANGE dwriteRange = { _selectedRange.start, _selectedRange.length };
+                _pTextLayout->SetDrawingEffect(nullptr, dwriteRange);
+            }
         }
 
         // Draw border

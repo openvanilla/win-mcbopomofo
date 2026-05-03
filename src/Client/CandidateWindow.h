@@ -13,7 +13,7 @@ public:
     bool Create(HINSTANCE hInstance);
     void Destroy();
 
-    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical = false);     
+    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical = false);                                                                                                                    
     void Move(int x, int y);
     void Hide();
 
@@ -30,6 +30,11 @@ private:
     void UpdateTheme();
     float GetDpiScale();
 
+    struct TextRange {
+        UINT32 start;
+        UINT32 length;
+    };
+
     HWND _hwnd;
     float _dpiScale;
     std::vector<std::wstring> _candidates;
@@ -37,6 +42,9 @@ private:
     std::wstring _displayString;
     bool _isVertical;
     bool _isDarkMode;
+
+    TextRange _selectedRange;
+    std::vector<TextRange> _keyRanges;
 
     ID2D1Factory* _pD2DFactory;
     ID2D1HwndRenderTarget* _pRenderTarget;
@@ -47,4 +55,6 @@ private:
     ID2D1SolidColorBrush* _pTextBrush;
     ID2D1SolidColorBrush* _pBgBrush;
     ID2D1SolidColorBrush* _pBorderBrush;
+    ID2D1SolidColorBrush* _pHighlightBgBrush;
+    ID2D1SolidColorBrush* _pHighlightTextBrush;
 };
