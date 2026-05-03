@@ -17,6 +17,8 @@
 #include "PathCompat.h"
 #include <fstream>
 #include <filesystem>
+#include <functional>
+#include <mutex>
 
 using namespace McBopomofo;
 
@@ -201,6 +203,85 @@ public:
     void removeUserPhrase(const std::string_view&, const std::string_view&) override {}
 };
 
+class WatchedFile {
+public:
+    explicit WatchedFile(std::filesystem::path path)
+        : path_(std::move(path)) {
+        Refresh();
+    }
+
+    bool HasChanged() {
+        bool currentExists = std::filesystem::exists(path_);
+        std::filesystem::file_time_type currentWriteTime{};
+        if (currentExists) {
+            std::error_code ec;
+            currentWriteTime = std::filesystem::last_write_time(path_, ec);
+            if (ec) {
+                currentExists = false;
+                currentWriteTime = {};
+            }
+        }
+
+        bool changed = currentExists != exists_ ||
+                       (currentExists && currentWriteTime != lastWriteTime_);
+        exists_ = currentExists;
+        lastWriteTime_ = currentWriteTime;
+        return changed;
+    }
+
+private:
+    void Refresh() {
+        exists_ = std::filesystem::exists(path_);
+        if (exists_) {
+            std::error_code ec;
+            lastWriteTime_ = std::filesystem::last_write_time(path_, ec);
+            if (ec) {
+                exists_ = false;
+                lastWriteTime_ = {};
+            }
+        }
+    }
+
+    std::filesystem::path path_;
+    bool exists_ = false;
+    std::filesystem::file_time_type lastWriteTime_{};
+};
+
+class ServerFileReloader {
+public:
+    ServerFileReloader(std::filesystem::path settingsPath,
+                       std::filesystem::path userPhrasesPath,
+                       std::filesystem::path excludedPhrasesPath,
+                       std::function<void()> reloadSettings,
+                       std::function<void()> reloadUserPhrases)
+        : settingsFile_(std::move(settingsPath)),
+          userPhrasesFile_(std::move(userPhrasesPath)),
+          excludedPhrasesFile_(std::move(excludedPhrasesPath)),
+          reloadSettings_(std::move(reloadSettings)),
+          reloadUserPhrases_(std::move(reloadUserPhrases)) {}
+
+    void Check() {
+        if (settingsFile_.HasChanged()) {
+            FCITX_MCBOPOMOFO_INFO() << "Settings file changed; reloading settings.";
+            reloadSettings_();
+        }
+
+        bool userPhrasesChanged = userPhrasesFile_.HasChanged();
+        bool excludedPhrasesChanged = excludedPhrasesFile_.HasChanged();
+        if (userPhrasesChanged || excludedPhrasesChanged) {
+            FCITX_MCBOPOMOFO_INFO() << "User phrase files changed; reloading user phrases.";
+            reloadUserPhrases_();
+        }
+    }
+
+private:
+    WatchedFile settingsFile_;
+    WatchedFile userPhrasesFile_;
+    WatchedFile excludedPhrasesFile_;
+    std::function<void()> reloadSettings_;
+    std::function<void()> reloadUserPhrases_;
+};
+
 #define IDM_SETTINGS 1003
 #define IDM_OPEN_USER_PHRASES 1004
 #define IDM_OPEN_EXCLUDED_PHRASES 1005
@@ -312,10 +393,35 @@ int main(int argc, char* argv[]) {
 
     Settings settings;
     settings.ApplyTo(controller);
+    std::mutex reloadMutex;
+
+    auto reloadSettings = [&]() {
+        settings.Load();
+        settings.ApplyTo(controller);
+    };
+
+    auto reloadUserPhrases = [&]() {
+        lm->loadUserPhrases(userPhrasesPath.c_str(), excludedPhrasesPath.c_str());
+    };
+
+    ServerFileReloader fileReloader(
+        std::filesystem::path(userDir) / "mcbopomofo.ini",
+        userPhrasesPath,
+        excludedPhrasesPath,
+        [&]() {
+            std::lock_guard<std::mutex> lock(reloadMutex);
+            reloadSettings();
+        },
+        [&]() {
+            std::lock_guard<std::mutex> lock(reloadMutex);
+            reloadUserPhrases();
+        });
 
     FCITX_MCBOPOMOFO_INFO() << "Starting Named Pipe server at " << IPC::PIPE_NAME;
 
     IPC::NamedPipeServer server(IPC::PIPE_NAME, [&](const std::string& req) {
+        std::lock_guard<std::mutex> lock(reloadMutex);
+
         // Reset UI payload before processing
         ui.currentState.commitString.clear();
 
@@ -337,8 +443,7 @@ int main(int argc, char* argv[]) {
 
         if (IPC::IsReloadSettingsCommand(req)) {
             FCITX_MCBOPOMOFO_INFO() << "IPC Recv: RELOAD_SETTINGS";
-            settings.Load();
-            settings.ApplyTo(controller);
+            reloadSettings();
             ui.currentState.consumed = true;
             return IPC::SerializeStateUpdate(ui.currentState);
         }
@@ -377,11 +482,24 @@ int main(int argc, char* argv[]) {
 
     FCITX_MCBOPOMOFO_INFO() << "Server is running in background. Check System Tray to exit.";
 
-    // Standard message loop to keep the process alive
+    // Standard message loop to keep the process alive and poll file changes.
     MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+    bool running = true;
+    while (running) {
+        DWORD waitResult = MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
+        if (waitResult == WAIT_TIMEOUT) {
+            fileReloader.Check();
+            continue;
+        }
+
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT) {
+                running = false;
+                break;
+            }
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
     }
     
     server.Stop();
