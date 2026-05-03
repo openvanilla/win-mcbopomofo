@@ -11,6 +11,19 @@ bool InputController::HandleKey(const Key& key) {
     if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get())) {
         const int pageSize = 9;
         int count = (int)choosing->candidates.size();
+        
+        if (key.ascii == Key::SPACE) {
+            int pageIndex = candidateIndex_ / pageSize;
+            int nextPageIndex = pageIndex + 1;
+            int totalPages = (count + pageSize - 1) / pageSize;
+            if (nextPageIndex < totalPages) {
+                candidateIndex_ = nextPageIndex * pageSize;
+            } else {
+                candidateIndex_ = 0;
+            }
+            if (ui_) ui_->Update(currentState_.get());
+            return true;
+        }
 
         if (key.name == Key::KeyName::UP || key.name == Key::KeyName::DOWN ||
             key.name == Key::KeyName::LEFT || key.name == Key::KeyName::RIGHT ||
@@ -18,32 +31,68 @@ bool InputController::HandleKey(const Key& key) {
             key.name == Key::KeyName::PAGE_UP || key.name == Key::KeyName::PAGE_DOWN) {
             
             bool isVertical = candidateWindowVertical_;
-            // Requirements:
-            // 1. Vertical: Up/Down changes selection, Left/Right pages.
-            // 2. Horizontal: Left/Right changes selection, Up/Down pages.
-            
+            int pageIndex = candidateIndex_ / pageSize;
+            int startIndex = pageIndex * pageSize;
+            int endIndex = std::min(count, startIndex + pageSize);
+
+            auto goToNextItem = [&]() {
+                if (candidateIndex_ < count - 1) {
+                    candidateIndex_++;
+                } else {
+                    candidateIndex_ = 0; // Wrap around
+                }
+            };
+
+            auto goToPreviousItem = [&]() {
+                if (candidateIndex_ > 0) {
+                    candidateIndex_--;
+                } else {
+                    candidateIndex_ = count - 1; // Wrap around
+                }
+            };
+
+            auto goToNextPage = [&]() {
+                int nextPageIndex = pageIndex + 1;
+                int totalPages = (count + pageSize - 1) / pageSize;
+                if (nextPageIndex < totalPages) {
+                    candidateIndex_ = nextPageIndex * pageSize;
+                } else {
+                    // Wrap to first page but keep the first item
+                    candidateIndex_ = 0;
+                }
+            };
+
+            auto goToPreviousPage = [&]() {
+                int prevPageIndex = pageIndex - 1;
+                if (prevPageIndex >= 0) {
+                    candidateIndex_ = prevPageIndex * pageSize;
+                } else {
+                    // Wrap to last page
+                    int totalPages = (count + pageSize - 1) / pageSize;
+                    candidateIndex_ = (totalPages - 1) * pageSize;
+                }
+            };
+
             if (key.name == Key::KeyName::HOME) {
                 candidateIndex_ = 0;
             } else if (key.name == Key::KeyName::END) {
                 candidateIndex_ = count - 1;
-            } else if ((isVertical && key.name == Key::KeyName::UP) || (!isVertical && key.name == Key::KeyName::LEFT)) {
-                if (candidateIndex_ > 0) {
-                    candidateIndex_--;
-                } else {
-                    candidateIndex_ = count - 1;
-                }
-            } else if ((isVertical && key.name == Key::KeyName::DOWN) || (!isVertical && key.name == Key::KeyName::RIGHT)) {
-                if (candidateIndex_ < count - 1) {
-                    candidateIndex_++;
-                } else {
-                    candidateIndex_ = 0;
-                }
-            } else if (key.name == Key::KeyName::PAGE_UP || (isVertical && key.name == Key::KeyName::LEFT) || (!isVertical && key.name == Key::KeyName::UP)) {
-                // Page Up
-                candidateIndex_ = std::max(0, candidateIndex_ - pageSize);
-            } else if (key.name == Key::KeyName::PAGE_DOWN || (isVertical && key.name == Key::KeyName::RIGHT) || (!isVertical && key.name == Key::KeyName::DOWN)) {
-                // Page Down
-                candidateIndex_ = std::min(count - 1, candidateIndex_ + pageSize);
+            } else if (key.name == Key::KeyName::PAGE_UP) {
+                goToPreviousPage();
+            } else if (key.name == Key::KeyName::PAGE_DOWN) {
+                goToNextPage();
+            } else if (key.name == Key::KeyName::LEFT) {
+                if (isVertical) goToPreviousPage();
+                else goToPreviousItem();
+            } else if (key.name == Key::KeyName::RIGHT) {
+                if (isVertical) goToNextPage();
+                else goToNextItem();
+            } else if (key.name == Key::KeyName::UP) {
+                if (isVertical) goToPreviousItem();
+                else goToPreviousPage();
+            } else if (key.name == Key::KeyName::DOWN) {
+                if (isVertical) goToNextItem();
+                else goToNextPage();
             }
 
             if (ui_) ui_->Update(currentState_.get());
@@ -52,19 +101,6 @@ bool InputController::HandleKey(const Key& key) {
 
         if (key.ascii == Key::RETURN) {
             SelectCandidate(candidateIndex_);
-            return true;
-        }
-
-        if (key.ascii == Key::SPACE) {
-            // Space to go to next page
-            int nextPageIndex = (candidateIndex_ / pageSize) + 1;
-            int nextStartIndex = nextPageIndex * pageSize;
-            if (nextStartIndex < count) {
-                candidateIndex_ = nextStartIndex;
-            } else {
-                candidateIndex_ = 0; // Wrap to first page
-            }
-            if (ui_) ui_->Update(currentState_.get());
             return true;
         }
 
