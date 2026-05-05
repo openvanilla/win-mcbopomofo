@@ -7,6 +7,7 @@
 
 #include "UTF8Helper.h"
 #include "McBopomofoLM.h"
+#include "Log.h"
 
 namespace McBopomofo {
 
@@ -141,7 +142,7 @@ void InputController::SetDataDirectory(const std::filesystem::path& dataDir) {
     try {
         std::filesystem::path openccPath = dataDir / "opencc" / "tw2s.json";
         openccConverter_ = std::make_unique<opencc::SimpleConverter>(openccPath.string());
-        
+
         auto lm = std::dynamic_pointer_cast<McBopomofoLM>(keyHandler_->getLM());
         if (lm) {
             lm->setExternalConverter([this](const std::string& input) {
@@ -153,8 +154,8 @@ void InputController::SetDataDirectory(const std::filesystem::path& dataDir) {
             // We disable it by default. The user will toggle it via the tray menu.
             keyHandler_->setChineseConversionEnabled(false);
         }
-    } catch (const std::exception&) {
-        // Fallback or log if missing
+    } catch (const std::exception& e) {
+        FCITX_MCBOPOMOFO_ERROR() << "Failed to initialize OpenCC: " << e.what();
         openccConverter_.reset();
     }
 }
@@ -238,7 +239,7 @@ bool InputController::HandleCandidateKey(const Key& key) {
         return true;
     }
 
-    bool returnPressed = key.ascii == Key::RETURN && (!useShiftKey || key.shiftPressed);
+    bool returnPressed = key.ascii == Key::RETURN;
     if (returnPressed) {
         SelectCandidate(candidateIndex_);
         return true;

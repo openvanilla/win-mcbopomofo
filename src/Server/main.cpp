@@ -88,7 +88,6 @@ public:
     }
 
     void Update(InputState* state) override {
-        currentState.commitString.clear();
         currentState.forceVertical = false;
         currentState.markStart = -1;
         currentState.markEnd = -1;
