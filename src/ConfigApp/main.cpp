@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <vector>
 #include <string>
 
 #include "Settings.h"
@@ -28,14 +29,19 @@ constexpr int kReloadCommand = 1;
 // Light Mode Colors
 constexpr COLORREF kLightWindowColor = RGB(246, 247, 249);
 constexpr COLORREF kLightTextColor = RGB(32, 33, 36);
+constexpr COLORREF kLightControlColor = RGB(255, 255, 255);
 
 // Dark Mode Colors
 constexpr COLORREF kDarkWindowColor = RGB(32, 33, 36);
 constexpr COLORREF kDarkTextColor = RGB(232, 234, 237);
+constexpr COLORREF kDarkControlColor = RGB(45, 46, 50);
 
 COLORREF g_WindowColor = kLightWindowColor;
 COLORREF g_TextColor = kLightTextColor;
+COLORREF g_ControlColor = kLightControlColor;
 HBRUSH g_WindowBrush = nullptr;
+HBRUSH g_ControlBrush = nullptr;
+bool g_DarkMode = false;
 
 bool IsDarkModeEnabled() {
     HKEY hKey;
@@ -49,19 +55,24 @@ bool IsDarkModeEnabled() {
 }
 
 void UpdateThemeColors() {
-    if (IsDarkModeEnabled()) {
+    g_DarkMode = IsDarkModeEnabled();
+    if (g_DarkMode) {
         g_WindowColor = kDarkWindowColor;
         g_TextColor = kDarkTextColor;
+        g_ControlColor = kDarkControlColor;
     } else {
         g_WindowColor = kLightWindowColor;
         g_TextColor = kLightTextColor;
+        g_ControlColor = kLightControlColor;
     }
     if (g_WindowBrush) DeleteObject(g_WindowBrush);
+    if (g_ControlBrush) DeleteObject(g_ControlBrush);
     g_WindowBrush = CreateSolidBrush(g_WindowColor);
+    g_ControlBrush = CreateSolidBrush(g_ControlColor);
 }
 
 void ApplyThemeToWindow(HWND hwnd) {
-    BOOL dark = IsDarkModeEnabled();
+    BOOL dark = g_DarkMode;
     DwmSetWindowAttribute(hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &dark, sizeof(dark));
 }
 
@@ -121,8 +132,11 @@ HWND hReloadBtn = nullptr;
 HWND hCandidateKeysCountCombo = nullptr;
 HFONT hUiFont = nullptr;
 HFONT hTitleFont = nullptr;
-HBRUSH hWindowBrush = nullptr;
 Settings settings;
+std::vector<HWND> g_ThemedControls;
+std::vector<HWND> g_GroupBoxes;
+std::vector<HWND> g_CheckBoxes;
+std::vector<HWND> g_RadioButtons;
 
 int Scale(int value) {
     HDC hdc = GetDC(nullptr);
@@ -162,7 +176,18 @@ void ApplyFont(HWND hwnd, HFONT font = nullptr) {
 
 HWND TrackControl(HWND hwnd, HFONT font = nullptr) {
     ApplyFont(hwnd, font);
+    g_ThemedControls.push_back(hwnd);
     return hwnd;
+}
+
+void ApplyThemeToControls() {
+    const wchar_t* theme = g_DarkMode ? L"DarkMode_Explorer" : L"Explorer";
+    for (HWND control : g_ThemedControls) {
+        if (control && IsWindow(control)) {
+            SetWindowTheme(control, theme, nullptr);
+            InvalidateRect(control, nullptr, TRUE);
+        }
+    }
 }
 
 void AddComboString(HWND combo, const wchar_t* text) {
@@ -194,7 +219,7 @@ HWND CreateGroup(HWND parent, int x, int y, int width, int height) {
     HWND group = CreateWindowW(
         L"Button",
         L"",
-        WS_VISIBLE | WS_CHILD | BS_GROUPBOX,
+        WS_VISIBLE | WS_CHILD | BS_GROUPBOX | BS_OWNERDRAW,
         Scale(x),
         Scale(y),
         Scale(width),
@@ -203,6 +228,7 @@ HWND CreateGroup(HWND parent, int x, int y, int width, int height) {
         nullptr,
         nullptr,
         nullptr);
+    g_GroupBoxes.push_back(group);
     return TrackControl(group);
 }
 
@@ -227,7 +253,7 @@ HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
     HWND check = CreateWindowW(
         L"Button",
         text,
-        WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX,
+        WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX | BS_OWNERDRAW,
         Scale(x),
         Scale(y),
         Scale(width),
@@ -236,18 +262,100 @@ HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
         nullptr,
         nullptr,
         nullptr);
-    SetWindowTheme(check, L"Explorer", nullptr);
+    g_CheckBoxes.push_back(check);
     return TrackControl(check);
 }
 
 HWND CreateRadio(HWND parent, const wchar_t* text, int x, int y, int width, bool startsGroup) {
-    DWORD style = WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON;
+    DWORD style = WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON | BS_OWNERDRAW;
     if (startsGroup) {
         style |= WS_GROUP;
     }
     HWND radio = CreateWindowW(L"Button", text, style, Scale(x), Scale(y), Scale(width), Scale(28), parent, nullptr, nullptr, nullptr);
-    SetWindowTheme(radio, L"Explorer", nullptr);
+    g_RadioButtons.push_back(radio);
     return TrackControl(radio);
+}
+
+bool ContainsControl(const std::vector<HWND>& controls, HWND hwnd) {
+    return std::find(controls.begin(), controls.end(), hwnd) != controls.end();
+}
+
+void DrawControlText(HDC hdc, HWND hwnd, RECT rect, UINT format) {
+    wchar_t text[256] = {};
+    GetWindowTextW(hwnd, text, static_cast<int>(std::size(text)));
+    HFONT font = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
+    HFONT oldFont = font ? reinterpret_cast<HFONT>(SelectObject(hdc, font)) : nullptr;
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, g_TextColor);
+    DrawTextW(hdc, text, -1, &rect, format);
+    if (oldFont) {
+        SelectObject(hdc, oldFont);
+    }
+}
+
+void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
+    HDC hdc = item->hDC;
+    RECT rect = item->rcItem;
+    FillRect(hdc, &rect, g_WindowBrush);
+
+    if (ContainsControl(g_GroupBoxes, item->hwndItem)) {
+        HPEN pen = CreatePen(PS_SOLID, 1, g_DarkMode ? RGB(92, 94, 99) : RGB(210, 214, 220));
+        HGDIOBJ oldPen = SelectObject(hdc, pen);
+        HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+        Rectangle(hdc, rect.left, rect.top + Scale(8), rect.right, rect.bottom);
+        SelectObject(hdc, oldBrush);
+        SelectObject(hdc, oldPen);
+        DeleteObject(pen);
+        return;
+    }
+
+    bool pushed = (item->itemState & ODS_SELECTED) != 0;
+    bool focused = (item->itemState & ODS_FOCUS) != 0;
+    bool checked = SendMessageW(item->hwndItem, BM_GETCHECK, 0, 0) == BST_CHECKED;
+    bool isRadio = ContainsControl(g_RadioButtons, item->hwndItem);
+    bool isCheck = ContainsControl(g_CheckBoxes, item->hwndItem);
+
+    if (isRadio || isCheck) {
+        int glyph = Scale(16);
+        RECT glyphRect = {rect.left + Scale(2), rect.top + (rect.bottom - rect.top - glyph) / 2, rect.left + Scale(2) + glyph, rect.top + (rect.bottom - rect.top + glyph) / 2};
+        UINT state = 0;
+        if (isRadio) {
+            state = checked ? DFCS_BUTTONRADIO | DFCS_CHECKED : DFCS_BUTTONRADIO;
+        } else {
+            state = checked ? DFCS_BUTTONCHECK | DFCS_CHECKED : DFCS_BUTTONCHECK;
+        }
+        DrawFrameControl(hdc, &glyphRect, DFC_BUTTON, state);
+
+        RECT textRect = rect;
+        textRect.left += Scale(26);
+        DrawControlText(hdc, item->hwndItem, textRect, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+        if (focused) {
+            DrawFocusRect(hdc, &textRect);
+        }
+        return;
+    }
+
+    COLORREF buttonColor = g_DarkMode ? (pushed ? RGB(66, 68, 73) : RGB(55, 57, 62)) : (pushed ? RGB(229, 232, 236) : RGB(255, 255, 255));
+    HBRUSH buttonBrush = CreateSolidBrush(buttonColor);
+    FillRect(hdc, &rect, buttonBrush);
+    DeleteObject(buttonBrush);
+
+    HPEN pen = CreatePen(PS_SOLID, 1, g_DarkMode ? RGB(105, 107, 112) : RGB(196, 200, 207));
+    HGDIOBJ oldPen = SelectObject(hdc, pen);
+    HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+    Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(pen);
+
+    if (pushed) {
+        OffsetRect(&rect, Scale(1), Scale(1));
+    }
+    DrawControlText(hdc, item->hwndItem, rect, DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_END_ELLIPSIS);
+    if (focused) {
+        InflateRect(&rect, -Scale(4), -Scale(4));
+        DrawFocusRect(hdc, &rect);
+    }
 }
 
 void SetLayoutSelection() {
@@ -352,7 +460,7 @@ void CreateControls(HWND hwnd) {
     hReloadBtn = CreateWindowW(
         L"Button",
         L"重新載入",
-        WS_VISIBLE | WS_CHILD | WS_TABSTOP,
+        WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_OWNERDRAW,
         Scale(468),
         Scale(20),
         Scale(104),
@@ -419,6 +527,47 @@ void CreateControls(HWND hwnd) {
     hChooseSpaceCheck = CreateCheck(hwnd, L"使用空白鍵選取候選字", 210, 772, 320);
 
     UpdateUI();
+    ApplyThemeToControls();
+}
+
+void CheckRadioPair(HWND selected, HWND other) {
+    SetChecked(selected, true);
+    SetChecked(other, false);
+    InvalidateRect(selected, nullptr, TRUE);
+    InvalidateRect(other, nullptr, TRUE);
+}
+
+bool HandleOwnerDrawClick(HWND control) {
+    if (ContainsControl(g_CheckBoxes, control)) {
+        SetChecked(control, !IsChecked(control));
+        InvalidateRect(control, nullptr, TRUE);
+        return true;
+    }
+    if (control == hVerticalRadio) {
+        CheckRadioPair(hVerticalRadio, hHorizontalRadio);
+        return true;
+    }
+    if (control == hHorizontalRadio) {
+        CheckRadioPair(hHorizontalRadio, hVerticalRadio);
+        return true;
+    }
+    if (control == hSelectBeforeRadio) {
+        CheckRadioPair(hSelectBeforeRadio, hSelectAfterRadio);
+        return true;
+    }
+    if (control == hSelectAfterRadio) {
+        CheckRadioPair(hSelectAfterRadio, hSelectBeforeRadio);
+        return true;
+    }
+    if (control == hLowercaseRadio) {
+        CheckRadioPair(hLowercaseRadio, hUppercaseRadio);
+        return true;
+    }
+    if (control == hUppercaseRadio) {
+        CheckRadioPair(hUppercaseRadio, hLowercaseRadio);
+        return true;
+    }
+    return false;
 }
 
 }  // namespace
@@ -433,6 +582,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (lParam && wcscmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") == 0) {
             UpdateThemeColors();
             ApplyThemeToWindow(hwnd);
+            ApplyThemeToControls();
             InvalidateRect(hwnd, nullptr, TRUE);
         }
         break;
@@ -448,6 +598,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         SetTextColor(hdc, g_TextColor);
         return reinterpret_cast<LRESULT>(g_WindowBrush);
     }
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX: {
+        HDC hdc = reinterpret_cast<HDC>(wParam);
+        SetBkMode(hdc, OPAQUE);
+        SetBkColor(hdc, g_ControlColor);
+        SetTextColor(hdc, g_TextColor);
+        return reinterpret_cast<LRESULT>(g_ControlBrush);
+    }
+    case WM_DRAWITEM:
+        DrawOwnerDrawButton(reinterpret_cast<DRAWITEMSTRUCT*>(lParam));
+        return TRUE;
     case WM_ERASEBKGND: {
         RECT rect;
         GetClientRect(hwnd, &rect);
@@ -458,6 +619,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (LOWORD(wParam) == kReloadCommand) {
             UpdateUI();
         } else if (HIWORD(wParam) == BN_CLICKED || HIWORD(wParam) == CBN_SELCHANGE) {
+            if (HIWORD(wParam) == BN_CLICKED) {
+                HandleOwnerDrawClick(reinterpret_cast<HWND>(lParam));
+            }
             SaveAndNotify();
         }
         break;
@@ -465,6 +629,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         DeleteObject(hUiFont);
         DeleteObject(hTitleFont);
         DeleteObject(g_WindowBrush);
+        DeleteObject(g_ControlBrush);
         PostQuitMessage(0);
         break;
     default:
