@@ -3,6 +3,7 @@
 #include "NamedPipe.h"
 #include "StateEditSession.h"
 #include "LangBarButton.h"
+
 McBopomofoTIP::McBopomofoTIP()
     : _cRef(1),
       _ptim(nullptr),
@@ -255,56 +256,41 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lPara
         return E_INVALIDARG;
     }
 
-    if (wParam == VK_SHIFT || wParam == VK_CONTROL || wParam == VK_MENU) {
-        *pfEaten = FALSE;
-        return S_OK;
-    }
-
     BYTE keyboardState[256];
     GetKeyboardState(keyboardState);
 
-    // Ctrl+Space toggle
+    // Ctrl+Space toggle (system-level operation, handle here)
     if (wParam == VK_SPACE && (keyboardState[VK_CONTROL] & 0x80)) {
+        ToggleOpenClose();
         *pfEaten = TRUE;
         return S_OK;
     }
 
+    // If IME is closed, don't eat any keys
     if (!IsOpen()) {
         *pfEaten = FALSE;
         return S_OK;
     }
 
-    // When candidate window is open, block all keys except ESC
-    if (!_lastState.candidates.empty()) {
+    // If we have active composing buffer or candidates, let server handle all keys
+    if (!_lastState.composingBuffer.empty() || !_lastState.candidates.empty()) {
         *pfEaten = TRUE;
         return S_OK;
     }
 
-    switch (wParam) {
-    case VK_BACK:
-    case VK_TAB:
-    case VK_RETURN:
-    case VK_ESCAPE:
-    case VK_SPACE:
-    case VK_PRIOR:
-    case VK_NEXT:
-    case VK_END:
-    case VK_HOME:
-    case VK_LEFT:
-    case VK_UP:
-    case VK_RIGHT:
-    case VK_DOWN:
-        *pfEaten = TRUE;
-        return S_OK;
-    default:
-        break;
-    }
-
+    // No active state: only eat printable characters, let server decide if it wants to start composing
     WCHAR chars[2] = {0};
-    *pfEaten = ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2, 0) == 1;
+    if (ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2, 0) == 1) {
+        // Only eat if it's a printable ASCII character (let server handle Bopomofo keys)
+        *pfEaten = (chars[0] >= 32 && chars[0] <= 126);
+    } else {
+        *pfEaten = FALSE;
+    }
+
     return S_OK;
 }
 
+//
 STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
     if (pfEaten == nullptr) {
         return E_INVALIDARG;
@@ -513,6 +499,10 @@ bool McBopomofoTIP::IsOpen() {
 void McBopomofoTIP::ToggleOpenClose() {
     if (_ptim) {
         bool currentOpen = IsOpen();
+        LogMessage("ToggleOpenClose: current state = %s, toggling to %s", 
+                   currentOpen ? "OPEN" : "CLOSED", 
+                   currentOpen ? "CLOSED" : "OPEN");
+
         ITfCompartmentMgr *pCompMgr = nullptr;
         if (SUCCEEDED(_ptim->QueryInterface(IID_ITfCompartmentMgr, (void **)&pCompMgr))) {
             ITfCompartment *pComp = nullptr;
@@ -522,11 +512,15 @@ void McBopomofoTIP::ToggleOpenClose() {
                 var.lVal = currentOpen ? 0 : 1;
                 pComp->SetValue(_tid, &var);
                 pComp->Release();
-                
+
+                LogMessage("Compartment value set to: %d", var.lVal);
+
                 if (_pModeIconButton) {
+                    LogMessage("Updating mode icon button");
                     _pModeIconButton->Update();
                 }
                 if (_pSwitchLangButton) {
+                    LogMessage("Updating switch lang button");
                     _pSwitchLangButton->Update();
                 }
             }

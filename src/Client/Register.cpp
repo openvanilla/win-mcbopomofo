@@ -75,7 +75,7 @@ BOOL RegisterProfiles() {
         (ULONG)wcslen(L"Win-McBopomofo"),
         szModulePath,
         (ULONG)wcslen(szModulePath),
-        IDI_ICON_APP, // Icon index
+        (UINT)-IDI_ICON_APP, // Icon index (negative for resource ID)
         0, // hkl substitute
         0, // Preferred layout
         TRUE, // Enabled by default
