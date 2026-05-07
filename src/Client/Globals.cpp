@@ -3,6 +3,7 @@
 #include <stdarg.h>
 
 void LogMessage(const char* format, ...) {
+#ifdef _DEBUG
     char buffer[1024];
     va_list args;
     va_start(args, format);
@@ -20,4 +21,5 @@ void LogMessage(const char* format, ...) {
         fprintf(fp, "[%lu] %s\n", GetCurrentProcessId(), buffer);
         fclose(fp);
     }
+#endif
 }

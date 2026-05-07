@@ -386,9 +386,13 @@ STDMETHODIMP CLangBarButton::UnadviseSink(DWORD dwCookie) {
 }
 
 void CLangBarButton::Update() {
+    LogMessage("CLangBarButton::Update called, sink count: %zu", _sinks.size());
+
+    // Notify all registered sinks
     for (const auto& sink : _sinks) {
         if (sink.second) {
-            sink.second->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
+            HRESULT hr = sink.second->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
+            LogMessage("Sink OnUpdate returned: 0x%08X", hr);
         }
     }
 }
