@@ -33,7 +33,7 @@ add_subdirectory(src)
 # Add tests
 enable_testing()
 add_executable(CandidateWindowTest tests/test_candidate_window.cpp src/Client/CandidateWindow.cpp src/Common/UTFHelper.cpp)
-target_include_directories(CandidateWindowTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Client ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/src/Engine)
+target_include_directories(CandidateWindowTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Client ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/src/Server/Engine ${CMAKE_SOURCE_DIR}/src/Server)
 target_link_libraries(CandidateWindowTest PRIVATE user32 gdi32 d2d1 dwrite advapi32 ole32 shell32)
 add_test(NAME CandidateWindowTest COMMAND CandidateWindowTest)
 
@@ -45,7 +45,7 @@ add_executable(BugReproTest
 target_include_directories(BugReproTest PRIVATE 
     ${CMAKE_SOURCE_DIR}/src/Client 
     ${CMAKE_SOURCE_DIR}/src/Common 
-    ${CMAKE_SOURCE_DIR}/src/Engine
+    ${CMAKE_SOURCE_DIR}/src/Server/Engine
     ${CMAKE_SOURCE_DIR}/src/Server
     ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src
     ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include

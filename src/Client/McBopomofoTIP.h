@@ -80,6 +80,7 @@ private:
 public:
     void ToggleOpenClose();
     bool IsOpen();
+    void RefreshLangBar();
 
 public:
     ITfComposition *GetComposition() const { return _pComposition; }

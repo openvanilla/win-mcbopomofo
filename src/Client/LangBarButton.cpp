@@ -42,6 +42,13 @@ bool ReadBoolSetting(const wchar_t* key, bool defaultValue) {
     return GetPrivateProfileIntW(L"General", key, defaultValue ? 1 : 0, SettingsPath().c_str()) != 0;
 }
 
+const wchar_t* CurrentModeLabel(McBopomofoTIP* tip) {
+    if (!tip->IsOpen()) {
+        return L"英";
+    }
+    return ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"簡" : L"中";
+}
+
 void WriteBoolSetting(const wchar_t* key, bool value) {
     WritePrivateProfileStringW(L"General", key, value ? L"1" : L"0", SettingsPath().c_str());
 }
@@ -206,7 +213,7 @@ STDMETHODIMP CLangBarButton::Show(BOOL fShow) {
 
 STDMETHODIMP CLangBarButton::GetTooltipString(BSTR *pbstrToolTip) {
     if (!pbstrToolTip) return E_INVALIDARG;
-    *pbstrToolTip = SysAllocString(L"中/英文模式 (中/En)");
+    *pbstrToolTip = SysAllocString(L"中/簡/英文模式");
     return S_OK;
 }
 
@@ -256,24 +263,28 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
         bool enabled = !ReadBoolSetting(L"AssociatedPhrasesEnabled", false);
         WriteBoolSetting(L"AssociatedPhrasesEnabled", enabled);
         NotifySettingsChanged();
+        _pTIP->RefreshLangBar();
         break;
     }
     case MENU_TOGGLE_HALF_WIDTH_PUNCTUATION: {
         bool enabled = !ReadBoolSetting(L"HalfWidthPunctuationEnabled", false);
         WriteBoolSetting(L"HalfWidthPunctuationEnabled", enabled);
         NotifySettingsChanged();
+        _pTIP->RefreshLangBar();
         break;
     }
     case MENU_TOGGLE_CHINESE_CONVERSION: {
         bool enabled = !ReadBoolSetting(L"ChineseConversionEnabled", false);
         WriteBoolSetting(L"ChineseConversionEnabled", enabled);
         NotifySettingsChanged();
+        _pTIP->RefreshLangBar();
         break;
     }
     case MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION: {
         bool enabled = !ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false);
         WriteBoolSetting(L"BopomofoFontAnnotationSupportEnabled", enabled);
         NotifySettingsChanged();
+        _pTIP->RefreshLangBar();
         break;
     }
     case MENU_OPEN_SETTINGS: {
@@ -306,54 +317,42 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON *phIcon) {
     if (!phIcon) return E_INVALIDARG;
     *phIcon = nullptr;
     
-    bool isOpen = _pTIP->IsOpen();
+    const wchar_t* label = CurrentModeLabel(_pTIP);
+    HDC hdc = GetDC(NULL);
+    HDC hMemDC = CreateCompatibleDC(hdc);
+    HBITMAP hBitmap = CreateCompatibleBitmap(hdc, 16, 16);
+    HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
     
-    UINT iconId = isOpen ? IDI_ICON_ZH : IDI_ICON_EN;
-    HICON hIcon = LoadIconW(g_hInst, MAKEINTRESOURCEW(iconId));
-    if (hIcon) {
-        *phIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, 0, 0, LR_COPYRETURNORG);
-    }
-
-    if (!*phIcon) {
-        // Fallback drawing if icon fails to load
-        HDC hdc = GetDC(NULL);
-        HDC hMemDC = CreateCompatibleDC(hdc);
-        HBITMAP hBitmap = CreateCompatibleBitmap(hdc, 16, 16);
-        HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
-        
-        RECT rc = {0, 0, 16, 16};
-        FillRect(hMemDC, &rc, (HBRUSH)(COLOR_WINDOW+1));
-        SetBkMode(hMemDC, TRANSPARENT);
-        SetTextColor(hMemDC, RGB(0,0,0));
-        
-        HFONT hFont = CreateFontW(14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-        HFONT hOldFont = (HFONT)SelectObject(hMemDC, hFont);
-        
-        const wchar_t* txt = isOpen ? L"中" : L"英";
-        DrawTextW(hMemDC, txt, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        
-        SelectObject(hMemDC, hOldFont);
-        DeleteObject(hFont);
-        SelectObject(hMemDC, hOldBitmap);
-        
-        ICONINFO ii = {0};
-        ii.fIcon = TRUE;
-        ii.hbmMask = hBitmap;
-        ii.hbmColor = hBitmap;
-        *phIcon = CreateIconIndirect(&ii);
-        
-        DeleteObject(hBitmap);
-        DeleteDC(hMemDC);
-        ReleaseDC(NULL, hdc);
-    }
+    RECT rc = {0, 0, 16, 16};
+    FillRect(hMemDC, &rc, (HBRUSH)(COLOR_WINDOW+1));
+    SetBkMode(hMemDC, TRANSPARENT);
+    SetTextColor(hMemDC, RGB(0,0,0));
+    
+    HFONT hFont = CreateFontW(14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+    HFONT hOldFont = (HFONT)SelectObject(hMemDC, hFont);
+    
+    DrawTextW(hMemDC, label, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    
+    SelectObject(hMemDC, hOldFont);
+    DeleteObject(hFont);
+    SelectObject(hMemDC, hOldBitmap);
+    
+    ICONINFO ii = {0};
+    ii.fIcon = TRUE;
+    ii.hbmMask = hBitmap;
+    ii.hbmColor = hBitmap;
+    *phIcon = CreateIconIndirect(&ii);
+    
+    DeleteObject(hBitmap);
+    DeleteDC(hMemDC);
+    ReleaseDC(NULL, hdc);
 
     return S_OK;
 }
 
 STDMETHODIMP CLangBarButton::GetText(BSTR *pbstrText) {
     if (!pbstrText) return E_INVALIDARG;
-    bool isOpen = _pTIP->IsOpen();
-    *pbstrText = SysAllocString(isOpen ? L"中" : L"英");
+    *pbstrText = SysAllocString(CurrentModeLabel(_pTIP));
     return S_OK;
 }
 

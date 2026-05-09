@@ -515,6 +515,17 @@ bool McBopomofoTIP::IsOpen() {
     return isOpen;
 }
 
+void McBopomofoTIP::RefreshLangBar() {
+    if (_pModeIconButton) {
+        LogMessage("Refreshing mode icon button");
+        _pModeIconButton->Update();
+    }
+    if (_pSwitchLangButton) {
+        LogMessage("Refreshing switch lang button");
+        _pSwitchLangButton->Update();
+    }
+}
+
 void McBopomofoTIP::ToggleOpenClose() {
     if (_ptim) {
         bool currentOpen = IsOpen();
@@ -533,15 +544,7 @@ void McBopomofoTIP::ToggleOpenClose() {
                 pComp->Release();
 
                 LogMessage("Compartment value set to: %d", var.lVal);
-
-                if (_pModeIconButton) {
-                    LogMessage("Updating mode icon button");
-                    _pModeIconButton->Update();
-                }
-                if (_pSwitchLangButton) {
-                    LogMessage("Updating switch lang button");
-                    _pSwitchLangButton->Update();
-                }
+                RefreshLangBar();
             }
             pCompMgr->Release();
         }

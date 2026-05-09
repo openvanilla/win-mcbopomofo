@@ -151,6 +151,8 @@ std::string GetLunarDate(int dayOffset) {
     std::tm tm;
     localtime_s(&tm, &t);
 
+    // TODO: Use real lunar calendar conversion. This is just a placeholder that returns a fixed string.
+    //
     // This is a simplified version that just returns "農曆M月D日".
     // A full implementation would require a Lunar calendar algorithm or table.
     return "農曆" + std::to_string(tm.tm_mon + 1) + "月" + std::to_string(tm.tm_mday) + "日";
