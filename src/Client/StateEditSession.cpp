@@ -122,12 +122,44 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 pRange->Release();
             }
         } else {
-            // No composition active, insert directly at selection
+            // No composition active, create a temporary one for insertion.
+            // This approach is safer than calling InsertTextAtSelection(TF_IAS_NOQUERY, ...) 
+            // directly on some TSF hosts (e.g., Notepad), which can cause access violations.
+            // 
+            // Strategy:
+            // 1. Query the current selection position safely (TF_IAS_QUERYONLY)
+            // 2. Create a temporary composition at that position
+            // 3. Insert text into the composition range
+            // 4. Move cursor to the end of inserted text
+            // 5. End the composition to commit all changes atomically
             ITfInsertAtSelection* pInsert = nullptr;
             if (SUCCEEDED(_pContext->QueryInterface(IID_ITfInsertAtSelection, (void**)&pInsert))) {
                 ITfRange* pRange = nullptr;
-                pInsert->InsertTextAtSelection(ec, TF_IAS_NOQUERY, commitStr.c_str(), (LONG)commitStr.length(), &pRange);
-                if (pRange) {
+                // First, query the selection position without modifying anything (TF_IAS_QUERYONLY flag)
+                if (SUCCEEDED(pInsert->InsertTextAtSelection(ec, TF_IAS_QUERYONLY, NULL, 0, &pRange)) && pRange) {
+                    // Now we have a valid range at the current selection
+                    // Create a composition at this position
+                    ITfContextComposition* pContextComp = nullptr;
+                    if (SUCCEEDED(_pContext->QueryInterface(IID_ITfContextComposition, (void**)&pContextComp))) {
+                        ITfComposition* pComp = nullptr;
+                        if (SUCCEEDED(pContextComp->StartComposition(ec, pRange, _pTIP, &pComp)) && pComp) {
+                            // Insert text into the composition range
+                            pRange->SetText(ec, 0, commitStr.c_str(), (LONG)commitStr.length());
+                            
+                            // Move cursor to the end of inserted text
+                            pRange->Collapse(ec, TF_ANCHOR_END);
+                            TF_SELECTION sel;
+                            sel.range = pRange;
+                            sel.style.ase = TF_AE_NONE;
+                            sel.style.fInterimChar = FALSE;
+                            _pContext->SetSelection(ec, 1, &sel);
+                            
+                            // Immediately end the composition to commit all changes
+                            pComp->EndComposition(ec);
+                            pComp->Release();
+                        }
+                        pContextComp->Release();
+                    }
                     pRange->Release();
                 }
                 pInsert->Release();
@@ -177,26 +209,24 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 pCategoryMgr->RegisterGUID(c_guidDisplayAttributeInput, &gaInput);
                 pCategoryMgr->RegisterGUID(c_guidDisplayAttributeMarked, &gaMarked);
                 
+                // Apply input attribute to the entire composing string first
+                SetDisplayAttribute(ec, _pContext, pRange, gaInput);
+                
                 if (_state.markStart >= 0 && _state.markEnd >= 0) {
-                    // Apply marking attribute
+                    // Apply marking attribute to the marked portion
                     size_t startOffset = McBopomofo::Utf8OffsetToUtf16Offset(_state.composingBuffer, _state.markStart);
                     size_t endOffset = McBopomofo::Utf8OffsetToUtf16Offset(_state.composingBuffer, _state.markEnd);
                     
                     ITfRange* pMarkRange = nullptr;
                     if (SUCCEEDED(pRange->Clone(&pMarkRange))) {
                         LONG cch = 0;
+                        // Collapse to start, then shift to the marked range
                         pMarkRange->Collapse(ec, TF_ANCHOR_START);
-                        pMarkRange->ShiftEnd(ec, (LONG)endOffset, &cch, nullptr);
                         pMarkRange->ShiftStart(ec, (LONG)startOffset, &cch, nullptr);
+                        pMarkRange->ShiftEnd(ec, (LONG)endOffset, &cch, nullptr);
                         SetDisplayAttribute(ec, _pContext, pMarkRange, gaMarked);
                         pMarkRange->Release();
                     }
-                    
-                    // Also apply input attribute to the rest? 
-                    // TSF usually allows multiple attributes. Let's apply input to the whole thing first, then mark over it.
-                    SetDisplayAttribute(ec, _pContext, pRange, gaInput);
-                } else {
-                    SetDisplayAttribute(ec, _pContext, pRange, gaInput);
                 }
                 
                 pCategoryMgr->Release();

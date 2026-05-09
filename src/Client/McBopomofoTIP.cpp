@@ -548,6 +548,24 @@ void McBopomofoTIP::ToggleOpenClose() {
                    currentOpen ? "OPEN" : "CLOSED", 
                    currentOpen ? "CLOSED" : "OPEN");
 
+        // If closing (switching to English), reset the server controller and commit any inputting text
+        if (currentOpen) {
+            LogMessage("Sending RESET command to server");
+            McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
+            std::string response;
+            if (pipe.Call(McBopomofo::IPC::SerializeReset(), response)) {
+                LogMessage("Reset response received");
+                McBopomofo::IPC::StateUpdatePayload state;
+                if (McBopomofo::IPC::DeserializeStateUpdate(response, state)) {
+                    _lastState = state;
+                    LogMessage("Reset state: CommitStr='%s', CompStr='%s'", 
+                             state.commitString.c_str(), state.composingBuffer.c_str());
+                }
+            } else {
+                LogMessage("Failed to send RESET command");
+            }
+        }
+
         ITfCompartmentMgr *pCompMgr = nullptr;
         if (SUCCEEDED(_ptim->QueryInterface(IID_ITfCompartmentMgr, (void **)&pCompMgr))) {
             ITfCompartment *pComp = nullptr;

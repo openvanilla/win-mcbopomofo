@@ -1,5 +1,10 @@
 # PowerShell script to build, install, and start the Win-McBopomofo environment
 
+param(
+    [ValidateSet("Debug", "Release")]
+    [string]$BuildType = "Debug"
+)
+
 # Requires Admin privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "Please run this script as Administrator."
@@ -18,22 +23,22 @@ Start-Sleep -Seconds 1
 
 Write-Host "2. Building x64 (64-bit)..."
 cmake -S . -B build_x64 -A x64
-cmake --build build_x64 --config Release --target Dictionaries McBopomofoTIP McBopomofoServer McBopomofoConfig
+cmake --build build_x64 --config $BuildType --target Dictionaries McBopomofoTIP McBopomofoServer McBopomofoConfig
 
 Write-Host "3. Building Win32 (32-bit)..."
 cmake -S . -B build_x86 -A Win32
-cmake --build build_x86 --config Release --target McBopomofoTIP
+cmake --build build_x86 --config $BuildType --target McBopomofoTIP
 
 Write-Host "4. Building ARM64..."
 cmake -S . -B build_arm64 -A ARM64
-cmake --build build_arm64 --config Release --target McBopomofoTIP
+cmake --build build_arm64 --config $BuildType --target McBopomofoTIP
 
 Write-Host "5. Staging files to 'dist' folder..."
-Copy-Item "build_x64\bin\Release\McBopomofoServer.exe" "$installDir\"
-Copy-Item "build_x64\bin\Release\McBopomofoConfig.exe" "$installDir\"
-Copy-Item "build_x64\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_x64.dll"
-Copy-Item "build_x86\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_x86.dll"
-Copy-Item "build_arm64\bin\Release\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_arm64.dll"
+Copy-Item "build_x64\bin\$BuildType\McBopomofoServer.exe" "$installDir\"
+Copy-Item "build_x64\bin\$BuildType\McBopomofoConfig.exe" "$installDir\"
+Copy-Item "build_x64\bin\$BuildType\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_x64.dll"
+Copy-Item "build_x86\bin\$BuildType\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_x86.dll"
+Copy-Item "build_arm64\bin\$BuildType\McBopomofoTIP_v2.dll" "$installDir\McBopomofoTIP_arm64.dll"
 Copy-Item "data\data.txt" "$installDir\data\"
 Copy-Item "data\data-plain-bpmf.txt" "$installDir\data\"
 Copy-Item "data\associated-phrases-v2.txt" "$installDir\data\"

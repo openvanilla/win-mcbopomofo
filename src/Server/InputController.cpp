@@ -754,7 +754,11 @@ void InputController::ChangeState(std::unique_ptr<InputState> newState) {
         if (ui_) {
             std::string text = commit->text;
             if (keyHandler_->chineseConversionEnabled() && openccConverter_) {
-                text = openccConverter_->Convert(text);
+                try {
+                    text = openccConverter_->Convert(text);
+                } catch (const std::exception& e) {
+                    FCITX_MCBOPOMOFO_ERROR() << "OpenCC conversion failed: " << e.what();
+                }
             }
             ui_->CommitString(text);
         }

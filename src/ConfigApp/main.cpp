@@ -25,6 +25,7 @@ namespace {
 constexpr const wchar_t* kClassName = L"McBopomofoConfigClass";
 constexpr const wchar_t* kSingleInstanceMutexName = L"Local\\WinMcBopomofoConfigSingleInstance";
 constexpr int kReloadCommand = 1;
+constexpr int kScrollLineHeight = 20;  // pixels per scroll line
 
 // Light Mode Colors
 constexpr COLORREF kLightWindowColor = RGB(246, 247, 249);
@@ -42,6 +43,7 @@ COLORREF g_ControlColor = kLightControlColor;
 HBRUSH g_WindowBrush = nullptr;
 HBRUSH g_ControlBrush = nullptr;
 bool g_DarkMode = false;
+int g_ScrollPos = 0;  // Current vertical scroll position
 
 bool IsDarkModeEnabled() {
     HKEY hKey;
@@ -543,6 +545,80 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         ApplyThemeToWindow(hwnd);
         CreateControls(hwnd);
         break;
+    case WM_GETMINMAXINFO: {
+        MINMAXINFO* pMinMaxInfo = reinterpret_cast<MINMAXINFO*>(lParam);
+        // Fix window width - cannot be resized horizontally
+        int fixedWidth = Scale(620);
+        pMinMaxInfo->ptMinTrackSize.x = fixedWidth;
+        pMinMaxInfo->ptMaxTrackSize.x = fixedWidth;
+        // Allow height adjustment, with minimum of 300px and maximum of 800px
+        pMinMaxInfo->ptMinTrackSize.y = Scale(300);
+        pMinMaxInfo->ptMaxTrackSize.y = Scale(800);
+        break;
+    }
+    case WM_SIZE: {
+        // Update scrollbar when window is resized
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        int visibleHeight = rect.bottom - rect.top;
+        int totalHeight = Scale(962);  // Total content height
+        
+        SCROLLINFO si = {sizeof(SCROLLINFO), SIF_RANGE | SIF_PAGE};
+        si.nMin = 0;
+        si.nMax = totalHeight;
+        si.nPage = visibleHeight;
+        SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+        break;
+    }
+    case WM_MOUSEWHEEL: {
+        int wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+        int scrollLines = wheelDelta > 0 ? -3 : 3;  // Scroll up or down
+        
+        SCROLLINFO si = {sizeof(SCROLLINFO), SIF_POS};
+        GetScrollInfo(hwnd, SB_VERT, &si);
+        g_ScrollPos = si.nPos + scrollLines * kScrollLineHeight;
+        
+        si.nPos = g_ScrollPos;
+        SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+        
+        ScrollWindow(hwnd, 0, -scrollLines * kScrollLineHeight, nullptr, nullptr);
+        UpdateWindow(hwnd);
+        break;
+    }
+    case WM_VSCROLL: {
+        SCROLLINFO si = {sizeof(SCROLLINFO), SIF_ALL};
+        GetScrollInfo(hwnd, SB_VERT, &si);
+        int oldPos = si.nPos;
+        
+        switch (LOWORD(wParam)) {
+        case SB_LINEUP:
+            si.nPos -= kScrollLineHeight;
+            break;
+        case SB_LINEDOWN:
+            si.nPos += kScrollLineHeight;
+            break;
+        case SB_PAGEUP:
+            si.nPos -= si.nPage;
+            break;
+        case SB_PAGEDOWN:
+            si.nPos += si.nPage;
+            break;
+        case SB_THUMBTRACK:
+            si.nPos = si.nTrackPos;
+            break;
+        }
+        
+        si.nPos = std::max(0, std::min(si.nPos, static_cast<int>(si.nMax - si.nPage)));
+        SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+        g_ScrollPos = si.nPos;
+        
+        if (oldPos != si.nPos) {
+            int scrollDelta = oldPos - si.nPos;
+            ScrollWindow(hwnd, 0, scrollDelta, nullptr, nullptr);
+            UpdateWindow(hwnd);
+        }
+        break;
+    }
     case WM_SETTINGCHANGE:
         if (lParam && wcscmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") == 0) {
             UpdateThemeColors();
@@ -631,15 +707,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     wcex.lpszClassName = kClassName;
     RegisterClassExW(&wcex);
 
-    HWND hwnd = CreateWindowExW(
+     HWND hwnd = CreateWindowExW(
         WS_EX_CONTROLPARENT,
         kClassName,
         L"小麥注音偏好設定",
-        WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX,
+        WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX | WS_VSCROLL,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         Scale(620),
-        Scale(962),
+        Scale(640),
         nullptr,
         nullptr,
         hInstance,
