@@ -45,7 +45,9 @@ std::string FormatRocYear(int dayOffset) {
     std::time_t t = std::chrono::system_clock::to_time_t(now);
     std::tm tm;
     localtime_s(&tm, &t);
-    return std::to_string(tm.tm_year + 1900 - 1911);
+    std::stringstream ss;
+    ss << "民國" << std::to_string(tm.tm_year + 1900 - 1911) << "年"; 
+    return ss.str();
 }
 
 std::string GetGanzhi(int year) {

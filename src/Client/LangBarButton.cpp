@@ -87,9 +87,9 @@ std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip) {
     return {
         {MENU_TOGGLE_OPEN_CLOSE, isOpen ? L"切換到英文模式 (A)" : L"切換到中文模式 (中)", false, false},
         {0, nullptr, false, true},
-        {MENU_TOGGLE_ASSOCIATED_PHRASES, L"啟用聯想詞", associatedPhrasesEnabled, false},
-        {MENU_TOGGLE_HALF_WIDTH_PUNCTUATION, halfWidthPunctuationEnabled ? L"標點：半形" : L"標點：全形", false, false},
         {MENU_TOGGLE_CHINESE_CONVERSION, chineseConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文", false, false},
+        {MENU_TOGGLE_HALF_WIDTH_PUNCTUATION, halfWidthPunctuationEnabled ? L"標點：半形" : L"標點：全形", false, false},
+        {MENU_TOGGLE_ASSOCIATED_PHRASES, L"啟用聯想詞", associatedPhrasesEnabled, false},
         {MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION, L"啟用注音標示", bopomofoFontAnnotationEnabled, false},
         {0, nullptr, false, true},
         {MENU_OPEN_SETTINGS, L"設定", false, false},

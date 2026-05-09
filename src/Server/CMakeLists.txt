@@ -54,3 +54,4 @@ add_executable(McBopomofoServer
 )
 target_include_directories(McBopomofoServer PRIVATE ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src)
 target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common libopencc)
+add_dependencies(McBopomofoServer Dictionaries)

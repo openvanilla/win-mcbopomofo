@@ -38,6 +38,7 @@ public:
     void SetCandidateKeys(const std::string& keys);
     void SetCandidateKeysCount(int count);
     void SetCandidateWindowVertical(bool vertical);
+    void SetChineseConversionEnabled(bool enabled);
 
     void SetDataDirectory(const std::filesystem::path& dataDir);
     void ToggleChineseConversion();

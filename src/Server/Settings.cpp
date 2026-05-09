@@ -1,6 +1,7 @@
 #include "Settings.h"
 #include "PathCompat.h"
 #include "UTFHelper.h"
+#include "Log.h"
 #include <windows.h>
 #include <filesystem>
 
@@ -60,6 +61,7 @@ void Settings::Load() {
     ctrlEnterKeyBehavior_ = (KeyHandlerCtrlEnter)ReadInt(L"General", L"CtrlEnterKeyBehavior", (int)KeyHandlerCtrlEnter::Disabled);
     associatedPhrasesEnabled_ = ReadBool(L"General", L"AssociatedPhrasesEnabled", false);
     halfWidthPunctuationEnabled_ = ReadBool(L"General", L"HalfWidthPunctuationEnabled", false);
+    chineseConversionEnabled_ = ReadBool(L"General", L"ChineseConversionEnabled", false);
     bopomofoFontAnnotationSupportEnabled_ = ReadBool(L"General", L"BopomofoFontAnnotationSupportEnabled", false);
     repeatedPunctuationToSelectCandidateEnabled_ = ReadBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", false);
     chooseCandidateUsingSpace_ = ReadBool(L"General", L"ChooseCandidateUsingSpace", true);
@@ -85,6 +87,7 @@ void Settings::Save() {
     WriteInt(L"General", L"CtrlEnterKeyBehavior", (int)ctrlEnterKeyBehavior_);
     WriteBool(L"General", L"AssociatedPhrasesEnabled", associatedPhrasesEnabled_);
     WriteBool(L"General", L"HalfWidthPunctuationEnabled", halfWidthPunctuationEnabled_);
+    WriteBool(L"General", L"ChineseConversionEnabled", chineseConversionEnabled_);
     WriteBool(L"General", L"BopomofoFontAnnotationSupportEnabled", bopomofoFontAnnotationSupportEnabled_);
     WriteBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", repeatedPunctuationToSelectCandidateEnabled_);
     WriteBool(L"General", L"ChooseCandidateUsingSpace", chooseCandidateUsingSpace_);
@@ -113,12 +116,15 @@ void Settings::ApplyTo(InputController& controller) {
     controller.SetCtrlEnterKeyBehavior(ctrlEnterKeyBehavior_);
     controller.SetAssociatedPhrasesEnabled(associatedPhrasesEnabled_);
     controller.SetHalfWidthPunctuationEnabled(halfWidthPunctuationEnabled_);
+    controller.SetChineseConversionEnabled(chineseConversionEnabled_);
     controller.SetBopomofoFontAnnotationSupportEnabled(bopomofoFontAnnotationSupportEnabled_);
     controller.SetRepeatedPunctuationToSelectCandidateEnabled(repeatedPunctuationToSelectCandidateEnabled_);
     controller.SetChooseCandidateUsingSpace(chooseCandidateUsingSpace_);
     controller.SetCandidateKeys(candidateKeys_);
     controller.SetCandidateKeysCount(candidateKeysCount_);
     controller.SetCandidateWindowVertical(candidateWindowVertical_);
+    FCITX_MCBOPOMOFO_INFO() << "Settings applied: ChineseConversionEnabled="
+                            << chineseConversionEnabled_;
 }
 
 } // namespace McBopomofo

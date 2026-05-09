@@ -1,5 +1,6 @@
 #include "InputController.h"
 
+#include <array>
 #include <algorithm>
 #include <cctype>
 #include <shellapi.h>
@@ -141,7 +142,24 @@ InputController::InputController(std::shared_ptr<KeyHandler> keyHandler, UIInter
 void InputController::SetDataDirectory(const std::filesystem::path& dataDir) {
     try {
         std::filesystem::path openccPath = dataDir / "opencc" / "tw2s.json";
+        std::array<std::filesystem::path, 4> openccRequiredFiles = {
+            dataDir / "opencc" / "TSPhrases.ocd2",
+            dataDir / "opencc" / "TSCharacters.ocd2",
+            dataDir / "opencc" / "TWVariantsRev.ocd2",
+            dataDir / "opencc" / "TWVariantsRevPhrases.ocd2",
+        };
+
+        FCITX_MCBOPOMOFO_INFO() << "OpenCC config path: " << openccPath.string()
+                                << ", exists: " << std::filesystem::exists(openccPath);
+        for (const auto& path : openccRequiredFiles) {
+            FCITX_MCBOPOMOFO_INFO() << "OpenCC dictionary path: "
+                                    << path.string()
+                                    << ", exists: " << std::filesystem::exists(path);
+        }
+
         openccConverter_ = std::make_unique<opencc::SimpleConverter>(openccPath.string());
+        FCITX_MCBOPOMOFO_INFO() << "OpenCC initialized successfully from "
+                                << openccPath.string();
 
         auto lm = std::dynamic_pointer_cast<McBopomofoLM>(keyHandler_->getLM());
         if (lm) {
@@ -153,6 +171,8 @@ void InputController::SetDataDirectory(const std::filesystem::path& dataDir) {
             });
             // We disable it by default. The user will toggle it via the tray menu.
             keyHandler_->setChineseConversionEnabled(false);
+            FCITX_MCBOPOMOFO_INFO()
+                << "Chinese conversion is available; default state is disabled.";
         }
     } catch (const std::exception& e) {
         FCITX_MCBOPOMOFO_ERROR() << "Failed to initialize OpenCC: " << e.what();
@@ -163,10 +183,18 @@ void InputController::SetDataDirectory(const std::filesystem::path& dataDir) {
 void InputController::ToggleChineseConversion() {
     bool current = keyHandler_->chineseConversionEnabled();
     keyHandler_->setChineseConversionEnabled(!current);
+    FCITX_MCBOPOMOFO_INFO() << "Chinese conversion toggled to: "
+                            << keyHandler_->chineseConversionEnabled();
 }
 
 bool InputController::IsChineseConversionEnabled() const {
     return keyHandler_->chineseConversionEnabled();
+}
+
+void InputController::SetChineseConversionEnabled(bool enabled) {
+    keyHandler_->setChineseConversionEnabled(enabled);
+    FCITX_MCBOPOMOFO_INFO() << "Chinese conversion set to: "
+                            << keyHandler_->chineseConversionEnabled();
 }
 
 bool InputController::HandleKey(const Key& key) {

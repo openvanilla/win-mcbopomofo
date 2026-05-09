@@ -15,6 +15,7 @@
 #include "Log.h"
 
 #include "PathCompat.h"
+#include <array>
 #include <fstream>
 #include <filesystem>
 #include <functional>
@@ -27,6 +28,15 @@ using namespace McBopomofo;
 #define IDM_EXIT 1002
 
 constexpr const wchar_t* kServerSingleInstanceMutexName = L"Local\\WinMcBopomofoServerSingleInstance";
+
+namespace {
+
+void LogDataFileStatus(const char* label, const std::filesystem::path& path) {
+    FCITX_MCBOPOMOFO_INFO() << label << ": " << path.string()
+                            << ", exists: " << std::filesystem::exists(path);
+}
+
+}
 
 class WinUserPhraseAdder : public UserPhraseAdder {
 public:
@@ -223,6 +233,8 @@ public:
         Refresh();
     }
 
+    const std::filesystem::path& Path() const { return path_; }
+
     bool HasChanged() {
         bool currentExists = std::filesystem::exists(path_);
         std::filesystem::file_time_type currentWriteTime{};
@@ -272,6 +284,15 @@ public:
           excludedPhrasesFile_(std::move(excludedPhrasesPath)),
           reloadSettings_(std::move(reloadSettings)),
           reloadUserPhrases_(std::move(reloadUserPhrases)) {}
+
+    void LogWatchedFiles() const {
+        FCITX_MCBOPOMOFO_INFO() << "Watching settings file: "
+                                << settingsFile_.Path().string();
+        FCITX_MCBOPOMOFO_INFO() << "Watching user phrases file: "
+                                << userPhrasesFile_.Path().string();
+        FCITX_MCBOPOMOFO_INFO() << "Watching excluded phrases file: "
+                                << excludedPhrasesFile_.Path().string();
+    }
 
     void Check() {
         if (settingsFile_.HasChanged()) {
@@ -383,19 +404,40 @@ int main(int argc, char* argv[]) {
     if (argc >= 2) {
         dataPath = argv[1];
     }
+    LogDataFileStatus("Language model data file", dataPath);
 
     auto lm = std::make_shared<McBopomofoLM>();
     lm->loadLanguageModel(dataPath.c_str());
+    FCITX_MCBOPOMOFO_INFO() << "Language model loaded: " << lm->isDataModelLoaded();
 
     std::string assocPath = (exeDir / "data" / "associated-phrases-v2.txt").string();
+    LogDataFileStatus("Associated phrases file", assocPath);
     if (std::filesystem::exists(assocPath)) {
         lm->loadAssociatedPhrasesV2(assocPath.c_str());
+        FCITX_MCBOPOMOFO_INFO() << "Associated phrases loaded from: " << assocPath;
+    } else {
+        FCITX_MCBOPOMOFO_WARN() << "Associated phrases file missing: " << assocPath;
     }
 
     std::string variantsPath = (exeDir / "data" / "bpmfvs-variants.txt").string();
+    LogDataFileStatus("Phrase replacement file", variantsPath);
     if (std::filesystem::exists(variantsPath)) {
         lm->loadPhraseReplacementMap(variantsPath.c_str());
+        FCITX_MCBOPOMOFO_INFO() << "Phrase replacement map loaded from: " << variantsPath;
+    } else {
+        FCITX_MCBOPOMOFO_WARN() << "Phrase replacement file missing: " << variantsPath;
     }
+
+    std::array<std::filesystem::path, 2> annotationFiles = {
+        exeDir / "data" / "bpmfvs-pua.txt",
+        exeDir / "data" / "bpmfvs-variants.txt",
+    };
+    for (const auto& path : annotationFiles) {
+        LogDataFileStatus("Bopomofo annotation file", path);
+    }
+    FCITX_MCBOPOMOFO_WARN()
+        << "Server is currently constructed without VariantAnnotator; "
+        << "bopomofo annotation files are not loaded by the server.";
 
     if (!lm->isDataModelLoaded()) {
         FCITX_MCBOPOMOFO_ERROR() << "Failed to load language model from: " << dataPath;
@@ -434,7 +476,10 @@ int main(int argc, char* argv[]) {
     ));
 
     std::string dictionaryServiceJsonPath = (exeDir / "data" / "dictionary_service.json").string();
+    LogDataFileStatus("Dictionary service file", dictionaryServiceJsonPath);
     keyHandler->getDictionaryServices()->load(dictionaryServiceJsonPath);
+    FCITX_MCBOPOMOFO_INFO() << "Dictionary service load attempted from: "
+                            << dictionaryServiceJsonPath;
 
     ServerUI ui;
     InputController controller(keyHandler, &ui);
@@ -448,11 +493,15 @@ int main(int argc, char* argv[]) {
     std::mutex reloadMutex;
 
     auto reloadSettings = [&]() {
+        FCITX_MCBOPOMOFO_INFO() << "Reloading settings from: "
+                                << (std::filesystem::path(userDir) / "mcbopomofo.ini").string();
         settings.Load();
         settings.ApplyTo(controller);
     };
 
     auto reloadUserPhrases = [&]() {
+        FCITX_MCBOPOMOFO_INFO() << "Reloading user phrase files from: "
+                                << userPhrasesPath << " and " << excludedPhrasesPath;
         lm->loadUserPhrases(userPhrasesPath.c_str(), excludedPhrasesPath.c_str());
     };
 
@@ -468,6 +517,7 @@ int main(int argc, char* argv[]) {
             std::lock_guard<std::mutex> lock(reloadMutex);
             reloadUserPhrases();
         });
+    fileReloader.LogWatchedFiles();
 
     FCITX_MCBOPOMOFO_INFO() << "Starting Named Pipe server at " << IPC::PIPE_NAME;
 

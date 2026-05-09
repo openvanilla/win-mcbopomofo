@@ -18,7 +18,7 @@ Start-Sleep -Seconds 1
 
 Write-Host "2. Building x64 (64-bit)..."
 cmake -S . -B build_x64 -A x64
-cmake --build build_x64 --config Release --target McBopomofoTIP McBopomofoServer McBopomofoConfig
+cmake --build build_x64 --config Release --target Dictionaries McBopomofoTIP McBopomofoServer McBopomofoConfig
 
 Write-Host "3. Building Win32 (32-bit)..."
 cmake -S . -B build_x86 -A Win32
@@ -43,10 +43,23 @@ Copy-Item "data\bpmfvs-pua.txt" "$installDir\data\"
 
 if (!(Test-Path "$installDir\data\opencc")) { New-Item -ItemType Directory -Path "$installDir\data\opencc" }
 Copy-Item "third_party\OpenCC\data\config\tw2s.json" "$installDir\data\opencc\" -Force
-Copy-Item "third_party\OpenCC\data\dictionary\STCharacters.txt" "$installDir\data\opencc\" -Force
-Copy-Item "third_party\OpenCC\data\dictionary\STPhrases.txt" "$installDir\data\opencc\" -Force
-Copy-Item "third_party\OpenCC\data\dictionary\TWPhrases.txt" "$installDir\data\opencc\" -Force
-Copy-Item "third_party\OpenCC\data\dictionary\TWVariants.txt" "$installDir\data\opencc\" -Force
+
+$openccBuildDir = Join-Path $PSScriptRoot "build_x64\third_party\OpenCC\data"
+$openccRequiredFiles = @(
+    "TSPhrases.ocd2",
+    "TSCharacters.ocd2",
+    "TWVariantsRev.ocd2",
+    "TWVariantsRevPhrases.ocd2"
+)
+
+foreach ($file in $openccRequiredFiles) {
+    $source = Join-Path $openccBuildDir $file
+    if (!(Test-Path $source)) {
+        Write-Error "Required OpenCC dictionary '$source' not found. Build output is incomplete."
+        Exit 1
+    }
+    Copy-Item $source "$installDir\data\opencc\" -Force
+}
 
 Write-Host "6. Granting AppContainer (UWP) permissions to dist folder..."
 icacls "$installDir" /grant "ALL APPLICATION PACKAGES:(OI)(CI)(RX)" /T /Q

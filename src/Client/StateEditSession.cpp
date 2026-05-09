@@ -141,6 +141,13 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 pInsert->Release();
             }
         }
+
+        // For direct commits without an active composition, stop here after
+        // insertion. Some TSF hosts, including recent Notepad builds, can
+        // crash if we continue touching auxiliary UI in the same edit session.
+        if (directCommitWithoutComposition) {
+            return S_OK;
+        }
     }
 
     // 2. Handle Composing Text
