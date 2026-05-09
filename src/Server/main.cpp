@@ -14,6 +14,7 @@
 #include "UTF8Helper.h"
 #include "NamedPipe.h"
 #include "Log.h"
+#include "resource.h"
 
 #include "PathCompat.h"
 #include <array>
@@ -663,6 +664,8 @@ int main(int argc, char* argv[]) {
     WNDCLASSEXW wcex = { sizeof(WNDCLASSEXW) };
     wcex.lpfnWndProc = TrayWndProc;
     wcex.hInstance = GetModuleHandle(NULL);
+    wcex.hIcon = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
+    wcex.hIconSm = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
     wcex.lpszClassName = L"WinMcBopomofoServerTray";
     RegisterClassExW(&wcex);
 
@@ -673,7 +676,7 @@ int main(int argc, char* argv[]) {
     nid.uID = 1u;
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_USER_TRAY;
-    nid.hIcon = LoadIcon(NULL, IDI_APPLICATION); // Standard exe icon
+    nid.hIcon = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
     wcscpy_s(nid.szTip, L"小麥注音伺服器 (Win-McBopomofo)");
 
     Shell_NotifyIconW(NIM_ADD, &nid);

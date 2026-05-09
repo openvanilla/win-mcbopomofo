@@ -12,6 +12,7 @@
 #include "Settings.h"
 #include "Ipc.h"
 #include "NamedPipe.h"
+#include "resource.h"
 
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "uxtheme.lib")
@@ -729,6 +730,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     wcex.lpfnWndProc = WndProc;
     wcex.hInstance = hInstance;
     wcex.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
+    wcex.hIcon = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
+    wcex.hIconSm = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
     wcex.hbrBackground = g_WindowBrush;
     wcex.lpszClassName = kClassName;
     RegisterClassExW(&wcex);

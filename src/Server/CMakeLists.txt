@@ -50,6 +50,8 @@ endif()
 # Server executable
 add_executable(McBopomofoServer 
     main.cpp
+    resource.h
+    McBopomofoServer.rc
     InputController.cpp
     WindowsKeyBridge.cpp
     Settings.cpp
