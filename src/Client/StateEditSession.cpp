@@ -2,6 +2,73 @@
 #include "UTFHelper.h"
 #include "DisplayAttributeInfo.h"
 
+namespace {
+
+bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
+                        McBopomofoTIP* tip) {
+    if (!range || !tip) {
+        return false;
+    }
+
+    ITfContextView* pView = nullptr;
+    if (FAILED(context->GetActiveView(&pView))) {
+        return false;
+    }
+
+    RECT rc = {0};
+    BOOL fClipped = FALSE;
+    bool moved = false;
+    if (SUCCEEDED(pView->GetTextExt(ec, range, &rc, &fClipped))) {
+        tip->GetCandidateWindow()->Move(rc.left, rc.bottom + 2);
+        tip->GetTooltipWindow()->Move(rc.left, rc.bottom + 2);
+        moved = true;
+    }
+    pView->Release();
+    return moved;
+}
+
+bool MoveWindowsToSelection(TfEditCookie ec, ITfContext* context,
+                            McBopomofoTIP* tip) {
+    TF_SELECTION selection = {};
+    ULONG fetched = 0;
+    if (FAILED(context->GetSelection(ec, TF_DEFAULT_SELECTION, 1, &selection, &fetched)) ||
+        fetched != 1 || !selection.range) {
+        return false;
+    }
+
+    bool moved = MoveWindowsToRange(ec, context, selection.range, tip);
+    selection.range->Release();
+    return moved;
+}
+
+void MoveWindowsToCaretFallback(McBopomofoTIP* tip) {
+    if (!tip) {
+        return;
+    }
+
+    GUITHREADINFO gti = {0};
+    gti.cbSize = sizeof(GUITHREADINFO);
+    if (GetGUIThreadInfo(GetCurrentThreadId(), &gti) && gti.hwndCaret) {
+        POINT pt = { gti.rcCaret.left, gti.rcCaret.bottom };
+        ClientToScreen(gti.hwndCaret, &pt);
+        tip->GetCandidateWindow()->Move(pt.x, pt.y + 2);
+        tip->GetTooltipWindow()->Move(pt.x, pt.y + 2);
+    }
+}
+
+void MoveAuxiliaryWindows(TfEditCookie ec, ITfContext* context, ITfRange* range,
+                          McBopomofoTIP* tip) {
+    bool moved = MoveWindowsToRange(ec, context, range, tip);
+    if (!moved) {
+        moved = MoveWindowsToSelection(ec, context, tip);
+    }
+    if (!moved) {
+        MoveWindowsToCaretFallback(tip);
+    }
+}
+
+}
+
 CStateEditSession::CStateEditSession(ITfContext *pContext, McBopomofoTIP *pTIP, const McBopomofo::IPC::StateUpdatePayload& state)
     : CEditSessionBase(pContext), _pTIP(pTIP), _state(state) {
     if (_pTIP) _pTIP->AddRef();
@@ -149,30 +216,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             
             // Try to find the coordinates for the candidate window or tooltip
             if (!_state.candidates.empty() || !_state.tooltip.empty()) {
-                ITfContextView* pView = nullptr;
-                bool moved = false;
-                if (SUCCEEDED(_pContext->GetActiveView(&pView))) {
-                    RECT rc = {0};
-                    BOOL fClipped = FALSE;
-                    
-                    if (SUCCEEDED(pView->GetTextExt(ec, pCursorRange, &rc, &fClipped))) {
-                        _pTIP->GetCandidateWindow()->Move(rc.left, rc.bottom + 2);
-                        _pTIP->GetTooltipWindow()->Move(rc.left, rc.bottom + 2);
-                        moved = true;
-                    }
-                    pView->Release();
-                }
-                if (!moved) {
-                    // Fallback to GUI thread info for caret if TSF view layout isn't ready
-                    GUITHREADINFO gti = {0};
-                    gti.cbSize = sizeof(GUITHREADINFO);
-                    if (GetGUIThreadInfo(GetCurrentThreadId(), &gti) && gti.hwndCaret) {
-                        POINT pt = { gti.rcCaret.left, gti.rcCaret.bottom };
-                        ClientToScreen(gti.hwndCaret, &pt);
-                        _pTIP->GetCandidateWindow()->Move(pt.x, pt.y + 2);
-                        _pTIP->GetTooltipWindow()->Move(pt.x, pt.y + 2);
-                    }
-                }
+                MoveAuxiliaryWindows(ec, _pContext, pCursorRange, _pTIP);
             }
             pCursorRange->Release();
         }
@@ -196,6 +240,10 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         _pTIP->SetComposition(nullptr);
         pRange->Release();
     }
+}
+
+if ((compStr.empty() && !_state.candidates.empty()) || !_state.tooltip.empty()) {
+    MoveAuxiliaryWindows(ec, _pContext, nullptr, _pTIP);
 }
 
 // 4. Update Candidate and Tooltip Window UI

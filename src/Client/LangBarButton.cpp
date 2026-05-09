@@ -20,6 +20,17 @@ constexpr UINT MENU_TOGGLE_ASSOCIATED_PHRASES = 101;
 constexpr UINT MENU_TOGGLE_HALF_WIDTH_PUNCTUATION = 102;
 constexpr UINT MENU_TOGGLE_CHINESE_CONVERSION = 103;
 constexpr UINT MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION = 104;
+constexpr UINT MENU_OPEN_SETTINGS = 1;
+constexpr UINT MENU_EDIT_USER_PHRASES = 2;
+constexpr UINT MENU_EDIT_EXCLUDED_PHRASES = 3;
+constexpr UINT MENU_OPEN_USER_DATA_FOLDER = 4;
+
+struct MenuItem {
+    UINT id;
+    const wchar_t* text;
+    bool checked;
+    bool separator;
+};
 
 std::wstring SettingsPath() {
     std::filesystem::path path(McBopomofo::fcitx5_compat::userDirectory());
@@ -63,6 +74,66 @@ void OpenSettingsApp() {
         return;
     }
     OpenSettingsAppFromModule(GetModuleHandleW(L"McBopomofoTIP_v2.dll"));
+}
+
+std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip) {
+    const bool isOpen = tip->IsOpen();
+    const bool associatedPhrasesEnabled = ReadBoolSetting(L"AssociatedPhrasesEnabled", false);
+    const bool halfWidthPunctuationEnabled = ReadBoolSetting(L"HalfWidthPunctuationEnabled", false);
+    const bool chineseConversionEnabled = ReadBoolSetting(L"ChineseConversionEnabled", false);
+    const bool bopomofoFontAnnotationEnabled =
+        ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false);
+
+    return {
+        {MENU_TOGGLE_OPEN_CLOSE, isOpen ? L"切換到英文模式 (A)" : L"切換到中文模式 (中)", false, false},
+        {0, nullptr, false, true},
+        {MENU_TOGGLE_ASSOCIATED_PHRASES, L"啟用聯想詞", associatedPhrasesEnabled, false},
+        {MENU_TOGGLE_HALF_WIDTH_PUNCTUATION, halfWidthPunctuationEnabled ? L"標點：半形" : L"標點：全形", false, false},
+        {MENU_TOGGLE_CHINESE_CONVERSION, chineseConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文", false, false},
+        {MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION, L"啟用注音標示", bopomofoFontAnnotationEnabled, false},
+        {0, nullptr, false, true},
+        {MENU_OPEN_SETTINGS, L"設定", false, false},
+        {MENU_EDIT_USER_PHRASES, L"編輯使用者詞庫", false, false},
+        {MENU_EDIT_EXCLUDED_PHRASES, L"編輯排除詞庫", false, false},
+        {MENU_OPEN_USER_DATA_FOLDER, L"開啟使用者資料夾", false, false},
+    };
+}
+
+void AppendPopupMenuItems(HMENU menu, const std::vector<MenuItem>& items) {
+    for (const auto& item : items) {
+        if (item.separator) {
+            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+            continue;
+        }
+
+        UINT flags = MF_STRING | (item.checked ? MF_CHECKED : MF_UNCHECKED);
+        AppendMenuW(menu, flags, item.id, item.text);
+    }
+}
+
+HRESULT AppendTfMenuItems(ITfMenu* menu, const std::vector<MenuItem>& items) {
+    for (const auto& item : items) {
+        if (item.separator) {
+            HRESULT hr = menu->AddMenuItem(0, TF_LBMENUF_SEPARATOR, nullptr, nullptr, nullptr, 0, nullptr);
+            if (FAILED(hr)) {
+                return hr;
+            }
+            continue;
+        }
+
+        HRESULT hr = menu->AddMenuItem(
+            item.id,
+            item.checked ? TF_LBMENUF_CHECKED : 0,
+            nullptr,
+            nullptr,
+            item.text,
+            static_cast<ULONG>(wcslen(item.text)),
+            nullptr);
+        if (FAILED(hr)) {
+            return hr;
+        }
+    }
+    return S_OK;
 }
 }
 
@@ -151,34 +222,7 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt, const RECT *prc
     } else if (click == TF_LBI_CLK_RIGHT) {
         HMENU menu = CreatePopupMenu();
         if (menu) {
-            bool isOpen = _pTIP->IsOpen();
-            AppendMenuW(menu, MF_STRING, MENU_TOGGLE_OPEN_CLOSE, isOpen ? L"切換到英文模式 (A)" : L"切換到中文模式 (中)");
-            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-            AppendMenuW(
-                menu,
-                MF_STRING | (ReadBoolSetting(L"AssociatedPhrasesEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
-                MENU_TOGGLE_ASSOCIATED_PHRASES,
-                L"啟用聯想詞");
-            AppendMenuW(
-                menu,
-                MF_STRING,
-                MENU_TOGGLE_HALF_WIDTH_PUNCTUATION,
-                (ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"標點：半形" : L"標點：全形"));
-            AppendMenuW(
-                menu,
-                MF_STRING,
-                MENU_TOGGLE_CHINESE_CONVERSION,
-                (ReadBoolSetting(L"ChineseConversionEnabled", false) ?  L"輸出：簡體中文" : L"輸出：繁體中文"));
-            AppendMenuW(
-                menu,
-                MF_STRING | (ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
-                MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION,
-                L"啟用注音標示");
-            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-            AppendMenuW(menu, MF_STRING, 1, L"設定");
-            AppendMenuW(menu, MF_STRING, 2, L"編輯使用者詞庫");
-            AppendMenuW(menu, MF_STRING, 3, L"編輯排除詞庫");
-            AppendMenuW(menu, MF_STRING, 4, L"開啟使用者資料夾");
+            AppendPopupMenuItems(menu, BuildLangBarMenuItems(_pTIP));
 
             HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0, HWND_DESKTOP, nullptr, g_hInst, nullptr);
             if (!hwnd) {
@@ -200,50 +244,7 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt, const RECT *prc
 
 STDMETHODIMP CLangBarButton::InitMenu(ITfMenu *pMenu) {
     if (!pMenu) return E_INVALIDARG;
-
-    bool isOpen = _pTIP->IsOpen();
-    const wchar_t* toggleText = isOpen ? L"切換到英文模式 (A)" : L"切換到中文模式 (中)";
-    pMenu->AddMenuItem(MENU_TOGGLE_OPEN_CLOSE, 0, nullptr, nullptr, toggleText, (ULONG)wcslen(toggleText), nullptr);
-    pMenu->AddMenuItem(0, TF_LBMENUF_SEPARATOR, nullptr, nullptr, nullptr, 0, nullptr);
-    pMenu->AddMenuItem(
-        MENU_TOGGLE_ASSOCIATED_PHRASES,
-        ReadBoolSetting(L"AssociatedPhrasesEnabled", false) ? TF_LBMENUF_CHECKED : 0,
-        nullptr,
-        nullptr,
-        L"啟用聯想詞",
-        (ULONG)wcslen(L"啟用聯想詞"),
-        nullptr);
-    pMenu->AddMenuItem(
-        MENU_TOGGLE_HALF_WIDTH_PUNCTUATION,
-        0,
-        nullptr,
-        nullptr,
-        ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"標點：半形" : L"標點：全形",
-        ReadBoolSetting(L"ChineseConversionEnabled", false) ? (ULONG)wcslen(L"標點：半形") : (ULONG)wcslen(L"標點：全形"),
-        nullptr);
-    pMenu->AddMenuItem(
-        MENU_TOGGLE_CHINESE_CONVERSION,
-        0,
-        nullptr,
-        nullptr,
-		ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"輸出：簡體中文" : L"輸出：繁體中文",
-        ReadBoolSetting(L"ChineseConversionEnabled", false) ? (ULONG)wcslen(L"輸出：簡體中文") : (ULONG)wcslen(L"輸出：繁體中文"),
-        nullptr);
-    pMenu->AddMenuItem(
-        MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION,
-        ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false) ? TF_LBMENUF_CHECKED : 0,
-        nullptr,
-        nullptr,
-        L"啟用注音標示",
-        (ULONG)wcslen(L"啟用注音標示"),
-        nullptr);
-    pMenu->AddMenuItem(0, TF_LBMENUF_SEPARATOR, nullptr, nullptr, nullptr, 0, nullptr);
-    pMenu->AddMenuItem(1, 0, nullptr, nullptr, L"設定", (ULONG)wcslen(L"設定"), nullptr);
-    pMenu->AddMenuItem(2, 0, nullptr, nullptr, L"編輯使用者詞庫", (ULONG)wcslen(L"編輯使用者詞庫"), nullptr);
-    pMenu->AddMenuItem(3, 0, nullptr, nullptr, L"編輯排除詞庫", (ULONG)wcslen(L"編輯排除詞庫"), nullptr);
-    pMenu->AddMenuItem(4, 0, nullptr, nullptr, L"開啟使用者資料夾", (ULONG)wcslen(L"開啟使用者資料夾"), nullptr);
-
-    return S_OK;
+    return AppendTfMenuItems(pMenu, BuildLangBarMenuItems(_pTIP));
 }
 
 STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
@@ -275,21 +276,21 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
         NotifySettingsChanged();
         break;
     }
-    case 1: {
+    case MENU_OPEN_SETTINGS: {
         OpenSettingsApp();
         break;
     }
-    case 2: {
+    case MENU_EDIT_USER_PHRASES: {
         std::string path = McBopomofo::fcitx5_compat::userDirectory() + "/user.txt";
         ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
         break;
     }
-    case 3: {
+    case MENU_EDIT_EXCLUDED_PHRASES: {
         std::string path = McBopomofo::fcitx5_compat::userDirectory() + "/exclude.txt";
         ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
         break;
     }
-    case 4: {
+    case MENU_OPEN_USER_DATA_FOLDER: {
         std::string path = McBopomofo::fcitx5_compat::userDirectory();
         ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
         break;

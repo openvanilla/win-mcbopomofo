@@ -4,6 +4,20 @@
 #include "StateEditSession.h"
 #include "LangBarButton.h"
 
+namespace {
+
+bool IsServerHandledShortcutKey(WPARAM wParam, const BYTE keyboardState[256]) {
+    const bool ctrlPressed = (keyboardState[VK_CONTROL] & 0x80) != 0;
+    const bool shiftPressed = (keyboardState[VK_SHIFT] & 0x80) != 0;
+
+    if (ctrlPressed && !shiftPressed && wParam == VK_OEM_5) {
+        return true;
+    }
+    return false;
+}
+
+}
+
 McBopomofoTIP::McBopomofoTIP()
     : _cRef(1),
       _ptim(nullptr),
@@ -274,6 +288,11 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lPara
 
     // If we have active composing buffer or candidates, let server handle all keys
     if (!_lastState.composingBuffer.empty() || !_lastState.candidates.empty()) {
+        *pfEaten = TRUE;
+        return S_OK;
+    }
+
+    if (IsServerHandledShortcutKey(wParam, keyboardState)) {
         *pfEaten = TRUE;
         return S_OK;
     }

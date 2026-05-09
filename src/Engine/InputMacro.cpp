@@ -39,6 +39,15 @@ std::string FormatRocDate(int dayOffset, bool includeYear, const char* format) {
     return ss.str();
 }
 
+std::string FormatRocYear(int dayOffset) {
+    auto now = std::chrono::system_clock::now();
+    now += std::chrono::hours(24 * dayOffset);
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm;
+    localtime_s(&tm, &t);
+    return std::to_string(tm.tm_year + 1900 - 1911);
+}
+
 std::string GetGanzhi(int year) {
     static const std::array<const char*, 10> gan = {"癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬"};
     static const std::array<const char*, 12> zhi = {"亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌"};
@@ -194,9 +203,9 @@ InputMacroController::InputMacroController() {
     add("MACRO@NEXT_YEAR_PLAIN_WITH_ERA", []() { return FormatDate(365, "西元%Y年"); });
 
     // Year ROC
-    add("MACRO@THIS_YEAR_ROC", []() { return FormatRocDate(0, true, ""); });
-    add("MACRO@LAST_YEAR_ROC", []() { return FormatRocDate(-365, true, ""); });
-    add("MACRO@NEXT_YEAR_ROC", []() { return FormatRocDate(365, true, ""); });
+    add("MACRO@THIS_YEAR_ROC", []() { return FormatRocYear(0); });
+    add("MACRO@LAST_YEAR_ROC", []() { return FormatRocYear(-365); });
+    add("MACRO@NEXT_YEAR_ROC", []() { return FormatRocYear(365); });
 
     // Date Short
     add("MACRO@DATE_TODAY_SHORT", []() { return FormatDate(0, "%Y/%m/%d"); });

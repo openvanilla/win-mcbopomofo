@@ -13,8 +13,9 @@ std::wstring Utf8ToUtf16(const std::string& utf8) {
     if (wlen <= 0) {
         return std::wstring();
     }
-    std::wstring utf16(wlen - 1, 0);
-    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, &utf16[0], wlen);
+    std::wstring utf16(wlen, 0);
+    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, utf16.data(), wlen);
+    utf16.resize(wlen - 1);
     return utf16;
 }
 
@@ -26,8 +27,9 @@ std::string Utf16ToUtf8(const std::wstring& utf16) {
     if (len <= 0) {
         return std::string();
     }
-    std::string utf8(len - 1, 0);
-    WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, &utf8[0], len, NULL, NULL);
+    std::string utf8(len, 0);
+    WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, utf8.data(), len, NULL, NULL);
+    utf8.resize(len - 1);
     return utf8;
 }
 
