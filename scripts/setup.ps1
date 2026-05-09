@@ -1,5 +1,7 @@
 # PowerShell script to install Win-McBopomofo
 
+$repoRoot = Split-Path $PSScriptRoot -Parent
+
 # Requires Admin privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "Please run this script as Administrator."
@@ -14,7 +16,7 @@ if ([string]::IsNullOrWhiteSpace($installDir)) {
 
 # Ensure we have the necessary source files in 'dist' or 'build'
 # For now, we assume files are in 'dist' as prepared by a build process.
-$sourceDir = "$PSScriptRoot\dist"
+$sourceDir = Join-Path $repoRoot "dist"
 if (!(Test-Path $sourceDir)) {
     Write-Error "Source directory '$sourceDir' not found. Please build the project first or ensure 'dist' folder exists."
     Exit

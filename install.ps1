@@ -5,6 +5,8 @@ param(
     [string]$BuildType = "Debug"
 )
 
+$scriptsDir = Join-Path $PSScriptRoot "scripts"
+
 # Requires Admin privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "Please run this script as Administrator."
@@ -16,7 +18,7 @@ if (!(Test-Path $installDir)) { New-Item -ItemType Directory -Path $installDir }
 if (!(Test-Path "$installDir\data")) { New-Item -ItemType Directory -Path "$installDir\data" }
 
 Write-Host "1. Stopping existing instances and cleaning up locks..."
-& "$PSScriptRoot\close_ime_apps.ps1"
+& (Join-Path $scriptsDir "close_ime_apps.ps1")
 Stop-Process -Name "McBopomofoServer" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "McBopomofoConfig" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1

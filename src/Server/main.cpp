@@ -9,6 +9,7 @@
 #include "WindowsKeyBridge.h"
 #include "UIInterface.h"
 #include "Settings.h"
+#include "VariantAnnotator.h"
 #include "UTFHelper.h"
 #include "UTF8Helper.h"
 #include "NamedPipe.h"
@@ -34,6 +35,33 @@ namespace {
 void LogDataFileStatus(const char* label, const std::filesystem::path& path) {
     FCITX_MCBOPOMOFO_INFO() << label << ": " << path.string()
                             << ", exists: " << std::filesystem::exists(path);
+}
+
+std::shared_ptr<VariantAnnotator> LoadVariantAnnotator(
+    const std::filesystem::path& exeDir) {
+    auto annotator = std::make_shared<VariantAnnotator>();
+    const std::filesystem::path puaPath = exeDir / "data" / "bpmfvs-pua.txt";
+    const std::filesystem::path variantsPath =
+        exeDir / "data" / "bpmfvs-variants.txt";
+
+    LogDataFileStatus("Bopomofo annotation file", puaPath);
+    LogDataFileStatus("Bopomofo annotation file", variantsPath);
+
+    const bool puaLoaded = annotator->loadPUAFile(puaPath);
+    const bool variantsLoaded = annotator->loadVariantsFile(variantsPath);
+
+    FCITX_MCBOPOMOFO_INFO() << "Bopomofo annotation PUA db loaded: "
+                            << puaLoaded;
+    FCITX_MCBOPOMOFO_INFO() << "Bopomofo annotation variants db loaded: "
+                            << variantsLoaded;
+
+    if (!puaLoaded && !variantsLoaded) {
+        FCITX_MCBOPOMOFO_WARN()
+            << "Bopomofo annotation data failed to load; annotation mode will"
+            << " remain inactive.";
+    }
+
+    return annotator;
 }
 
 }
@@ -500,16 +528,7 @@ int main(int argc, char* argv[]) {
         FCITX_MCBOPOMOFO_WARN() << "Phrase replacement file missing: " << variantsPath;
     }
 
-    std::array<std::filesystem::path, 2> annotationFiles = {
-        exeDir / "data" / "bpmfvs-pua.txt",
-        exeDir / "data" / "bpmfvs-variants.txt",
-    };
-    for (const auto& path : annotationFiles) {
-        LogDataFileStatus("Bopomofo annotation file", path);
-    }
-    FCITX_MCBOPOMOFO_WARN()
-        << "Server is currently constructed without VariantAnnotator; "
-        << "bopomofo annotation files are not loaded by the server.";
+    auto variantAnnotator = LoadVariantAnnotator(exeDir);
 
     if (!lm->isDataModelLoaded()) {
         FCITX_MCBOPOMOFO_ERROR() << "Failed to load language model from: " << dataPath;
@@ -542,7 +561,7 @@ int main(int argc, char* argv[]) {
 
     std::shared_ptr<KeyHandler> keyHandler(new KeyHandler(
         lm, 
-        std::shared_ptr<VariantAnnotator>(nullptr), 
+        variantAnnotator,
         std::make_shared<WinUserPhraseAdder>(lm), 
         std::unique_ptr<LocalizedStrings>(new DummyLocalizedStrings())
     ));

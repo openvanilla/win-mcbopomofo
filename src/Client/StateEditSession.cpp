@@ -1,8 +1,16 @@
 #include "StateEditSession.h"
 #include "UTFHelper.h"
 #include "DisplayAttributeInfo.h"
+#include <algorithm>
 
 namespace {
+
+POINT ComputeAuxiliaryWindowPoint(const RECT& rc) {
+    const int rectHeight =
+        std::max<int>(0, static_cast<int>(rc.bottom - rc.top));
+    const int verticalGap = std::max(8, rectHeight + 4);
+    return POINT{rc.left, rc.bottom + verticalGap};
+}
 
 bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
                         McBopomofoTIP* tip) {
@@ -19,8 +27,9 @@ bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
     BOOL fClipped = FALSE;
     bool moved = false;
     if (SUCCEEDED(pView->GetTextExt(ec, range, &rc, &fClipped))) {
-        tip->GetCandidateWindow()->Move(rc.left, rc.bottom + 2);
-        tip->GetTooltipWindow()->Move(rc.left, rc.bottom + 2);
+        POINT pt = ComputeAuxiliaryWindowPoint(rc);
+        tip->GetCandidateWindow()->Move(pt.x, pt.y);
+        tip->GetTooltipWindow()->Move(pt.x, pt.y);
         moved = true;
     }
     pView->Release();
@@ -49,10 +58,11 @@ void MoveWindowsToCaretFallback(McBopomofoTIP* tip) {
     GUITHREADINFO gti = {0};
     gti.cbSize = sizeof(GUITHREADINFO);
     if (GetGUIThreadInfo(GetCurrentThreadId(), &gti) && gti.hwndCaret) {
-        POINT pt = { gti.rcCaret.left, gti.rcCaret.bottom };
+        RECT caretRect = gti.rcCaret;
+        POINT pt = ComputeAuxiliaryWindowPoint(caretRect);
         ClientToScreen(gti.hwndCaret, &pt);
-        tip->GetCandidateWindow()->Move(pt.x, pt.y + 2);
-        tip->GetTooltipWindow()->Move(pt.x, pt.y + 2);
+        tip->GetCandidateWindow()->Move(pt.x, pt.y);
+        tip->GetTooltipWindow()->Move(pt.x, pt.y);
     }
 }
 

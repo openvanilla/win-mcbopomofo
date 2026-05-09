@@ -44,6 +44,7 @@ HBRUSH g_WindowBrush = nullptr;
 HBRUSH g_ControlBrush = nullptr;
 bool g_DarkMode = false;
 int g_ScrollPos = 0;  // Current vertical scroll position
+int g_ContentHeight = 0;
 
 bool IsDarkModeEnabled() {
     HKEY hKey;
@@ -140,6 +141,34 @@ std::vector<HWND> g_GroupBoxes;
 std::vector<HWND> g_CheckBoxes;
 std::vector<HWND> g_RadioButtons;
 
+int Scale(int value);
+
+int MaxScrollPos(const SCROLLINFO& si) {
+    return std::max(0, si.nMax - static_cast<int>(si.nPage));
+}
+
+void ApplyVerticalScroll(HWND hwnd, int requestedPos) {
+    SCROLLINFO si = {sizeof(SCROLLINFO), SIF_ALL};
+    GetScrollInfo(hwnd, SB_VERT, &si);
+
+    int oldPos = si.nPos;
+    int newPos = std::max(0, std::min(requestedPos, MaxScrollPos(si)));
+    if (newPos == oldPos) {
+        return;
+    }
+
+    si.nPos = newPos;
+    SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+    g_ScrollPos = newPos;
+
+    ScrollWindow(hwnd, 0, oldPos - newPos, nullptr, nullptr);
+    UpdateWindow(hwnd);
+}
+
+void TrackContentBottom(int y, int height) {
+    g_ContentHeight = std::max(g_ContentHeight, Scale(y + height));
+}
+
 int Scale(int value) {
     HDC hdc = GetDC(nullptr);
     int dpi = hdc ? GetDeviceCaps(hdc, LOGPIXELSX) : 96;
@@ -210,14 +239,17 @@ void SetChecked(HWND control, bool checked) {
 }
 
 HWND CreateLabel(HWND parent, const wchar_t* text, int x, int y, int width) {
+    TrackContentBottom(y, 26);
     return TrackControl(CreateWindowW(L"Static", text, WS_VISIBLE | WS_CHILD, Scale(x), Scale(y), Scale(width), Scale(26), parent, nullptr, nullptr, nullptr));
 }
 
 HWND CreateSectionTitle(HWND parent, const wchar_t* text, int x, int y, int width) {
+    TrackContentBottom(y, 34);
     return TrackControl(CreateWindowW(L"Static", text, WS_VISIBLE | WS_CHILD, Scale(x), Scale(y), Scale(width), Scale(34), parent, nullptr, nullptr, nullptr), hTitleFont);
 }
 
 HWND CreateGroup(HWND parent, int x, int y, int width, int height) {
+    TrackContentBottom(y, height);
     HWND group = CreateWindowW(
         L"Button",
         L"",
@@ -235,6 +267,7 @@ HWND CreateGroup(HWND parent, int x, int y, int width, int height) {
 }
 
 HWND CreateCombo(HWND parent, int x, int y, int width) {
+    TrackContentBottom(y, 180);
     HWND combo = CreateWindowW(
         L"ComboBox",
         L"",
@@ -252,6 +285,7 @@ HWND CreateCombo(HWND parent, int x, int y, int width) {
 }
 
 HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
+    TrackContentBottom(y, 28);
     HWND check = CreateWindowW(
         L"Button",
         text,
@@ -269,6 +303,7 @@ HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
 }
 
 HWND CreateRadio(HWND parent, const wchar_t* text, int x, int y, int width, bool startsGroup) {
+    TrackContentBottom(y, 28);
     DWORD style = WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON;
     if (startsGroup) {
         style |= WS_GROUP;
@@ -457,6 +492,7 @@ void SaveAndNotify() {
 }
 
 void CreateControls(HWND hwnd) {
+    g_ContentHeight = 0;
     CreateSectionTitle(hwnd, L"小麥注音偏好設定", 28, 22, 520);
 
     hReloadBtn = CreateWindowW(
@@ -472,6 +508,7 @@ void CreateControls(HWND hwnd) {
         nullptr,
         nullptr);
     TrackControl(hReloadBtn);
+    TrackContentBottom(20, 34);
 
     CreateGroup(hwnd, 24, 72, 548, 116);
     CreateLabel(hwnd, L"鍵盤佈局", 56, 104, 140);
@@ -530,6 +567,7 @@ void CreateControls(HWND hwnd) {
 
     UpdateUI();
     ApplyThemeToControls();
+    g_ContentHeight += Scale(24);
 }
 
 bool HandleOwnerDrawClick(HWND control) {
@@ -561,62 +599,50 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         RECT rect;
         GetClientRect(hwnd, &rect);
         int visibleHeight = rect.bottom - rect.top;
-        int totalHeight = Scale(962);  // Total content height
+        int totalHeight = std::max(g_ContentHeight, visibleHeight);
         
-        SCROLLINFO si = {sizeof(SCROLLINFO), SIF_RANGE | SIF_PAGE};
+        SCROLLINFO si = {sizeof(SCROLLINFO), SIF_RANGE | SIF_PAGE | SIF_POS};
         si.nMin = 0;
         si.nMax = totalHeight;
         si.nPage = visibleHeight;
+        si.nPos = g_ScrollPos;
         SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+        ApplyVerticalScroll(hwnd, g_ScrollPos);
         break;
     }
     case WM_MOUSEWHEEL: {
         int wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
         int scrollLines = wheelDelta > 0 ? -3 : 3;  // Scroll up or down
-        
-        SCROLLINFO si = {sizeof(SCROLLINFO), SIF_POS};
-        GetScrollInfo(hwnd, SB_VERT, &si);
-        g_ScrollPos = si.nPos + scrollLines * kScrollLineHeight;
-        
-        si.nPos = g_ScrollPos;
-        SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
-        
-        ScrollWindow(hwnd, 0, -scrollLines * kScrollLineHeight, nullptr, nullptr);
-        UpdateWindow(hwnd);
+
+        ApplyVerticalScroll(hwnd, g_ScrollPos + scrollLines * kScrollLineHeight);
         break;
     }
     case WM_VSCROLL: {
         SCROLLINFO si = {sizeof(SCROLLINFO), SIF_ALL};
         GetScrollInfo(hwnd, SB_VERT, &si);
-        int oldPos = si.nPos;
+        int newPos = si.nPos;
         
         switch (LOWORD(wParam)) {
         case SB_LINEUP:
-            si.nPos -= kScrollLineHeight;
+            newPos -= kScrollLineHeight;
             break;
         case SB_LINEDOWN:
-            si.nPos += kScrollLineHeight;
+            newPos += kScrollLineHeight;
             break;
         case SB_PAGEUP:
-            si.nPos -= si.nPage;
+            newPos -= static_cast<int>(si.nPage);
             break;
         case SB_PAGEDOWN:
-            si.nPos += si.nPage;
+            newPos += static_cast<int>(si.nPage);
             break;
         case SB_THUMBTRACK:
-            si.nPos = si.nTrackPos;
+            newPos = si.nTrackPos;
+            break;
+        default:
             break;
         }
-        
-        si.nPos = std::max(0, std::min(si.nPos, static_cast<int>(si.nMax - si.nPage)));
-        SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
-        g_ScrollPos = si.nPos;
-        
-        if (oldPos != si.nPos) {
-            int scrollDelta = oldPos - si.nPos;
-            ScrollWindow(hwnd, 0, scrollDelta, nullptr, nullptr);
-            UpdateWindow(hwnd);
-        }
+
+        ApplyVerticalScroll(hwnd, newPos);
         break;
     }
     case WM_SETTINGCHANGE:
