@@ -29,6 +29,10 @@
 
 namespace McBopomofo {
 
+std::wstring GetLogFilePath();
+bool ServerLoggingEnabled();
+void SetServerLoggingEnabled(bool enabled);
+
 class LogMessageContext {
 public:
     LogMessageContext(const char* level);

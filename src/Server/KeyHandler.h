@@ -66,8 +66,6 @@ class KeyHandler {
                                StateCallback stateCallback,
                                ErrorCallback errorCallback, bool useShiftKey);
 
-  void handleForceCommitAndReset(StateCallback stateCallback);
-
   bool handleNumberInput(Key key, InputStates::NumberInput* state,
                          StateCallback stateCallback,
                          KeyHandler::ErrorCallback errorCallback);

@@ -48,7 +48,8 @@ public:
     InputState* GetCurrentState() const { return currentState_.get(); }
 
 private:
-    void ChangeState(std::unique_ptr<InputState> newState);
+    void ChangeState(std::unique_ptr<InputState> previousState,
+                     std::unique_ptr<InputState> newState);
     bool HandleCandidateKey(const Key& key);
     bool HandleCandidateNavigation(const Key& key);
     void MoveCandidateCursor(bool forward);

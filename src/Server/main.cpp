@@ -325,9 +325,65 @@ bool IsCtrlSpace(const IPC::KeyEventPayload& key) {
 #define IDM_OPEN_EXCLUDED_PHRASES 1005
 #define IDM_OPEN_USER_DIR 1006
 #define IDM_TOGGLE_CONVERSION 1007
+#define IDM_OPEN_LOG_FOLDER 1008
+#define IDM_TOGGLE_LOGGING 1009
+#define IDM_TRACE_LOG 1010
 #define IDM_EXIT 1002
 
 InputController* g_Controller = nullptr;
+bool g_RestartRequested = false;
+
+void OpenFileInExplorer(const std::wstring& path) {
+    std::wstring args = L"/select,\"" + path + L"\"";
+    ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
+}
+
+void OpenLogFolder() {
+    std::wstring logPath = GetLogFilePath();
+    if (logPath.empty()) {
+        return;
+    }
+
+    OpenFileInExplorer(logPath);
+}
+
+void ToggleLogging() {
+    bool enabled = !ServerLoggingEnabled();
+    SetServerLoggingEnabled(enabled);
+    if (enabled) {
+        FCITX_MCBOPOMOFO_INFO() << "Logging enabled.";
+    }
+}
+
+void RestartServer() {
+    g_RestartRequested = true;
+    PostQuitMessage(0);
+}
+
+void TraceLog() {
+    std::wstring logPath = GetLogFilePath();
+    if (logPath.empty()) {
+        return;
+    }
+
+    std::wstring args =
+        L"-NoExit -Command \"Get-Content -Path '" + logPath +
+        L"' -Wait -Tail 50\"";
+    ShellExecuteW(nullptr, L"open", L"powershell.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
+}
+
+void RelaunchCurrentProcess() {
+    std::wstring commandLine = GetCommandLineW();
+    STARTUPINFOW si = {};
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi = {};
+    std::wstring mutableCommandLine = commandLine;
+    if (CreateProcessW(nullptr, mutableCommandLine.data(), nullptr, nullptr, FALSE,
+                       0, nullptr, nullptr, &si, &pi)) {
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+    }
+}
 
 void OpenSettingsApp() {
     WCHAR path[MAX_PATH] = {};
@@ -349,6 +405,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             
             bool isConversionEnabled = g_Controller && g_Controller->IsChineseConversionEnabled();
             LPCWSTR conversionText = isConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文";
+            UINT loggingFlags = MF_BYPOSITION | MF_STRING;
+            if (ServerLoggingEnabled()) {
+                loggingFlags |= MF_CHECKED;
+            }
 
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_SETTINGS, L"設定");
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
@@ -357,6 +417,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_PHRASES, L"編輯使用者詞庫");
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_EXCLUDED_PHRASES, L"編輯排除詞庫");
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_DIR, L"開啟使用者資料夾");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_LOG_FOLDER, L"開啟 Log 資料夾");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, loggingFlags, IDM_TOGGLE_LOGGING, L"啟用 Logging");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_TRACE_LOG, L"Trace Log");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_RESTART, L"重新啟動 Server");
             //InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
             //InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_EXIT, L"結束 (Exit)");
             SetForegroundWindow(hwnd);
@@ -382,6 +446,14 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         } else if (LOWORD(wParam) == IDM_OPEN_USER_DIR) {
             std::string path = fcitx5_compat::userDirectory();
             ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+        } else if (LOWORD(wParam) == IDM_OPEN_LOG_FOLDER) {
+            OpenLogFolder();
+        } else if (LOWORD(wParam) == IDM_TOGGLE_LOGGING) {
+            ToggleLogging();
+        } else if (LOWORD(wParam) == IDM_TRACE_LOG) {
+            TraceLog();
+        } else if (LOWORD(wParam) == IDM_RESTART) {
+            RestartServer();
         }
         return 0;
     }
@@ -616,6 +688,10 @@ int main(int argc, char* argv[]) {
     if (hSingleInstanceMutex) {
         ReleaseMutex(hSingleInstanceMutex);
         CloseHandle(hSingleInstanceMutex);
+    }
+
+    if (g_RestartRequested) {
+        RelaunchCurrentProcess();
     }
 
     return 0;

@@ -6,14 +6,54 @@
 
 namespace {
 
-bool IsServerHandledShortcutKey(WPARAM wParam, const BYTE keyboardState[256]) {
-    const bool ctrlPressed = (keyboardState[VK_CONTROL] & 0x80) != 0;
-    const bool shiftPressed = (keyboardState[VK_SHIFT] & 0x80) != 0;
+const GUID GUID_PRESERVEDKEY_CTRL_SPACE =
+{ 0x5d8d3e12, 0x8f87, 0x4d5c, { 0x9f, 0x5e, 0x2b, 0x61, 0xe2, 0x33, 0xa8, 0x41 } };
 
-    if (ctrlPressed && !shiftPressed && wParam == VK_OEM_5) {
+const TF_PRESERVEDKEY kPreservedKeyCtrlSpace = { VK_SPACE, TF_MOD_CONTROL };
+
+bool IsVirtualKeyDown(int vk) {
+    return (GetKeyState(vk) & 0x8000) != 0 || (GetAsyncKeyState(vk) & 0x8000) != 0;
+}
+
+bool IsCtrlPressed(const BYTE keyboardState[256]) {
+    return (keyboardState[VK_CONTROL] & 0x80) != 0 ||
+           (keyboardState[VK_LCONTROL] & 0x80) != 0 ||
+           (keyboardState[VK_RCONTROL] & 0x80) != 0 ||
+           IsVirtualKeyDown(VK_CONTROL) ||
+           IsVirtualKeyDown(VK_LCONTROL) ||
+           IsVirtualKeyDown(VK_RCONTROL);
+}
+
+bool IsShiftPressed(const BYTE keyboardState[256]) {
+    return (keyboardState[VK_SHIFT] & 0x80) != 0 ||
+           (keyboardState[VK_LSHIFT] & 0x80) != 0 ||
+           (keyboardState[VK_RSHIFT] & 0x80) != 0 ||
+           IsVirtualKeyDown(VK_SHIFT) ||
+           IsVirtualKeyDown(VK_LSHIFT) ||
+           IsVirtualKeyDown(VK_RSHIFT);
+}
+
+bool IsServerHandledCtrlShortcutKey(WPARAM wParam, bool shiftPressed) {
+    switch (wParam) {
+    case VK_SPACE:
+        return !shiftPressed;
+    case VK_OEM_COMMA:
+    case VK_OEM_PERIOD:
+    case '1':
+    case VK_OEM_2:
+    case VK_OEM_1:
+    case VK_OEM_7:
+    case VK_OEM_5:
         return true;
+    default:
+        return false;
     }
-    return false;
+}
+
+bool IsServerHandledShortcutKey(WPARAM wParam, const BYTE keyboardState[256]) {
+    const bool ctrlPressed = IsCtrlPressed(keyboardState);
+    const bool shiftPressed = IsShiftPressed(keyboardState);
+    return ctrlPressed && IsServerHandledCtrlShortcutKey(wParam, shiftPressed);
 }
 
 }
@@ -83,6 +123,14 @@ BOOL McBopomofoTIP::_InitKeyEventSink() {
 
     if (SUCCEEDED(hr)) {
         hr = pKeystrokeMgr->AdviseKeyEventSink(_tid, static_cast<ITfKeyEventSink *>(this), TRUE);
+        if (SUCCEEDED(hr)) {
+            pKeystrokeMgr->PreserveKey(
+                _tid,
+                GUID_PRESERVEDKEY_CTRL_SPACE,
+                &kPreservedKeyCtrlSpace,
+                L"Ctrl+Space",
+                static_cast<ULONG>(wcslen(L"Ctrl+Space")));
+        }
         pKeystrokeMgr->Release();
     }
 
@@ -94,6 +142,7 @@ void McBopomofoTIP::_UninitKeyEventSink() {
     HRESULT hr = _ptim->QueryInterface(IID_ITfKeystrokeMgr, (void **)&pKeystrokeMgr);
 
     if (SUCCEEDED(hr)) {
+        pKeystrokeMgr->UnpreserveKey(GUID_PRESERVEDKEY_CTRL_SPACE, &kPreservedKeyCtrlSpace);
         pKeystrokeMgr->UnadviseKeyEventSink(_tid);
         pKeystrokeMgr->Release();
     }
@@ -273,14 +322,13 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lPara
     BYTE keyboardState[256];
     GetKeyboardState(keyboardState);
 
-    // Ctrl+Space toggle (system-level operation, handle here)
-    if (wParam == VK_SPACE && (keyboardState[VK_CONTROL] & 0x80)) {
-        ToggleOpenClose();
+
+    // Ctrl+Space toggle
+    if (IsServerHandledShortcutKey(wParam, keyboardState) && wParam == VK_SPACE) {
         *pfEaten = TRUE;
         return S_OK;
     }
 
-    // If IME is closed, don't eat any keys
     if (!IsOpen()) {
         *pfEaten = FALSE;
         return S_OK;
@@ -319,7 +367,7 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
     GetKeyboardState(keyboardState);
 
     // Ctrl+Space toggle
-    if (wParam == VK_SPACE && (keyboardState[VK_CONTROL] & 0x80)) {
+    if (IsServerHandledShortcutKey(wParam, keyboardState) && wParam == VK_SPACE) {
         ToggleOpenClose();
         *pfEaten = TRUE;
         return S_OK;
@@ -340,8 +388,8 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
 
     McBopomofo::IPC::KeyEventPayload req;
     req.vk = (unsigned int)wParam;
-    req.shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-    req.ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+    req.shift = IsShiftPressed(keyboardState);
+    req.ctrl = IsCtrlPressed(keyboardState);
 
     GetKeyboardState(keyboardState);
     WCHAR chars[2] = {0};
@@ -422,10 +470,16 @@ STDAPI McBopomofoTIP::OnKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOO
 
 STDAPI McBopomofoTIP::OnPreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEaten) {
     UNREFERENCED_PARAMETER(pic);
-    UNREFERENCED_PARAMETER(rguid);
     if (pfEaten == nullptr) {
         return E_INVALIDARG;
     }
+
+    if (IsEqualGUID(rguid, GUID_PRESERVEDKEY_CTRL_SPACE)) {
+        ToggleOpenClose();
+        *pfEaten = TRUE;
+        return S_OK;
+    }
+
     *pfEaten = FALSE;
     return S_OK;
 }
@@ -548,7 +602,8 @@ void McBopomofoTIP::ToggleOpenClose() {
                    currentOpen ? "OPEN" : "CLOSED", 
                    currentOpen ? "CLOSED" : "OPEN");
 
-        // If closing (switching to English), reset the server controller and commit any inputting text
+        // When switching from Chinese to English (currentOpen == true), reset the server controller
+        // to commit any inputting text and clear the server state
         if (currentOpen) {
             LogMessage("Sending RESET command to server");
             McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
@@ -564,6 +619,10 @@ void McBopomofoTIP::ToggleOpenClose() {
             } else {
                 LogMessage("Failed to send RESET command");
             }
+            
+            // Hide candidate and tooltip windows when switching to English
+            _candidateWindow.Hide();
+            _tooltipWindow.Hide();
         }
 
         ITfCompartmentMgr *pCompMgr = nullptr;

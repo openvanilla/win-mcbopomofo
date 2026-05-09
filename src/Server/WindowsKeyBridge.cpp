@@ -2,21 +2,28 @@
 
 namespace McBopomofo {
 
+char MapCtrlPunctuationAscii(unsigned int vk) {
+    switch (vk) {
+    case VK_OEM_COMMA: return ',';
+    case VK_OEM_PERIOD: return '.';
+    case '1': return '!';
+    case VK_OEM_2: return '/';
+    case VK_OEM_1: return ';';
+    case VK_OEM_7: return '\'';
+    case VK_OEM_5: return '\\';
+    default: return '\0';
+    }
+}
+
 Key MapIPCKey(const IPC::KeyEventPayload& payload) {
     char ascii = (char)payload.ascii;
     Key::KeyName name = Key::KeyName::UNKNOWN;
     bool isFromNumberPad = false;
 
-    if (payload.ctrl && !payload.shift) {
-        switch (payload.vk) {
-        case VK_OEM_COMMA: ascii = ','; break;
-        case VK_OEM_PERIOD: ascii = '.'; break;
-        case '1': ascii = '!'; break;
-        case VK_OEM_2: ascii = '/'; break;
-        case VK_OEM_1: ascii = ';'; break;
-        case VK_OEM_7: ascii = '\''; break;
-        case VK_OEM_5: ascii = '\\'; break;
-        default: break;
+    if (payload.ctrl) {
+        char ctrlPunctuationAscii = MapCtrlPunctuationAscii(payload.vk);
+        if (ctrlPunctuationAscii != '\0') {
+            ascii = ctrlPunctuationAscii;
         }
     }
     

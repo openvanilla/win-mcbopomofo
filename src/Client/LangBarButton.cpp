@@ -318,9 +318,13 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON *phIcon) {
     *phIcon = nullptr;
     
     const wchar_t* label = CurrentModeLabel(_pTIP);
+    LogMessage("CLangBarButton::GetIcon called with label: %ls", label);
+    
     HDC hdc = GetDC(NULL);
     HDC hMemDC = CreateCompatibleDC(hdc);
     HBITMAP hBitmap = CreateCompatibleBitmap(hdc, 16, 16);
+    HBITMAP hMaskBitmap = CreateBitmap(16, 16, 1, 1, NULL);
+    
     HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
     
     RECT rc = {0, 0, 16, 16};
@@ -339,13 +343,16 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON *phIcon) {
     
     ICONINFO ii = {0};
     ii.fIcon = TRUE;
-    ii.hbmMask = hBitmap;
+    ii.hbmMask = hMaskBitmap;
     ii.hbmColor = hBitmap;
     *phIcon = CreateIconIndirect(&ii);
     
+    DeleteObject(hMaskBitmap);
     DeleteObject(hBitmap);
     DeleteDC(hMemDC);
     ReleaseDC(NULL, hdc);
+    
+    LogMessage("CLangBarButton::GetIcon created icon: %p", *phIcon);
 
     return S_OK;
 }
