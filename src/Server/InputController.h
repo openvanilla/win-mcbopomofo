@@ -45,6 +45,7 @@ public:
     bool IsChineseConversionEnabled() const;
 
     int GetCandidateIndex() const { return candidateIndex_; }
+    InputState* GetCurrentState() const { return currentState_.get(); }
 
 private:
     void ChangeState(std::unique_ptr<InputState> newState);

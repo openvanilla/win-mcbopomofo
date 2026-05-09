@@ -63,8 +63,8 @@ protected:
 };
 
 TEST_F(BugReproTest, JumpToBig5State) {
-    // Manually trigger Ctrl+\ then select Big5 (index 0)
-    controller->HandleKey(Key::asciiKey('\\', false, true)); // Ctrl+\ 
+    // Manually trigger Ctrl+backslash then select Big5 (index 0)
+    controller->HandleKey(Key::asciiKey('\\', false, true));
     
     // Check if it's in SelectingFeature state
     ASSERT_NE(dynamic_cast<InputStates::SelectingFeature*>(ui->lastState), nullptr);
@@ -79,7 +79,7 @@ TEST_F(BugReproTest, JumpToBig5State) {
 }
 
 TEST_F(BugReproTest, JumpToIrohaState) {
-    controller->HandleKey(Key::asciiKey('\\', false, true)); // Ctrl+\ 
+    controller->HandleKey(Key::asciiKey('\\', false, true));
     
     // Select Iroha (fourth feature, index 3)
     controller->SelectCandidate(3);
@@ -90,7 +90,7 @@ TEST_F(BugReproTest, JumpToIrohaState) {
 }
 
 TEST_F(BugReproTest, SelectingDateMacroCrashRepro) {
-    controller->HandleKey(Key::asciiKey('\\', false, true)); // Ctrl+\ 
+    controller->HandleKey(Key::asciiKey('\\', false, true));
     
     // Select Date/Time (index 1)
     controller->SelectCandidate(1);
@@ -108,6 +108,47 @@ TEST_F(BugReproTest, SelectingDateMacroCrashRepro) {
     // Since ui->Update is not called for Empty state (ui->Reset is called instead),
     // we check ui->resetCalled.
     EXPECT_TRUE(ui->resetCalled);
+}
+
+TEST_F(BugReproTest, SpacePagesSelectingDateMacroCandidates) {
+    ASSERT_TRUE(controller->HandleKey(Key::asciiKey('\\', false, true)));
+    ASSERT_NE(dynamic_cast<InputStates::SelectingFeature*>(ui->lastState), nullptr);
+    controller->SelectCandidate(1);  // Date/Time
+
+    auto* dateMacroState = dynamic_cast<InputStates::SelectingDateMacro*>(ui->lastState);
+    ASSERT_NE(dateMacroState, nullptr);
+    ASSERT_GT(static_cast<int>(dateMacroState->menu.size()), 9);
+    ASSERT_EQ(controller->GetCandidateIndex(), 0);
+
+    int previousUpdateCount = ui->updateCount;
+    EXPECT_TRUE(controller->HandleKey(Key::asciiKey(Key::SPACE, false, false)));
+    EXPECT_EQ(controller->GetCandidateIndex(), 9);
+    EXPECT_GT(ui->updateCount, previousUpdateCount);
+    EXPECT_NE(dynamic_cast<InputStates::SelectingDateMacro*>(ui->lastState), nullptr);
+}
+
+TEST_F(BugReproTest, EscInSelectingFeatureReturnsToEmpty) {
+    controller->HandleKey(Key::asciiKey('\\', false, true));
+    ASSERT_NE(dynamic_cast<InputStates::SelectingFeature*>(ui->lastState), nullptr);
+    
+    controller->HandleKey(Key::asciiKey(Key::ESC, false, false));
+    
+    // It should be back to Empty state.
+    // In InputController, Empty state results in ui->Reset() and currentState_ being Empty.
+    // In our MockUI, we check resetCalled.
+    EXPECT_TRUE(ui->resetCalled);
+    EXPECT_NE(dynamic_cast<InputStates::Empty*>(controller->GetCurrentState()), nullptr);
+}
+
+TEST_F(BugReproTest, BackspaceInSelectingFeatureReturnsToEmpty) {
+    ui->resetCalled = false; // Reset for this test
+    controller->HandleKey(Key::asciiKey('\\', false, true));
+    ASSERT_NE(dynamic_cast<InputStates::SelectingFeature*>(ui->lastState), nullptr);
+    
+    controller->HandleKey(Key::asciiKey(Key::BACKSPACE, false, false));
+    
+    EXPECT_TRUE(ui->resetCalled);
+    EXPECT_NE(dynamic_cast<InputStates::Empty*>(controller->GetCurrentState()), nullptr);
 }
 
 int main(int argc, char **argv) {

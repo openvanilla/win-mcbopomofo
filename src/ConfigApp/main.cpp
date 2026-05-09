@@ -219,7 +219,7 @@ HWND CreateGroup(HWND parent, int x, int y, int width, int height) {
     HWND group = CreateWindowW(
         L"Button",
         L"",
-        WS_VISIBLE | WS_CHILD | BS_GROUPBOX | BS_OWNERDRAW,
+        WS_VISIBLE | WS_CHILD | BS_GROUPBOX,
         Scale(x),
         Scale(y),
         Scale(width),
@@ -253,7 +253,7 @@ HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
     HWND check = CreateWindowW(
         L"Button",
         text,
-        WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX | BS_OWNERDRAW,
+        WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX,
         Scale(x),
         Scale(y),
         Scale(width),
@@ -267,7 +267,7 @@ HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
 }
 
 HWND CreateRadio(HWND parent, const wchar_t* text, int x, int y, int width, bool startsGroup) {
-    DWORD style = WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON | BS_OWNERDRAW;
+    DWORD style = WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON;
     if (startsGroup) {
         style |= WS_GROUP;
     }
@@ -530,43 +530,8 @@ void CreateControls(HWND hwnd) {
     ApplyThemeToControls();
 }
 
-void CheckRadioPair(HWND selected, HWND other) {
-    SetChecked(selected, true);
-    SetChecked(other, false);
-    InvalidateRect(selected, nullptr, TRUE);
-    InvalidateRect(other, nullptr, TRUE);
-}
-
 bool HandleOwnerDrawClick(HWND control) {
-    if (ContainsControl(g_CheckBoxes, control)) {
-        SetChecked(control, !IsChecked(control));
-        InvalidateRect(control, nullptr, TRUE);
-        return true;
-    }
-    if (control == hVerticalRadio) {
-        CheckRadioPair(hVerticalRadio, hHorizontalRadio);
-        return true;
-    }
-    if (control == hHorizontalRadio) {
-        CheckRadioPair(hHorizontalRadio, hVerticalRadio);
-        return true;
-    }
-    if (control == hSelectBeforeRadio) {
-        CheckRadioPair(hSelectBeforeRadio, hSelectAfterRadio);
-        return true;
-    }
-    if (control == hSelectAfterRadio) {
-        CheckRadioPair(hSelectAfterRadio, hSelectBeforeRadio);
-        return true;
-    }
-    if (control == hLowercaseRadio) {
-        CheckRadioPair(hLowercaseRadio, hUppercaseRadio);
-        return true;
-    }
-    if (control == hUppercaseRadio) {
-        CheckRadioPair(hUppercaseRadio, hLowercaseRadio);
-        return true;
-    }
+    UNREFERENCED_PARAMETER(control);
     return false;
 }
 

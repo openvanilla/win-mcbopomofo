@@ -365,6 +365,21 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
                         _lastState.consumed, _lastState.commitString.c_str(), _lastState.composingBuffer.c_str());
 
             if (_lastState.consumed) {
+                const bool directCommitWithoutComposition =
+                    !_lastState.commitString.empty() &&
+                    _lastState.composingBuffer.empty() &&
+                    _pComposition == nullptr;
+
+                // Hide auxiliary UI before entering the edit session for a
+                // direct commit. Some TSF hosts, including recent Notepad
+                // builds, are sensitive to any UI/window work performed from
+                // inside the write edit session when there is no active
+                // composition.
+                if (directCommitWithoutComposition) {
+                    _tooltipWindow.Hide();
+                    _candidateWindow.Hide();
+                }
+
                 CStateEditSession *pEditSession = new CStateEditSession(pic, this, _lastState);
                 HRESULT hr;
                 pic->RequestEditSession(_tid, pEditSession, TF_ES_SYNC | TF_ES_READWRITE, &hr);

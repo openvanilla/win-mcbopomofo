@@ -668,7 +668,11 @@ void KeyHandler::candidatePanelCancelled(size_t originalCursor,
     return;
   }
   grid_.setCursor(originalCursor);
-  stateCallback(buildInputtingState());
+  if (grid_.length() == 0 && reading_.isEmpty()) {
+    stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
+  } else {
+    stateCallback(buildInputtingState());
+  }
 }
 
 bool KeyHandler::handleCandidateKeyForTraditionalBopomofoIfRequired(

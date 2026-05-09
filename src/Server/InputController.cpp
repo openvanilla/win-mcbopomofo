@@ -294,6 +294,9 @@ bool InputController::HandleCandidateKey(const Key& key) {
             return false;
         }
         MoveCandidatePage(true);
+        if (ui_) {
+            ui_->Update(currentState_.get());
+        }
         return true;
     }
 

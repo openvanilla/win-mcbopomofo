@@ -19,6 +19,7 @@ if(MSVC)
 endif()
 
 # Add external dependencies first
+set(BUILD_TESTING OFF CACHE BOOL "Disable third-party tests by default" FORCE)
 set(ENABLE_GETTEXT OFF CACHE BOOL "Disable Gettext for OpenCC" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build OpenCC as static" FORCE)
 set(USE_SYSTEM_DARTS OFF CACHE BOOL "Use bundled darts" FORCE)
@@ -31,6 +32,7 @@ add_subdirectory(third_party/OpenCC EXCLUDE_FROM_ALL)
 add_subdirectory(src)
 
 # Add tests
+set(BUILD_TESTING ON CACHE BOOL "Enable project tests" FORCE)
 enable_testing()
 add_executable(CandidateWindowTest tests/test_candidate_window.cpp src/Client/CandidateWindow.cpp src/Common/UTFHelper.cpp)
 target_include_directories(CandidateWindowTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Client ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/src/Server/Engine ${CMAKE_SOURCE_DIR}/src/Server)
@@ -63,3 +65,8 @@ add_executable(IpcTest tests/IpcTest.cpp)
 target_include_directories(IpcTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
 target_link_libraries(IpcTest PRIVATE Common gtest_main)
 add_test(NAME IpcTest COMMAND IpcTest)
+
+add_executable(PipeTest tests/PipeTest.cpp)
+target_include_directories(PipeTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
+target_link_libraries(PipeTest PRIVATE Common gtest_main)
+add_test(NAME PipeTest COMMAND PipeTest)

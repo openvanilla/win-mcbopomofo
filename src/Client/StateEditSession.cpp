@@ -95,14 +95,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     const bool directCommitWithoutComposition =
         !commitStr.empty() && compStr.empty() && _pTIP->GetComposition() == nullptr;
 
-    // Hide auxiliary UI before a direct commit. Some TSF hosts, including
-    // recent Notepad builds, are sensitive to selection/UI updates in the same
-    // edit session when no active composition exists.
-    if (directCommitWithoutComposition) {
-        _pTIP->GetTooltipWindow()->Hide();
-        _pTIP->GetCandidateWindow()->Hide();
-    }
-
     // 1. Handle Committing Text
     if (!commitStr.empty()) {
         if (_pTIP->GetComposition()) {

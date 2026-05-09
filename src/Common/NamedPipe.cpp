@@ -143,13 +143,15 @@ bool NamedPipeClient::Call(const std::string& request, std::string& response) {
 
     char buffer[4096];
     DWORD bytesRead;
+    bool success = false;
     if (ReadFile(hPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL)) {
         buffer[bytesRead] = '\0';
         response = std::string(buffer, bytesRead);
+        success = true;
     }
 
     CloseHandle(hPipe);
-    return true;
+    return success;
 }
 
 } // namespace IPC
