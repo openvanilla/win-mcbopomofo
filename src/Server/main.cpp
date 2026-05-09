@@ -328,17 +328,17 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             HMENU hMenu = CreatePopupMenu();
             
             bool isConversionEnabled = g_Controller && g_Controller->IsChineseConversionEnabled();
-            LPCWSTR conversionText = isConversionEnabled ? L"切換為繁體輸出 (Traditional)" : L"切換為簡體輸出 (Simplified)";
+            LPCWSTR conversionText = isConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文";
 
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_SETTINGS, L"設定 (Settings)");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_SETTINGS, L"設定");
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_TOGGLE_CONVERSION, conversionText);
             InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_PHRASES, L"編輯使用者詞庫 (Edit User Phrases)");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_EXCLUDED_PHRASES, L"編輯排除詞庫 (Edit Excluded Phrases)");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_DIR, L"開啟使用者資料夾 (Open Data Folder)");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_EXIT, L"結束 (Exit)");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_PHRASES, L"編輯使用者詞庫");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_EXCLUDED_PHRASES, L"編輯排除詞庫");
+            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_DIR, L"開啟使用者資料夾");
+            //InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+            //InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_EXIT, L"結束 (Exit)");
             SetForegroundWindow(hwnd);
             TrackPopupMenu(hMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL);
             DestroyMenu(hMenu);

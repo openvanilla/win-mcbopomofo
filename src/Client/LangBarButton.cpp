@@ -161,24 +161,24 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt, const RECT *prc
                 L"啟用聯想詞");
             AppendMenuW(
                 menu,
-                MF_STRING | (ReadBoolSetting(L"HalfWidthPunctuationEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
+                MF_STRING,
                 MENU_TOGGLE_HALF_WIDTH_PUNCTUATION,
-                L"使用半形標點");
+                (ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"標點：半形" : L"標點：全形"));
             AppendMenuW(
                 menu,
-                MF_STRING | (ReadBoolSetting(L"ChineseConversionEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
+                MF_STRING,
                 MENU_TOGGLE_CHINESE_CONVERSION,
-                L"繁簡轉換 (輸出簡體)");
+                (ReadBoolSetting(L"ChineseConversionEnabled", false) ?  L"輸出：簡體中文" : L"輸出：繁體中文"));
             AppendMenuW(
                 menu,
                 MF_STRING | (ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false) ? MF_CHECKED : MF_UNCHECKED),
                 MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION,
                 L"啟用注音標示");
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-            AppendMenuW(menu, MF_STRING, 1, L"設定 (Settings)");
-            AppendMenuW(menu, MF_STRING, 2, L"編輯使用者詞庫 (Edit User Phrases)");
-            AppendMenuW(menu, MF_STRING, 3, L"編輯排除詞庫 (Edit Excluded Phrases)");
-            AppendMenuW(menu, MF_STRING, 4, L"開啟使用者資料夾 (Open Data Folder)");
+            AppendMenuW(menu, MF_STRING, 1, L"設定");
+            AppendMenuW(menu, MF_STRING, 2, L"編輯使用者詞庫");
+            AppendMenuW(menu, MF_STRING, 3, L"編輯排除詞庫");
+            AppendMenuW(menu, MF_STRING, 4, L"開啟使用者資料夾");
 
             HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0, HWND_DESKTOP, nullptr, g_hInst, nullptr);
             if (!hwnd) {
@@ -215,19 +215,19 @@ STDMETHODIMP CLangBarButton::InitMenu(ITfMenu *pMenu) {
         nullptr);
     pMenu->AddMenuItem(
         MENU_TOGGLE_HALF_WIDTH_PUNCTUATION,
-        ReadBoolSetting(L"HalfWidthPunctuationEnabled", false) ? TF_LBMENUF_CHECKED : 0,
+        0,
         nullptr,
         nullptr,
-        L"使用半形標點",
-        (ULONG)wcslen(L"使用半形標點"),
+        ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"標點：半形" : L"標點：全形",
+        ReadBoolSetting(L"ChineseConversionEnabled", false) ? (ULONG)wcslen(L"標點：半形") : (ULONG)wcslen(L"標點：全形"),
         nullptr);
     pMenu->AddMenuItem(
         MENU_TOGGLE_CHINESE_CONVERSION,
-        ReadBoolSetting(L"ChineseConversionEnabled", false) ? TF_LBMENUF_CHECKED : 0,
+        0,
         nullptr,
         nullptr,
-        L"繁簡轉換 (輸出簡體)",
-        (ULONG)wcslen(L"繁簡轉換 (輸出簡體)"),
+		ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"輸出：簡體中文" : L"輸出：繁體中文",
+        ReadBoolSetting(L"ChineseConversionEnabled", false) ? (ULONG)wcslen(L"輸出：簡體中文") : (ULONG)wcslen(L"輸出：繁體中文"),
         nullptr);
     pMenu->AddMenuItem(
         MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION,
@@ -238,10 +238,10 @@ STDMETHODIMP CLangBarButton::InitMenu(ITfMenu *pMenu) {
         (ULONG)wcslen(L"啟用注音標示"),
         nullptr);
     pMenu->AddMenuItem(0, TF_LBMENUF_SEPARATOR, nullptr, nullptr, nullptr, 0, nullptr);
-    pMenu->AddMenuItem(1, 0, nullptr, nullptr, L"設定 (Settings)", (ULONG)wcslen(L"設定 (Settings)"), nullptr);
-    pMenu->AddMenuItem(2, 0, nullptr, nullptr, L"編輯使用者詞庫 (Edit User Phrases)", (ULONG)wcslen(L"編輯使用者詞庫 (Edit User Phrases)"), nullptr);
-    pMenu->AddMenuItem(3, 0, nullptr, nullptr, L"編輯排除詞庫 (Edit Excluded Phrases)", (ULONG)wcslen(L"編輯排除詞庫 (Edit Excluded Phrases)"), nullptr);
-    pMenu->AddMenuItem(4, 0, nullptr, nullptr, L"開啟使用者資料夾 (Open Data Folder)", (ULONG)wcslen(L"開啟使用者資料夾 (Open Data Folder)"), nullptr);
+    pMenu->AddMenuItem(1, 0, nullptr, nullptr, L"設定", (ULONG)wcslen(L"設定"), nullptr);
+    pMenu->AddMenuItem(2, 0, nullptr, nullptr, L"編輯使用者詞庫", (ULONG)wcslen(L"編輯使用者詞庫"), nullptr);
+    pMenu->AddMenuItem(3, 0, nullptr, nullptr, L"編輯排除詞庫", (ULONG)wcslen(L"編輯排除詞庫"), nullptr);
+    pMenu->AddMenuItem(4, 0, nullptr, nullptr, L"開啟使用者資料夾", (ULONG)wcslen(L"開啟使用者資料夾"), nullptr);
 
     return S_OK;
 }
