@@ -37,3 +37,11 @@ Important outputs are usually placed under:
 
 - The project uses Windows TSF and includes both TIP client and background server components.
 - Some install and registration flows require Administrator privileges.
+
+## Windows Compatibility
+
+- Officially supported: `Windows 10` and later.
+- Installer policy: the MSI installer blocks installation on versions older than Windows 10.
+- Practical compatibility note:
+  The core code mostly relies on Win32, TSF, Direct2D, and DirectWrite APIs that can exist on older systems such as Windows 7 SP1.
+  However, older Windows versions are not part of the supported matrix, are not covered by installer support, and may have runtime issues in UI behavior, theming, DPI handling, or TSF host compatibility.

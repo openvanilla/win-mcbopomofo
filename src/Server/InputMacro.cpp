@@ -1,4 +1,5 @@
 #include "InputMacro.h"
+#include "LunarCalendarConverter.h"
 
 #include <chrono>
 #include <ctime>
@@ -25,12 +26,17 @@ std::string FormatDate(int dayOffset, const char* format) {
     return ss.str();
 }
 
-std::string FormatRocDate(int dayOffset, bool includeYear, const char* format) {
+std::tm GetLocalTime(int dayOffset) {
     auto now = std::chrono::system_clock::now();
     now += std::chrono::hours(24 * dayOffset);
     std::time_t t = std::chrono::system_clock::to_time_t(now);
     std::tm tm;
     localtime_s(&tm, &t);
+    return tm;
+}
+
+std::string FormatRocDate(int dayOffset, bool includeYear, const char* format) {
+    std::tm tm = GetLocalTime(dayOffset);
     std::stringstream ss;
     if (includeYear) {
         ss << "民國" << (tm.tm_year + 1900 - 1911) << "年";
@@ -40,11 +46,7 @@ std::string FormatRocDate(int dayOffset, bool includeYear, const char* format) {
 }
 
 std::string FormatRocYear(int dayOffset) {
-    auto now = std::chrono::system_clock::now();
-    now += std::chrono::hours(24 * dayOffset);
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
+    std::tm tm = GetLocalTime(dayOffset);
     std::stringstream ss;
     ss << "民國" << std::to_string(tm.tm_year + 1900 - 1911) << "年"; 
     return ss.str();
@@ -73,21 +75,13 @@ std::string GetChineseZodiac(int year) {
 }
 
 std::string GetJapaneseWeekday(int dayOffset) {
-    auto now = std::chrono::system_clock::now();
-    now += std::chrono::hours(24 * dayOffset);
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
+    std::tm tm = GetLocalTime(dayOffset);
     static const std::array<const char*, 7> weekdays = {"日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"};
     return weekdays[tm.tm_wday];
 }
 
 std::string GetChineseDate(int dayOffset) {
-    auto now = std::chrono::system_clock::now();
-    now += std::chrono::hours(24 * dayOffset);
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
+    std::tm tm = GetLocalTime(dayOffset);
     int year = tm.tm_year + 1900;
     int month = tm.tm_mon + 1;
     int day = tm.tm_mday;
@@ -112,11 +106,7 @@ std::string GetChineseDate(int dayOffset) {
 }
 
 std::string GetJapaneseYear(int dayOffset) {
-    auto now = std::chrono::system_clock::now();
-    now += std::chrono::hours(24 * dayOffset);
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
+    std::tm tm = GetLocalTime(dayOffset);
     int year = tm.tm_year + 1900;
     int month = tm.tm_mon + 1;
     int day = tm.tm_mday;
@@ -132,38 +122,25 @@ std::string GetJapaneseYear(int dayOffset) {
 }
 
 std::string GetJapaneseDate(int dayOffset) {
-    auto now = std::chrono::system_clock::now();
-    now += std::chrono::hours(24 * dayOffset);
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
+    std::tm tm = GetLocalTime(dayOffset);
     int month = tm.tm_mon + 1;
     int day = tm.tm_mday;
 
     return GetJapaneseYear(dayOffset) + std::to_string(month) + "月" + std::to_string(day) + "日";
 }
 
-// Very simplified Lunar calendar helper
 std::string GetLunarDate(int dayOffset) {
-    auto now = std::chrono::system_clock::now();
-    now += std::chrono::hours(24 * dayOffset);
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
-
-    // TODO: Use real lunar calendar conversion. This is just a placeholder that returns a fixed string.
-    //
-    // This is a simplified version that just returns "農曆M月D日".
-    // A full implementation would require a Lunar calendar algorithm or table.
-    return "農曆" + std::to_string(tm.tm_mon + 1) + "月" + std::to_string(tm.tm_mday) + "日";
+    std::tm tm = GetLocalTime(dayOffset);
+    LunarDate lunarDate{};
+    if (!TryConvertSolarToLunar(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+                                &lunarDate)) {
+        return FormatDate(dayOffset, "%Y/%m/%d");
+    }
+    return FormatLunarDate(lunarDate);
 }
 
 std::string GetChineseWeekday(int dayOffset, bool shortFormat) {
-    auto now = std::chrono::system_clock::now();
-    now += std::chrono::hours(24 * dayOffset);
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
+    std::tm tm = GetLocalTime(dayOffset);
     static const std::array<const char*, 7> weekdays = {"日", "一", "二", "三", "四", "五", "六"};
     return shortFormat ? (std::string("週") + weekdays[tm.tm_wday]) : (std::string("星期") + weekdays[tm.tm_wday]);
 }

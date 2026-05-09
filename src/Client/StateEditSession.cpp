@@ -178,8 +178,12 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
 
         // For direct commits without an active composition, stop here after
         // insertion. Some TSF hosts, including recent Notepad builds, can
-        // crash if we continue touching auxiliary UI in the same edit session.
+        // crash if we continue touching the document in the same edit session.
+        // We still need to explicitly hide auxiliary UI first, otherwise the
+        // candidate window can be left visible after a direct commit.
         if (directCommitWithoutComposition) {
+            _pTIP->GetCandidateWindow()->Hide();
+            _pTIP->GetTooltipWindow()->Hide();
             return S_OK;
         }
     }

@@ -26,20 +26,69 @@ if (-not (Test-Path "$BinDir\McBopomofoTIP_v2.dll")) {
     exit 1
 }
 
-# Ensure Wix is available and initialized
-try {
-    wix --version | Out-Null
-    
-    # Ensure extensions are added
-    wix extension add WixToolset.UI.wixext/4.0.5 -g | Out-Null
-    wix extension add WixToolset.Util.wixext/4.0.5 -g | Out-Null
-} catch {
-    Write-Host "Error: WiX v4 tool is not installed or not in PATH." -ForegroundColor Red
-    Write-Host "Please run 'dotnet tool install --global wix --version 4.0.5' first." -ForegroundColor Yellow
+function Find-WixExecutable {
+    $candidates = @(
+        "C:\Program Files\WiX Toolset v5.0\bin\wix.exe",
+        "C:\Program Files\WiX Toolset v6.0\bin\wix.exe",
+        "C:\Program Files\WiX Toolset v4.0\bin\wix.exe",
+        "C:\Program Files\WiX Toolset v7.0\bin\wix.exe"
+    )
+
+    $cmd = Get-Command wix -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source) {
+        $candidates += $cmd.Source
+    }
+
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+    return $null
+}
+
+function Find-WixExtension([string]$name, [int]$majorVersion) {
+    $baseDir = Join-Path ${env:ProgramFiles} "Common Files\WixToolset\extensions\$name"
+    if (-not (Test-Path $baseDir)) {
+        return $null
+    }
+
+    $versionDirs = Get-ChildItem $baseDir -Directory -ErrorAction SilentlyContinue |
+        Sort-Object { [version]$_.Name } -Descending
+
+    foreach ($dir in $versionDirs) {
+        $extPath = Join-Path $dir.FullName ("wixext{0}\{1}.dll" -f $majorVersion, $name)
+        if (Test-Path $extPath) {
+            return $extPath
+        }
+    }
+    return $null
+}
+
+$WixExe = Find-WixExecutable
+if (-not $WixExe) {
+    Write-Host "Error: WiX CLI is not installed." -ForegroundColor Red
+    Write-Host "Install WiX Toolset Command-Line Tools first." -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "Building MSI using WiX v4..." -ForegroundColor Cyan
+$WixVersionText = & $WixExe --version
+$WixMajorVersion = [int](($WixVersionText -split '\.')[0])
+if ($WixMajorVersion -ge 7) {
+    Write-Host "Error: WiX $WixVersionText requires OSMF acceptance and is not supported by this script." -ForegroundColor Red
+    Write-Host "Install WiX CLI 5.x or 6.x instead." -ForegroundColor Yellow
+    exit 1
+}
+
+$UiExtension = Find-WixExtension "WixToolset.UI.wixext" $WixMajorVersion
+$UtilExtension = Find-WixExtension "WixToolset.Util.wixext" $WixMajorVersion
+if (-not $UiExtension -or -not $UtilExtension) {
+    Write-Host "Error: Matching WiX extensions were not found for WiX $WixVersionText." -ForegroundColor Red
+    Write-Host "Install WiX Additional Tools for the same major version." -ForegroundColor Yellow
+    exit 1
+}
+
+Write-Host "Building MSI using WiX $WixVersionText..." -ForegroundColor Cyan
 
 # Ensure output directory exists
 $OutDir = "dist"
@@ -51,7 +100,13 @@ $MsiPath = "$OutDir\$OutputName"
 
 # Build the MSI directly using 'wix build'
 # Pass bindpaths for BinDir and OpenCCDir
-wix build -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext .\installer.wxs -o $MsiPath -b "BinDir=$BinDir" -b "OpenCCDir=$OpenCCDir"
+& $WixExe build `
+    -ext $UiExtension `
+    -ext $UtilExtension `
+    .\installer.wxs `
+    -o $MsiPath `
+    -b "BinDir=$BinDir" `
+    -b "OpenCCDir=$OpenCCDir"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Successfully created MSI at: $MsiPath" -ForegroundColor Green

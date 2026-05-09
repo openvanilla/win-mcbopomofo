@@ -17,6 +17,9 @@
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
 
+    <Launch Condition="Installed OR VersionNT >= 1000"
+            Message="Win-McBopomofo requires Windows 10 or later." />
+
     <!-- Ensure cab files are embedded in the MSI -->
     <MediaTemplate EmbedCab="yes" />
 
@@ -91,20 +94,20 @@
       </Component>
 
       <!-- Icons -->
-      <Component Id="cmp_Icon16" Guid="*">
-        <File Id="file_Icon16" Source="data\16x16\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_16" />
+      <Component Id="cmp_Icon16" Guid="*" Directory="AppsFolder_16">
+        <File Id="file_Icon16" Source="data\16x16\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_Icon22" Guid="*">
-        <File Id="file_Icon22" Source="data\22x22\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_22" />
+      <Component Id="cmp_Icon22" Guid="*" Directory="AppsFolder_22">
+        <File Id="file_Icon22" Source="data\22x22\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_Icon24" Guid="*">
-        <File Id="file_Icon24" Source="data\24x24\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_24" />
+      <Component Id="cmp_Icon24" Guid="*" Directory="AppsFolder_24">
+        <File Id="file_Icon24" Source="data\24x24\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_Icon32" Guid="*">
-        <File Id="file_Icon32" Source="data\32x32\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_32" />
+      <Component Id="cmp_Icon32" Guid="*" Directory="AppsFolder_32">
+        <File Id="file_Icon32" Source="data\32x32\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_Icon64" Guid="*">
-        <File Id="file_Icon64" Source="data\64x64\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_64" />
+      <Component Id="cmp_Icon64" Guid="*" Directory="AppsFolder_64">
+        <File Id="file_Icon64" Source="data\64x64\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
       </Component>
       
       <!-- OpenCC Data -->

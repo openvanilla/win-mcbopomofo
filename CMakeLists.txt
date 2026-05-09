@@ -70,3 +70,14 @@ add_executable(PipeTest tests/PipeTest.cpp)
 target_include_directories(PipeTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
 target_link_libraries(PipeTest PRIVATE Common gtest_main)
 add_test(NAME PipeTest COMMAND PipeTest)
+
+add_executable(LunarCalendarConverterTest
+    tests/LunarCalendarConverterTest.cpp
+    src/Server/LunarCalendarConverter.cpp
+    third_party/Lunar-Solar-Calendar-Converter/C_C++/LunarSolarConverter.c)
+target_include_directories(LunarCalendarConverterTest PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/Server
+    ${CMAKE_SOURCE_DIR}/third_party/Lunar-Solar-Calendar-Converter/C_C++
+    ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
+target_link_libraries(LunarCalendarConverterTest PRIVATE gtest_main)
+add_test(NAME LunarCalendarConverterTest COMMAND LunarCalendarConverterTest)
