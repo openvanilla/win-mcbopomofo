@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.20)  
+project(TestOpenCC)  
+add_executable(test_opencc test_opencc.cpp)  
+target_include_directories(test_opencc PRIVATE ../third_party/OpenCC/src)  
+target_link_libraries(test_opencc PRIVATE C:/Users/zonbl/Works/win-mcbopomofo/build_new_2/lib/Debug/opencc.lib) 
+target_compile_definitions(test_opencc PRIVATE Opencc_BUILT_AS_STATIC) 
+target_link_libraries(test_opencc PRIVATE C:/Users/zonbl/Works/win-mcbopomofo/build_new_2/lib/Debug/marisa.lib) 
