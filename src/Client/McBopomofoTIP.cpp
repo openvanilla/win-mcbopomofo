@@ -6,10 +6,91 @@
 
 namespace {
 
-const GUID GUID_PRESERVEDKEY_CTRL_SPACE =
-{ 0x5d8d3e12, 0x8f87, 0x4d5c, { 0x9f, 0x5e, 0x2b, 0x61, 0xe2, 0x33, 0xa8, 0x41 } };
+bool ReadDWORDCompartmentValue(ITfThreadMgr* threadMgr, REFGUID compartmentGuid, DWORD* value) {
+    if (!threadMgr || !value) {
+        return false;
+    }
 
-const TF_PRESERVEDKEY kPreservedKeyCtrlSpace = { VK_SPACE, TF_MOD_CONTROL };
+    ITfCompartmentMgr* pCompMgr = nullptr;
+    HRESULT hr = threadMgr->QueryInterface(IID_ITfCompartmentMgr, (void**)&pCompMgr);
+    if (FAILED(hr)) {
+        return false;
+    }
+
+    ITfCompartment* pComp = nullptr;
+    hr = pCompMgr->GetCompartment(compartmentGuid, &pComp);
+    pCompMgr->Release();
+    if (FAILED(hr)) {
+        return false;
+    }
+
+    VARIANT var;
+    VariantInit(&var);
+    hr = pComp->GetValue(&var);
+    pComp->Release();
+    if (FAILED(hr) || var.vt != VT_I4) {
+        VariantClear(&var);
+        return false;
+    }
+
+    *value = static_cast<DWORD>(var.lVal);
+    VariantClear(&var);
+    return true;
+}
+
+bool AdviseCompartmentSink(ITfThreadMgr* threadMgr, REFGUID compartmentGuid,
+                           ITfCompartmentEventSink* sink, DWORD* cookie) {
+    if (!threadMgr || !sink || !cookie) {
+        return false;
+    }
+
+    ITfCompartmentMgr* pCompMgr = nullptr;
+    HRESULT hr = threadMgr->QueryInterface(IID_ITfCompartmentMgr, (void**)&pCompMgr);
+    if (FAILED(hr)) {
+        return false;
+    }
+
+    ITfCompartment* pCompartment = nullptr;
+    hr = pCompMgr->GetCompartment(compartmentGuid, &pCompartment);
+    pCompMgr->Release();
+    if (FAILED(hr)) {
+        return false;
+    }
+
+    ITfSource* pSource = nullptr;
+    hr = pCompartment->QueryInterface(IID_ITfSource, (void**)&pSource);
+    if (SUCCEEDED(hr)) {
+        hr = pSource->AdviseSink(IID_ITfCompartmentEventSink, sink, cookie);
+        pSource->Release();
+    }
+    pCompartment->Release();
+    return SUCCEEDED(hr);
+}
+
+void UnadviseCompartmentSink(ITfThreadMgr* threadMgr, REFGUID compartmentGuid, DWORD* cookie) {
+    if (!threadMgr || !cookie || *cookie == TF_INVALID_COOKIE) {
+        return;
+    }
+
+    ITfCompartmentMgr* pCompMgr = nullptr;
+    HRESULT hr = threadMgr->QueryInterface(IID_ITfCompartmentMgr, (void**)&pCompMgr);
+    if (SUCCEEDED(hr)) {
+        ITfCompartment* pCompartment = nullptr;
+        hr = pCompMgr->GetCompartment(compartmentGuid, &pCompartment);
+        pCompMgr->Release();
+        if (SUCCEEDED(hr)) {
+            ITfSource* pSource = nullptr;
+            hr = pCompartment->QueryInterface(IID_ITfSource, (void**)&pSource);
+            if (SUCCEEDED(hr)) {
+                pSource->UnadviseSink(*cookie);
+                pSource->Release();
+            }
+            pCompartment->Release();
+        }
+    }
+
+    *cookie = TF_INVALID_COOKIE;
+}
 
 bool IsVirtualKeyDown(int vk) {
     return (GetKeyState(vk) & 0x8000) != 0 || (GetAsyncKeyState(vk) & 0x8000) != 0;
@@ -33,10 +114,8 @@ bool IsShiftPressed(const BYTE keyboardState[256]) {
            IsVirtualKeyDown(VK_RSHIFT);
 }
 
-bool IsServerHandledCtrlShortcutKey(WPARAM wParam, bool shiftPressed) {
+bool IsServerHandledCtrlShortcutKey(WPARAM wParam) {
     switch (wParam) {
-    case VK_SPACE:
-        return !shiftPressed;
     case VK_OEM_COMMA:
     case VK_OEM_PERIOD:
     case '1':
@@ -52,8 +131,7 @@ bool IsServerHandledCtrlShortcutKey(WPARAM wParam, bool shiftPressed) {
 
 bool IsServerHandledShortcutKey(WPARAM wParam, const BYTE keyboardState[256]) {
     const bool ctrlPressed = IsCtrlPressed(keyboardState);
-    const bool shiftPressed = IsShiftPressed(keyboardState);
-    return ctrlPressed && IsServerHandledCtrlShortcutKey(wParam, shiftPressed);
+    return ctrlPressed && IsServerHandledCtrlShortcutKey(wParam);
 }
 
 }
@@ -64,6 +142,7 @@ McBopomofoTIP::McBopomofoTIP()
       _tid(TF_CLIENTID_NULL),
       _dwThreadMgrEventSinkCookie(TF_INVALID_COOKIE),
       _dwThreadFocusSinkCookie(TF_INVALID_COOKIE),
+      _dwOpenCloseCompartmentEventSinkCookie(TF_INVALID_COOKIE),
       _pComposition(nullptr),
       _pModeIconButton(nullptr),
       _pSwitchLangButton(nullptr) {
@@ -95,6 +174,8 @@ STDAPI McBopomofoTIP::QueryInterface(REFIID riid, void **ppvObj) {
         *ppvObj = static_cast<ITfThreadMgrEventSink *>(this);
     } else if (IsEqualIID(riid, IID_ITfThreadFocusSink)) {
         *ppvObj = static_cast<ITfThreadFocusSink *>(this);
+    } else if (IsEqualIID(riid, IID_ITfCompartmentEventSink)) {
+        *ppvObj = static_cast<ITfCompartmentEventSink *>(this);
     }
 
     if (*ppvObj) {
@@ -120,32 +201,39 @@ STDAPI_(ULONG) McBopomofoTIP::Release() {
 BOOL McBopomofoTIP::_InitKeyEventSink() {
     ITfKeystrokeMgr *pKeystrokeMgr = nullptr;
     HRESULT hr = _ptim->QueryInterface(IID_ITfKeystrokeMgr, (void **)&pKeystrokeMgr);
-
-    if (SUCCEEDED(hr)) {
-        hr = pKeystrokeMgr->AdviseKeyEventSink(_tid, static_cast<ITfKeyEventSink *>(this), TRUE);
-        if (SUCCEEDED(hr)) {
-            pKeystrokeMgr->PreserveKey(
-                _tid,
-                GUID_PRESERVEDKEY_CTRL_SPACE,
-                &kPreservedKeyCtrlSpace,
-                L"Ctrl+Space",
-                static_cast<ULONG>(wcslen(L"Ctrl+Space")));
-        }
-        pKeystrokeMgr->Release();
+    if (FAILED(hr)) {
+        return FALSE;
     }
 
+    hr = pKeystrokeMgr->AdviseKeyEventSink(_tid, static_cast<ITfKeyEventSink *>(this), TRUE);
+    pKeystrokeMgr->Release();
     return SUCCEEDED(hr);
 }
 
 void McBopomofoTIP::_UninitKeyEventSink() {
+    if (!_ptim) {
+        return;
+    }
+
     ITfKeystrokeMgr *pKeystrokeMgr = nullptr;
     HRESULT hr = _ptim->QueryInterface(IID_ITfKeystrokeMgr, (void **)&pKeystrokeMgr);
-
     if (SUCCEEDED(hr)) {
-        pKeystrokeMgr->UnpreserveKey(GUID_PRESERVEDKEY_CTRL_SPACE, &kPreservedKeyCtrlSpace);
         pKeystrokeMgr->UnadviseKeyEventSink(_tid);
         pKeystrokeMgr->Release();
     }
+}
+
+BOOL McBopomofoTIP::_InitCompartmentEventSink() {
+    return AdviseCompartmentSink(
+        _ptim,
+        GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
+        static_cast<ITfCompartmentEventSink*>(this),
+        &_dwOpenCloseCompartmentEventSinkCookie);
+}
+
+void McBopomofoTIP::_UninitCompartmentEventSink() {
+    UnadviseCompartmentSink(
+        _ptim, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &_dwOpenCloseCompartmentEventSinkCookie);
 }
 
 BOOL McBopomofoTIP::_InitThreadMgrEventSink() {
@@ -223,6 +311,11 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFla
         LogMessage("Failed to init KeyEventSink");
         return E_FAIL;
     }
+
+    if (!_InitCompartmentEventSink()) {
+        LogMessage("Failed to init CompartmentEventSink");
+        return E_FAIL;
+    }
     if (!_InitThreadMgrEventSink()) {
         LogMessage("Failed to init ThreadMgrEventSink");
         return E_FAIL;
@@ -290,6 +383,7 @@ STDAPI McBopomofoTIP::Deactivate() {
 
     _candidateWindow.Destroy();
 
+    _UninitCompartmentEventSink();
     _UninitThreadFocusSink();
     _UninitThreadMgrEventSink();
     _UninitKeyEventSink();
@@ -321,13 +415,6 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lPara
 
     BYTE keyboardState[256];
     GetKeyboardState(keyboardState);
-
-
-    // Ctrl+Space toggle
-    if (IsServerHandledShortcutKey(wParam, keyboardState) && wParam == VK_SPACE) {
-        *pfEaten = TRUE;
-        return S_OK;
-    }
 
     if (!IsOpen()) {
         *pfEaten = FALSE;
@@ -365,13 +452,6 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
 
     BYTE keyboardState[256];
     GetKeyboardState(keyboardState);
-
-    // Ctrl+Space toggle
-    if (IsServerHandledShortcutKey(wParam, keyboardState) && wParam == VK_SPACE) {
-        ToggleOpenClose();
-        *pfEaten = TRUE;
-        return S_OK;
-    }
 
     if (!IsOpen()) {
         *pfEaten = FALSE;
@@ -470,17 +550,27 @@ STDAPI McBopomofoTIP::OnKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOO
 
 STDAPI McBopomofoTIP::OnPreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEaten) {
     UNREFERENCED_PARAMETER(pic);
+    UNREFERENCED_PARAMETER(rguid);
     if (pfEaten == nullptr) {
         return E_INVALIDARG;
     }
 
-    if (IsEqualGUID(rguid, GUID_PRESERVEDKEY_CTRL_SPACE)) {
-        ToggleOpenClose();
-        *pfEaten = TRUE;
+    *pfEaten = FALSE;
+    return S_OK;
+}
+
+STDAPI McBopomofoTIP::OnChange(REFGUID rguid) {
+    if (!IsEqualGUID(rguid, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE)) {
         return S_OK;
     }
 
-    *pfEaten = FALSE;
+    const bool isOpen = IsOpen();
+    LogMessage("GUID_COMPARTMENT_KEYBOARD_OPENCLOSE changed: %s", isOpen ? "OPEN" : "CLOSED");
+    if (!isOpen) {
+        ResetServerState();
+    }
+
+    RefreshLangBar();
     return S_OK;
 }
 
@@ -508,14 +598,14 @@ STDAPI McBopomofoTIP::GetDisplayAttributeInfo(REFGUID guidInfo, ITfDisplayAttrib
     if (IsEqualGUID(guidInfo, c_guidDisplayAttributeInput)) {
         TF_DISPLAYATTRIBUTE da;
         ZeroMemory(&da, sizeof(da));
-        da.lsStyle = TF_LS_SQUIGGLE;
+        da.lsStyle = TF_LS_DOT;
         da.crLine.type = TF_CT_SYSCOLOR;
         da.crLine.nIndex = COLOR_WINDOWTEXT;
         *ppInfo = new CDisplayAttributeInfo(c_guidDisplayAttributeInput, da, L"Win-McBopomofo Input");
     } else if (IsEqualGUID(guidInfo, c_guidDisplayAttributeMarked)) {
         TF_DISPLAYATTRIBUTE da;
         ZeroMemory(&da, sizeof(da));
-        da.lsStyle = TF_LS_NONE;
+        da.lsStyle = TF_LS_SOLID;
         da.crText.type = TF_CT_SYSCOLOR;
         da.crText.nIndex = COLOR_HIGHLIGHTTEXT;
         da.crBk.type = TF_CT_SYSCOLOR;
@@ -562,26 +652,31 @@ STDAPI McBopomofoTIP::OnKillThreadFocus() {
 }
 
 bool McBopomofoTIP::IsOpen() {
-    bool isOpen = true;
-    if (_ptim) {
-        ITfCompartmentMgr *pCompMgr = nullptr;
-        if (SUCCEEDED(_ptim->QueryInterface(IID_ITfCompartmentMgr, (void **)&pCompMgr))) {
-            ITfCompartment *pComp = nullptr;
-            if (SUCCEEDED(pCompMgr->GetCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &pComp))) {
-                VARIANT var;
-                VariantInit(&var);
-                if (SUCCEEDED(pComp->GetValue(&var))) {
-                    if (var.vt == VT_I4) {
-                        isOpen = (var.lVal != 0);
-                    }
-                    VariantClear(&var);
-                }
-                pComp->Release();
-            }
-            pCompMgr->Release();
-        }
+    DWORD value = 1;
+    if (ReadDWORDCompartmentValue(_ptim, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &value)) {
+        return value != 0;
     }
-    return isOpen;
+    return true;
+}
+
+void McBopomofoTIP::ResetServerState() {
+    LogMessage("Sending RESET command to server");
+    McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
+    std::string response;
+    if (pipe.Call(McBopomofo::IPC::SerializeReset(), response)) {
+        LogMessage("Reset response received");
+        McBopomofo::IPC::StateUpdatePayload state;
+        if (McBopomofo::IPC::DeserializeStateUpdate(response, state)) {
+            _lastState = state;
+            LogMessage("Reset state: CommitStr='%s', CompStr='%s'",
+                     state.commitString.c_str(), state.composingBuffer.c_str());
+        }
+    } else {
+        LogMessage("Failed to send RESET command");
+    }
+
+    _candidateWindow.Hide();
+    _tooltipWindow.Hide();
 }
 
 void McBopomofoTIP::RefreshLangBar() {
@@ -601,29 +696,6 @@ void McBopomofoTIP::ToggleOpenClose() {
         LogMessage("ToggleOpenClose: current state = %s, toggling to %s", 
                    currentOpen ? "OPEN" : "CLOSED", 
                    currentOpen ? "CLOSED" : "OPEN");
-
-        // When switching from Chinese to English (currentOpen == true), reset the server controller
-        // to commit any inputting text and clear the server state
-        if (currentOpen) {
-            LogMessage("Sending RESET command to server");
-            McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
-            std::string response;
-            if (pipe.Call(McBopomofo::IPC::SerializeReset(), response)) {
-                LogMessage("Reset response received");
-                McBopomofo::IPC::StateUpdatePayload state;
-                if (McBopomofo::IPC::DeserializeStateUpdate(response, state)) {
-                    _lastState = state;
-                    LogMessage("Reset state: CommitStr='%s', CompStr='%s'", 
-                             state.commitString.c_str(), state.composingBuffer.c_str());
-                }
-            } else {
-                LogMessage("Failed to send RESET command");
-            }
-            
-            // Hide candidate and tooltip windows when switching to English
-            _candidateWindow.Hide();
-            _tooltipWindow.Hide();
-        }
 
         ITfCompartmentMgr *pCompMgr = nullptr;
         if (SUCCEEDED(_ptim->QueryInterface(IID_ITfCompartmentMgr, (void **)&pCompMgr))) {

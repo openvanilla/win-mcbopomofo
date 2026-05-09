@@ -46,7 +46,7 @@ const wchar_t* CurrentModeLabel(McBopomofoTIP* tip) {
     if (!tip->IsOpen()) {
         return L"英";
     }
-    return ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"簡" : L"中";
+    return ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"简" : L"中";
 }
 
 void WriteBoolSetting(const wchar_t* key, bool value) {

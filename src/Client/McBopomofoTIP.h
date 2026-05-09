@@ -10,7 +10,8 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
                       public ITfCompositionSink,
                       public ITfDisplayAttributeProvider,
                       public ITfThreadMgrEventSink,
-                      public ITfThreadFocusSink {
+                      public ITfThreadFocusSink,
+                      public ITfCompartmentEventSink {
 public:
     McBopomofoTIP();
     ~McBopomofoTIP();
@@ -53,13 +54,19 @@ public:
     STDMETHODIMP OnSetThreadFocus() override;
     STDMETHODIMP OnKillThreadFocus() override;
 
+    // ITfCompartmentEventSink methods
+    STDMETHODIMP OnChange(REFGUID rguid) override;
+
 private:
     BOOL _InitKeyEventSink();
     void _UninitKeyEventSink();
+    BOOL _InitCompartmentEventSink();
+    void _UninitCompartmentEventSink();
     BOOL _InitThreadMgrEventSink();
     void _UninitThreadMgrEventSink();
     BOOL _InitThreadFocusSink();
     void _UninitThreadFocusSink();
+    void ResetServerState();
 
     LONG _cRef;
     ITfThreadMgr *_ptim;
@@ -67,6 +74,7 @@ private:
     
     DWORD _dwThreadMgrEventSinkCookie;
     DWORD _dwThreadFocusSinkCookie;
+    DWORD _dwOpenCloseCompartmentEventSinkCookie;
 
     // Track the server state locally to decide whether to eat keys in OnTestKeyDown
     McBopomofo::IPC::StateUpdatePayload _lastState;
