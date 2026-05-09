@@ -66,6 +66,13 @@ private:
     void _UninitThreadMgrEventSink();
     BOOL _InitThreadFocusSink();
     void _UninitThreadFocusSink();
+    bool IsDirectCommitWithoutComposition(
+        const McBopomofo::IPC::StateUpdatePayload& state) const;
+    void HideAuxiliaryWindowsForDirectCommit(
+        const McBopomofo::IPC::StateUpdatePayload& state);
+    void ApplyStateToContext(
+        ITfContext* context, const McBopomofo::IPC::StateUpdatePayload& state,
+        const char* logPrefix);
     void ResetServerState();
 
     LONG _cRef;

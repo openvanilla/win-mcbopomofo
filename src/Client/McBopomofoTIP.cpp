@@ -134,6 +134,23 @@ bool IsServerHandledShortcutKey(WPARAM wParam, const BYTE keyboardState[256]) {
     return ctrlPressed && IsServerHandledCtrlShortcutKey(wParam);
 }
 
+bool GetFocusedContext(ITfThreadMgr* threadMgr, ITfContext** context) {
+    if (!threadMgr || !context) {
+        return false;
+    }
+
+    *context = nullptr;
+
+    ITfDocumentMgr* pDocMgr = nullptr;
+    if (FAILED(threadMgr->GetFocus(&pDocMgr)) || !pDocMgr) {
+        return false;
+    }
+
+    HRESULT hr = pDocMgr->GetTop(context);
+    pDocMgr->Release();
+    return SUCCEEDED(hr) && *context != nullptr;
+}
+
 }
 
 McBopomofoTIP::McBopomofoTIP()
@@ -493,26 +510,7 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, B
                         _lastState.consumed, _lastState.commitString.c_str(), _lastState.composingBuffer.c_str());
 
             if (_lastState.consumed) {
-                const bool directCommitWithoutComposition =
-                    !_lastState.commitString.empty() &&
-                    _lastState.composingBuffer.empty() &&
-                    _pComposition == nullptr;
-
-                // Hide auxiliary UI before entering the edit session for a
-                // direct commit. Some TSF hosts, including recent Notepad
-                // builds, are sensitive to any UI/window work performed from
-                // inside the write edit session when there is no active
-                // composition.
-                if (directCommitWithoutComposition) {
-                    _tooltipWindow.Hide();
-                    _candidateWindow.Hide();
-                }
-
-                CStateEditSession *pEditSession = new CStateEditSession(pic, this, _lastState);
-                HRESULT hr;
-                pic->RequestEditSession(_tid, pEditSession, TF_ES_SYNC | TF_ES_READWRITE, &hr);
-                LogMessage("RequestEditSession returned: 0x%08X", hr);
-                pEditSession->Release();
+                ApplyStateToContext(pic, _lastState, "");
             }
         } else {
             LogMessage("Failed to deserialize state update");
@@ -659,6 +657,38 @@ bool McBopomofoTIP::IsOpen() {
     return true;
 }
 
+bool McBopomofoTIP::IsDirectCommitWithoutComposition(
+    const McBopomofo::IPC::StateUpdatePayload& state) const {
+    return !state.commitString.empty() &&
+           state.composingBuffer.empty() &&
+           _pComposition == nullptr;
+}
+
+void McBopomofoTIP::HideAuxiliaryWindowsForDirectCommit(
+    const McBopomofo::IPC::StateUpdatePayload& state) {
+    if (IsDirectCommitWithoutComposition(state)) {
+        _tooltipWindow.Hide();
+        _candidateWindow.Hide();
+    }
+}
+
+void McBopomofoTIP::ApplyStateToContext(
+    ITfContext* context, const McBopomofo::IPC::StateUpdatePayload& state,
+    const char* logPrefix) {
+    if (!context) {
+        LogMessage("%sRequestEditSession skipped: null context", logPrefix);
+        return;
+    }
+
+    HideAuxiliaryWindowsForDirectCommit(state);
+
+    CStateEditSession* pEditSession = new CStateEditSession(context, this, state);
+    HRESULT hr = E_FAIL;
+    context->RequestEditSession(_tid, pEditSession, TF_ES_SYNC | TF_ES_READWRITE, &hr);
+    LogMessage("%sRequestEditSession returned: 0x%08X", logPrefix, hr);
+    pEditSession->Release();
+}
+
 void McBopomofoTIP::ResetServerState() {
     LogMessage("Sending RESET command to server");
     McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
@@ -670,6 +700,14 @@ void McBopomofoTIP::ResetServerState() {
             _lastState = state;
             LogMessage("Reset state: CommitStr='%s', CompStr='%s'",
                      state.commitString.c_str(), state.composingBuffer.c_str());
+
+            ITfContext* pContext = nullptr;
+            if (GetFocusedContext(_ptim, &pContext)) {
+                ApplyStateToContext(pContext, state, "Reset ");
+                pContext->Release();
+            } else {
+                LogMessage("Reset could not acquire focused context for edit session");
+            }
         }
     } else {
         LogMessage("Failed to send RESET command");
