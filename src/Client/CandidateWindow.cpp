@@ -196,6 +196,11 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
         return;
     }
 
+    // Be defensive about stale or invalid cursor indexes from IPC/state transitions.
+    if (_cursorIndex < 0 || _cursorIndex >= static_cast<int>(_candidates.size())) {
+        _cursorIndex = 0;
+    }
+
     bool drawVertical = _isVertical || forceVertical;
     _forceVertical = forceVertical;
 

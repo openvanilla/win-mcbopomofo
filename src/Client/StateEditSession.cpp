@@ -92,6 +92,16 @@ void SetDisplayAttribute(TfEditCookie ec, ITfContext* pContext, ITfRange* pRange
 STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     std::wstring commitStr = McBopomofo::Utf8ToUtf16(_state.commitString);
     std::wstring compStr = McBopomofo::Utf8ToUtf16(_state.composingBuffer);
+    const bool directCommitWithoutComposition =
+        !commitStr.empty() && compStr.empty() && _pTIP->GetComposition() == nullptr;
+
+    // Hide auxiliary UI before a direct commit. Some TSF hosts, including
+    // recent Notepad builds, are sensitive to selection/UI updates in the same
+    // edit session when no active composition exists.
+    if (directCommitWithoutComposition) {
+        _pTIP->GetTooltipWindow()->Hide();
+        _pTIP->GetCandidateWindow()->Hide();
+    }
 
     // 1. Handle Committing Text
     if (!commitStr.empty()) {
@@ -126,12 +136,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 ITfRange* pRange = nullptr;
                 pInsert->InsertTextAtSelection(ec, TF_IAS_NOQUERY, commitStr.c_str(), (LONG)commitStr.length(), &pRange);
                 if (pRange) {
-                    pRange->Collapse(ec, TF_ANCHOR_END);
-                    TF_SELECTION sel;
-                    sel.range = pRange;
-                    sel.style.ase = TF_AE_NONE;
-                    sel.style.fInterimChar = FALSE;
-                    _pContext->SetSelection(ec, 1, &sel);
                     pRange->Release();
                 }
                 pInsert->Release();
@@ -215,7 +219,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 _pContext->SetSelection(ec, 1, &sel);
             
             // Try to find the coordinates for the candidate window or tooltip
-            if (!_state.candidates.empty() || !_state.tooltip.empty()) {
+            if (!directCommitWithoutComposition &&
+                (!_state.candidates.empty() || !_state.tooltip.empty())) {
                 MoveAuxiliaryWindows(ec, _pContext, pCursorRange, _pTIP);
             }
             pCursorRange->Release();
@@ -242,7 +247,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
 }
 
-if ((compStr.empty() && !_state.candidates.empty()) || !_state.tooltip.empty()) {
+if (!directCommitWithoutComposition &&
+    ((compStr.empty() && !_state.candidates.empty()) || !_state.tooltip.empty())) {
     MoveAuxiliaryWindows(ec, _pContext, nullptr, _pTIP);
 }
 

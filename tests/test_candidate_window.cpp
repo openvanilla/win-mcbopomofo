@@ -71,6 +71,22 @@ int test_single_candidate_on_second_page() {
     return 0;
 }
 
+int test_invalid_negative_cursor_index_clamps_to_first_candidate() {
+    CandidateWindow window;
+    window.Create(GetModuleHandle(NULL));
+    window.SetVertical(false);
+
+    std::vector<std::string> candidates = {"A", "B", "C"};
+    window.UpdateUI(candidates, -1, false);
+
+    std::wstring result = window.GetDisplayString();
+    std::wstring expected = L"1. A   2. B   3. C";
+    ASSERT_EQ(expected, result);
+
+    std::cout << "test_invalid_negative_cursor_index_clamps_to_first_candidate passed." << std::endl;
+    return 0;
+}
+
 int main() {
     int failures = 0;
     
@@ -79,6 +95,7 @@ int main() {
     failures += test_single_candidate();
     failures += test_multiple_candidates();
     failures += test_single_candidate_on_second_page();
+    failures += test_invalid_negative_cursor_index_clamps_to_first_candidate();
 
     if (failures == 0) {
         std::cout << "All tests passed!" << std::endl;

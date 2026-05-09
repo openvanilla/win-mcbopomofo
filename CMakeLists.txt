@@ -58,3 +58,8 @@ target_link_libraries(BugReproTest PRIVATE
     shell32
 )
 add_test(NAME BugReproTest COMMAND BugReproTest)
+
+add_executable(IpcTest tests/IpcTest.cpp)
+target_include_directories(IpcTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
+target_link_libraries(IpcTest PRIVATE Common gtest_main)
+add_test(NAME IpcTest COMMAND IpcTest)

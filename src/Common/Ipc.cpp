@@ -3,6 +3,40 @@
 
 namespace McBopomofo {
 namespace IPC {
+namespace {
+
+void WriteSizedString(std::ostringstream& ss, const std::string& value) {
+    ss << value.size() << "\n"
+       << value << "\n";
+}
+
+bool ReadSizedString(std::istringstream& ss, std::string& value) {
+    std::string line;
+    if (!std::getline(ss, line)) return false;
+
+    size_t size = 0;
+    try {
+        size = std::stoull(line);
+    } catch (...) {
+        return false;
+    }
+
+    value.resize(size);
+    if (size > 0) {
+        ss.read(value.data(), static_cast<std::streamsize>(size));
+        if (ss.gcount() != static_cast<std::streamsize>(size)) {
+            return false;
+        }
+    }
+
+    char terminator = '\0';
+    if (!ss.get(terminator) || terminator != '\n') {
+        return false;
+    }
+    return true;
+}
+
+} // namespace
 
 // Extremely simple and fast newline-delimited serialization
 // Format for Key:
@@ -105,14 +139,16 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
        << payload.candidateIndex << "\n"
        << (payload.forceVertical ? 1 : 0) << "\n"
        << payload.markStart << "\n"
-       << payload.markEnd << "\n"
-       << payload.commitString << "\n"
-       << payload.composingBuffer << "\n"
-       << payload.tooltip << "\n"
-       << payload.candidates.size() << "\n";
+       << payload.markEnd << "\n";
+
+    WriteSizedString(ss, payload.commitString);
+    WriteSizedString(ss, payload.composingBuffer);
+    WriteSizedString(ss, payload.tooltip);
+
+    ss << payload.candidates.size() << "\n";
     
     for (const auto& cand : payload.candidates) {
-        ss << cand << "\n";
+        WriteSizedString(ss, cand);
     }
     return ss.str();
 }
@@ -139,22 +175,18 @@ bool DeserializeStateUpdate(const std::string& data, StateUpdatePayload& payload
     if (!std::getline(ss, line)) return false;
     payload.markEnd = std::stoi(line);
 
-    if (!std::getline(ss, line)) return false;
-    payload.commitString = line;
-
-    if (!std::getline(ss, line)) return false;
-    payload.composingBuffer = line;
-
-    if (!std::getline(ss, line)) return false;
-    payload.tooltip = line;
+    if (!ReadSizedString(ss, payload.commitString)) return false;
+    if (!ReadSizedString(ss, payload.composingBuffer)) return false;
+    if (!ReadSizedString(ss, payload.tooltip)) return false;
 
     if (!std::getline(ss, line)) return false;
     size_t count = std::stoul(line);
 
     payload.candidates.clear();
     for (size_t i = 0; i < count; ++i) {
-        if (!std::getline(ss, line)) return false;
-        payload.candidates.push_back(line);
+        std::string candidate;
+        if (!ReadSizedString(ss, candidate)) return false;
+        payload.candidates.push_back(std::move(candidate));
     }
 
     return true;
