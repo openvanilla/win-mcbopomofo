@@ -773,9 +773,12 @@ void InputController::SetCandidateWindowVertical(bool vertical) {
 void InputController::ChangeState(std::unique_ptr<InputState> previousState,
                                   std::unique_ptr<InputState> newState) {
     if (auto* sequence = dynamic_cast<InputStates::StateSequence*>(newState.get())) {
-        for (auto& s : sequence->states) {
+        for (size_t i = 0; i < sequence->states.size(); ++i) {
+            auto& s = sequence->states[i];
             ChangeState(std::move(previousState), std::move(s));
-            previousState = std::move(currentState_);
+            if (i + 1 < sequence->states.size()) {
+                previousState = std::move(currentState_);
+            }
         }
         return;
     }
