@@ -15,6 +15,8 @@ namespace McBopomofo {
 
 namespace {
 
+std::string GetLunarDate(int dayOffset);
+
 std::string FormatDate(int dayOffset, const char* format) {
     auto now = std::chrono::system_clock::now();
     now += std::chrono::hours(24 * dayOffset);
@@ -81,28 +83,7 @@ std::string GetJapaneseWeekday(int dayOffset) {
 }
 
 std::string GetChineseDate(int dayOffset) {
-    std::tm tm = GetLocalTime(dayOffset);
-    int year = tm.tm_year + 1900;
-    int month = tm.tm_mon + 1;
-    int day = tm.tm_mday;
-
-    static const std::array<const char*, 10> digits = {"〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
-    
-    std::string yearStr;
-    std::string y = std::to_string(year);
-    for (char c : y) {
-        yearStr += digits[c - '0'];
-    }
-
-    auto toChinese = [&](int n) {
-        if (n < 10) return std::string(digits[n]);
-        if (n == 10) return std::string("十");
-        if (n < 20) return "十" + std::string(digits[n % 10]);
-        if (n % 10 == 0) return std::string(digits[n / 10]) + "十";
-        return std::string(digits[n / 10]) + "十" + std::string(digits[n % 10]);
-    };
-
-    return yearStr + "年" + toChinese(month) + "月" + toChinese(day) + "日";
+    return GetLunarDate(dayOffset);
 }
 
 std::string GetJapaneseYear(int dayOffset) {
@@ -144,6 +125,13 @@ std::string GetChineseWeekday(int dayOffset, bool shortFormat) {
     static const std::array<const char*, 7> weekdays = {"日", "一", "二", "三", "四", "五", "六"};
     return shortFormat ? (std::string("週") + weekdays[tm.tm_wday]) : (std::string("星期") + weekdays[tm.tm_wday]);
 }
+
+std::string GetChineseWeekday2(int dayOffset) {
+    std::tm tm = GetLocalTime(dayOffset);
+    static const std::array<const char*, 7> weekdays = {"日", "一", "二", "三", "四", "五", "六"};
+    return std::string("禮拜") + weekdays[tm.tm_wday];
+}
+
 
 class StaticInputMacro : public InputMacro {
 public:
@@ -194,19 +182,19 @@ InputMacroController::InputMacroController() {
     add("MACRO@DATE_TOMORROW_SHORT", []() { return FormatDate(1, "%Y/%m/%d"); });
 
     // Date Medium
-    add("MACRO@DATE_TODAY_MEDIUM", []() { return FormatDate(0, "%Y年%m月%d日"); });
-    add("MACRO@DATE_YESTERDAY_MEDIUM", []() { return FormatDate(-1, "%Y年%m月%d日"); });
-    add("MACRO@DATE_TOMORROW_MEDIUM", []() { return FormatDate(1, "%Y年%m月%d日"); });
+    add("MACRO@DATE_TODAY_MEDIUM", []() { return FormatDate(0, "%Y年%#m月%#d日"); });
+    add("MACRO@DATE_YESTERDAY_MEDIUM", []() { return FormatDate(-1, "%Y年%#m月%#d日"); });
+    add("MACRO@DATE_TOMORROW_MEDIUM", []() { return FormatDate(1, "%Y年%#m月%#d日"); });
 
     // Date Medium ROC
-    add("MACRO@DATE_TODAY_MEDIUM_ROC", []() { return FormatRocDate(0, true, "%m月%d日"); });
-    add("MACRO@DATE_YESTERDAY_MEDIUM_ROC", []() { return FormatRocDate(-1, true, "%m月%d日"); });
-    add("MACRO@DATE_TOMORROW_MEDIUM_ROC", []() { return FormatRocDate(1, true, "%m月%d日"); });
+    add("MACRO@DATE_TODAY_MEDIUM_ROC", []() { return FormatRocDate(0, true, "%#m月%#d日"); });
+    add("MACRO@DATE_YESTERDAY_MEDIUM_ROC", []() { return FormatRocDate(-1, true, "%#m月%#d日"); });
+    add("MACRO@DATE_TOMORROW_MEDIUM_ROC", []() { return FormatRocDate(1, true, "%#m月%#d日"); });
 
     add("MACRO@DATE_TODAY_MEDIUM_CHINESE", []() { return GetChineseDate(0); });
     add("MACRO@DATE_TODAY_MEDIUM_JAPANESE", []() { return GetJapaneseDate(0); });
     add("MACRO@THIS_YEAR_JAPANESE", []() { return GetJapaneseYear(0); });
-    add("MACRO@DATE_TODAY2_WEEKDAY", []() { return FormatDate(0, "(%a)"); });
+    add("MACRO@DATE_TODAY2_WEEKDAY", []() { return GetChineseWeekday2(0); });
 
     // Time
     add("MACRO@TIME_NOW_SHORT", []() { return FormatDate(0, "%H:%M"); });

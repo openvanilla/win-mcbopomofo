@@ -108,7 +108,7 @@ bool TryConvertLunarToSolar(const LunarDate& lunar, int* year, int* month,
 }
 
 std::string FormatLunarDate(const LunarDate& lunar) {
-  return std::string("農曆") +
+  return std::to_string(lunar.year) + "年" +
          (lunar.isLeapMonth ? "閏" : "") +
          FormatLunarMonth(lunar.month) +
          "月" +

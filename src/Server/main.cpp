@@ -205,8 +205,8 @@ public:
             currentState.composingBuffer = big5->composingBuffer();
             currentState.cursorIndex = (int)currentState.composingBuffer.length();
             currentState.candidates.clear();
-        } else if (auto* iroha = dynamic_cast<InputStates::Iroha*>(state)) {
-            currentState.composingBuffer = iroha->composingBuffer();
+        } else if (auto* irohaState = dynamic_cast<InputStates::Iroha*>(state)) {
+            currentState.composingBuffer = irohaState->composingBuffer();
             currentState.cursorIndex = (int)currentState.composingBuffer.length();
             currentState.candidates.clear();
         } else if (auto* selectingFeature = dynamic_cast<InputStates::SelectingFeature*>(state)) {
@@ -231,8 +231,12 @@ public:
             for (const auto& entry : customMenu->entries) {
                 currentState.candidates.push_back(entry.name);
             }
+        } else if (auto* empty = dynamic_cast<InputStates::Empty*>(state)) {
+            currentState.composingBuffer.clear();
+            currentState.candidates.clear();
         } else {
             currentState.composingBuffer.clear();
+            currentState.candidates.clear();
         }
     }
 };
