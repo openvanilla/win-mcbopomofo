@@ -815,6 +815,17 @@ void InputController::ChangeState(std::unique_ptr<InputState> previousState,
         if (ui_) ui_->Update(currentState_.get());
         return;
     }
+    
+    if (dynamic_cast<InputStates::SelectingFeature*>(newState.get()) != nullptr && 
+        dynamic_cast<InputStates::SelectingFeature*>(previousState.get()) == nullptr) {
+        candidateIndex_ = 0;
+    }
+    
+    if (dynamic_cast<InputStates::SelectingDateMacro*>(newState.get()) != nullptr && 
+        dynamic_cast<InputStates::SelectingDateMacro*>(previousState.get()) == nullptr) {
+        candidateIndex_ = 0;
+    }
+
 
     int newCandidateCount = CandidateCount(newState.get());
     if (IsCandidateState(newState.get())) {

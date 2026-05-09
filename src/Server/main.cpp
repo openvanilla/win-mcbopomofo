@@ -175,7 +175,8 @@ public:
                 "UTF8 String Length: " + std::to_string(charInfo->selectedPhrase.length()),
                 "Code Point Count: " + std::to_string(CodePointCount(charInfo->selectedPhrase))
             };
-        } else if (auto* marking = dynamic_cast<InputStates::Marking*>(state)) {            currentState.composingBuffer = marking->composingBuffer;
+        } else if (auto* marking = dynamic_cast<InputStates::Marking*>(state)) {
+            currentState.composingBuffer = marking->composingBuffer;
             currentState.cursorIndex = (int)marking->cursorIndex;
             currentState.candidates.clear();
             currentState.markStart = (int)marking->head.length();
