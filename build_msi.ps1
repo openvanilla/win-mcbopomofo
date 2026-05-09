@@ -8,7 +8,19 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Ensure the build artifacts exist
-$BinDir = "build\bin\$Configuration"
+$BuildRoot = "build"
+if (-not (Test-Path $BuildRoot)) {
+    if (Test-Path "build_x64") {
+        $BuildRoot = "build_x64"
+    } else {
+        Write-Host "Error: Cannot find build directory (build or build_x64). Please build the project first." -ForegroundColor Red
+        exit 1
+    }
+}
+
+$BinDir = "$BuildRoot\bin\$Configuration"
+$OpenCCDir = "$BuildRoot\third_party\OpenCC\data"
+
 if (-not (Test-Path "$BinDir\McBopomofoTIP_v2.dll")) {
     Write-Host "Error: Cannot find built artifacts in $BinDir. Please build the project first." -ForegroundColor Red
     exit 1
@@ -38,7 +50,8 @@ if (-not (Test-Path $OutDir)) {
 $MsiPath = "$OutDir\$OutputName"
 
 # Build the MSI directly using 'wix build'
-wix build -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext .\installer.wxs -o $MsiPath
+# Pass bindpaths for BinDir and OpenCCDir
+wix build -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext .\installer.wxs -o $MsiPath -b "BinDir=$BinDir" -b "OpenCCDir=$OpenCCDir"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Successfully created MSI at: $MsiPath" -ForegroundColor Green

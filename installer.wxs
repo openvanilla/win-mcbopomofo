@@ -45,16 +45,15 @@
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <!-- Core Executables and DLLs -->
       <Component Id="cmp_ServerExe" Guid="96a40a8a-e9fa-48b4-aeb2-e64fc5a9d8c0">
-        <!-- We use the Release build output -->
-        <File Id="file_ServerExe" Source="build\bin\Release\McBopomofoServer.exe" KeyPath="yes" />
+        <File Id="file_ServerExe" Source="!(bindpath.BinDir)\McBopomofoServer.exe" KeyPath="yes" />
         <!-- Automatically run the server on startup -->
         <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExe]&quot;" />
       </Component>
       <Component Id="cmp_ConfigExe" Guid="316f73db-24da-44a6-9bd6-239634e9e4f3">
-        <File Id="file_ConfigExe" Source="build\bin\Release\McBopomofoConfig.exe" KeyPath="yes" />
+        <File Id="file_ConfigExe" Source="!(bindpath.BinDir)\McBopomofoConfig.exe" KeyPath="yes" />
       </Component>
       <Component Id="cmp_TipDll" Guid="0de249ed-cc13-41a4-927b-2e915f0ebfc6">
-        <File Id="file_TipDll" Source="build\bin\Release\McBopomofoTIP_v2.dll" KeyPath="yes" />
+        <File Id="file_TipDll" Source="!(bindpath.BinDir)\McBopomofoTIP_v2.dll" KeyPath="yes" />
       </Component>
       
       <!-- Start Menu Shortcut -->
@@ -90,28 +89,39 @@
       <Component Id="cmp_Pua" Guid="*">
         <File Id="file_Pua" Source="data\bpmfvs-pua.txt" KeyPath="yes" />
       </Component>
+
+      <!-- Icons -->
+      <Component Id="cmp_Icon16" Guid="*">
+        <File Id="file_Icon16" Source="data\16x16\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_16" />
+      </Component>
+      <Component Id="cmp_Icon22" Guid="*">
+        <File Id="file_Icon22" Source="data\22x22\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_22" />
+      </Component>
+      <Component Id="cmp_Icon24" Guid="*">
+        <File Id="file_Icon24" Source="data\24x24\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_24" />
+      </Component>
+      <Component Id="cmp_Icon32" Guid="*">
+        <File Id="file_Icon32" Source="data\32x32\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_32" />
+      </Component>
+      <Component Id="cmp_Icon64" Guid="*">
+        <File Id="file_Icon64" Source="data\64x64\apps\fcitx_mcbopomofo.png" KeyPath="yes" Directory="AppsFolder_64" />
+      </Component>
       
       <!-- OpenCC Data -->
       <Component Id="cmp_OpenCC_Config_tw2s" Guid="*" Directory="OpenCCFolder">
         <File Id="file_OpenCC_Config_tw2s" Source="third_party\OpenCC\data\config\tw2s.json" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_OpenCC_Dict_STCharacters" Guid="*" Directory="OpenCCFolder">
-        <File Id="file_OpenCC_Dict_STCharacters" Source="third_party\OpenCC\data\dictionary\STCharacters.txt" KeyPath="yes" />
-      </Component>
-      <Component Id="cmp_OpenCC_Dict_STPhrases" Guid="*" Directory="OpenCCFolder">
-        <File Id="file_OpenCC_Dict_STPhrases" Source="third_party\OpenCC\data\dictionary\STPhrases.txt" KeyPath="yes" />
-      </Component>
       <Component Id="cmp_OpenCC_Dict_TSCharacters" Guid="*" Directory="OpenCCFolder">
-        <File Id="file_OpenCC_Dict_TSCharacters" Source="third_party\OpenCC\data\dictionary\TSCharacters.txt" KeyPath="yes" />
+        <File Id="file_OpenCC_Dict_TSCharacters" Source="!(bindpath.OpenCCDir)\TSCharacters.ocd2" KeyPath="yes" />
       </Component>
       <Component Id="cmp_OpenCC_Dict_TSPhrases" Guid="*" Directory="OpenCCFolder">
-        <File Id="file_OpenCC_Dict_TSPhrases" Source="third_party\OpenCC\data\dictionary\TSPhrases.txt" KeyPath="yes" />
-      </Component>
-      <Component Id="cmp_OpenCC_Dict_TWVariants" Guid="*" Directory="OpenCCFolder">
-        <File Id="file_OpenCC_Dict_TWVariants" Source="third_party\OpenCC\data\dictionary\TWVariants.txt" KeyPath="yes" />
+        <File Id="file_OpenCC_Dict_TSPhrases" Source="!(bindpath.OpenCCDir)\TSPhrases.ocd2" KeyPath="yes" />
       </Component>
       <Component Id="cmp_OpenCC_Dict_TWVariantsRev" Guid="*" Directory="OpenCCFolder">
-        <File Id="file_OpenCC_Dict_TWVariantsRev" Source="third_party\OpenCC\data\dictionary\TWVariantsRev.txt" KeyPath="yes" />
+        <File Id="file_OpenCC_Dict_TWVariantsRev" Source="!(bindpath.OpenCCDir)\TWVariantsRev.ocd2" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_OpenCC_Dict_TWVariantsRevPhrases" Guid="*" Directory="OpenCCFolder">
+        <File Id="file_OpenCC_Dict_TWVariantsRevPhrases" Source="!(bindpath.OpenCCDir)\TWVariantsRevPhrases.ocd2" KeyPath="yes" />
       </Component>
     </ComponentGroup>
 
