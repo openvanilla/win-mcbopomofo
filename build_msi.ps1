@@ -65,6 +65,29 @@ function Find-WixExtension([string]$name, [int]$majorVersion) {
     return $null
 }
 
+function Invoke-Wix4Build([string]$WixExe, [string]$MsiPath, [string]$BinDir, [string]$OpenCCDir) {
+    $uiRef = "WixToolset.UI.wixext/4.0.5"
+    $utilRef = "WixToolset.Util.wixext/4.0.5"
+
+    & $WixExe extension add $uiRef -g | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to add WiX extension $uiRef"
+    }
+
+    & $WixExe extension add $utilRef -g | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to add WiX extension $utilRef"
+    }
+
+    & $WixExe build `
+        -ext $uiRef `
+        -ext $utilRef `
+        .\installer.wxs `
+        -o $MsiPath `
+        -b "BinDir=$BinDir" `
+        -b "OpenCCDir=$OpenCCDir"
+}
+
 $WixExe = Find-WixExecutable
 if (-not $WixExe) {
     Write-Host "Error: WiX CLI is not installed." -ForegroundColor Red
@@ -80,14 +103,6 @@ if ($WixMajorVersion -ge 7) {
     exit 1
 }
 
-$UiExtension = Find-WixExtension "WixToolset.UI.wixext" $WixMajorVersion
-$UtilExtension = Find-WixExtension "WixToolset.Util.wixext" $WixMajorVersion
-if (-not $UiExtension -or -not $UtilExtension) {
-    Write-Host "Error: Matching WiX extensions were not found for WiX $WixVersionText." -ForegroundColor Red
-    Write-Host "Install WiX Additional Tools for the same major version." -ForegroundColor Yellow
-    exit 1
-}
-
 Write-Host "Building MSI using WiX $WixVersionText..." -ForegroundColor Cyan
 
 # Ensure output directory exists
@@ -98,15 +113,33 @@ if (-not (Test-Path $OutDir)) {
 
 $MsiPath = "$OutDir\$OutputName"
 
-# Build the MSI directly using 'wix build'
-# Pass bindpaths for BinDir and OpenCCDir
-& $WixExe build `
-    -ext $UiExtension `
-    -ext $UtilExtension `
-    .\installer.wxs `
-    -o $MsiPath `
-    -b "BinDir=$BinDir" `
-    -b "OpenCCDir=$OpenCCDir"
+if ($WixMajorVersion -eq 4) {
+    try {
+        Invoke-Wix4Build -WixExe $WixExe -MsiPath $MsiPath -BinDir $BinDir -OpenCCDir $OpenCCDir
+    } catch {
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "WiX 4 requires the UI and Util extensions to be restored into the global extension cache." -ForegroundColor Yellow
+        exit 1
+    }
+} else {
+    $UiExtension = Find-WixExtension "WixToolset.UI.wixext" $WixMajorVersion
+    $UtilExtension = Find-WixExtension "WixToolset.Util.wixext" $WixMajorVersion
+    if (-not $UiExtension -or -not $UtilExtension) {
+        Write-Host "Error: Matching WiX extensions were not found for WiX $WixVersionText." -ForegroundColor Red
+        Write-Host "Install WiX Additional Tools for the same major version." -ForegroundColor Yellow
+        exit 1
+    }
+
+    # Build the MSI directly using 'wix build'
+    # Pass bindpaths for BinDir and OpenCCDir
+    & $WixExe build `
+        -ext $UiExtension `
+        -ext $UtilExtension `
+        .\installer.wxs `
+        -o $MsiPath `
+        -b "BinDir=$BinDir" `
+        -b "OpenCCDir=$OpenCCDir"
+}
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Successfully created MSI at: $MsiPath" -ForegroundColor Green
