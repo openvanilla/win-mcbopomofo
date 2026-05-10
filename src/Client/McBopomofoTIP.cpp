@@ -472,7 +472,7 @@ STDAPI McBopomofoTIP::Deactivate() {
 }
 
 STDAPI McBopomofoTIP::OnSetFocus(BOOL fForeground) {
-  if (fForeground) {
+  if (!fForeground) {
     resetServerState_();
   }
   return S_OK;
@@ -703,9 +703,10 @@ STDAPI McBopomofoTIP::OnUninitDocumentMgr(ITfDocumentMgr* pDocMgr) {
 
 STDAPI McBopomofoTIP::OnSetFocus(ITfDocumentMgr* pDocMgrFocus,
                                  ITfDocumentMgr* pDocMgrPrevFocus) {
-  UNREFERENCED_PARAMETER(pDocMgrFocus);
   UNREFERENCED_PARAMETER(pDocMgrPrevFocus);
-  resetServerState_();
+  if (pDocMgrFocus == nullptr) {
+    resetServerState_();
+  }
   return S_OK;
 }
 
@@ -720,7 +721,6 @@ STDAPI McBopomofoTIP::OnPopContext(ITfContext* pic) {
 }
 
 STDAPI McBopomofoTIP::OnSetThreadFocus() {
-  resetServerState_();
   return S_OK;
 }
 
