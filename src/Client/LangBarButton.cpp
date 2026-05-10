@@ -486,14 +486,22 @@ STDMETHODIMP CLangBarButton::UnadviseSink(DWORD dwCookie) {
 }
 
 void CLangBarButton::Update() {
-  LogMessage("CLangBarButton::Update called, sink count: %zu", sinks_.size());
+  LogMessage("CLangBarButton::Update called, sink count: %lu",
+             static_cast<unsigned long>(sinks_.size()));
 
-  // Notify all registered sinks
+  std::vector<ITfLangBarItemSink*> sinkSnapshot;
+  sinkSnapshot.reserve(sinks_.size());
+
   for (const auto& sink : sinks_) {
     if (sink.second) {
-      HRESULT hr =
-          sink.second->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
-      LogMessage("Sink OnUpdate returned: 0x%08X", hr);
+      sink.second->AddRef();
+      sinkSnapshot.push_back(sink.second);
     }
+  }
+
+  for (ITfLangBarItemSink* sink : sinkSnapshot) {
+    HRESULT hr = sink->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
+    LogMessage("Sink OnUpdate returned: 0x%08X", hr);
+    sink->Release();
   }
 }

@@ -379,6 +379,27 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     return E_FAIL;
   }
 
+  extern HINSTANCE g_hInst;
+  candidateWindow_.Create(g_hInst);
+  tooltipWindow_.Create(g_hInst);
+
+  // Register LangBar button - must be created BEFORE setting compartment value
+  // because SetValue triggers OnChange callback synchronously
+  ITfLangBarItemMgr* pLangBarItemMgr = nullptr;
+  if (SUCCEEDED(ptim_->QueryInterface(IID_ITfLangBarItemMgr,
+                                      (void**)&pLangBarItemMgr))) {
+    pModeIconButton_ = new CLangBarButton(this, GUID_LBI_INPUTMODE,
+                                          CLangBarButton::Kind::ModeIcon);
+    pSwitchLangButton_ = new CLangBarButton(
+        this, GUID_LBI_SWITCH_LANG, CLangBarButton::Kind::SwitchLanguageToggle);
+    pSettingsButton_ = new CLangBarButton(this, GUID_LBI_SETTINGS,
+                                          CLangBarButton::Kind::SettingsMenu);
+    pLangBarItemMgr->AddItem(pModeIconButton_);
+    pLangBarItemMgr->AddItem(pSwitchLangButton_);
+    pLangBarItemMgr->AddItem(pSettingsButton_);
+    pLangBarItemMgr->Release();
+  }
+
   ITfCompartmentMgr* pCompMgr = nullptr;
   if (SUCCEEDED(
           ptim_->QueryInterface(IID_ITfCompartmentMgr, (void**)&pCompMgr))) {
@@ -395,25 +416,6 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     pCompMgr->Release();
   }
 
-  extern HINSTANCE g_hInst;
-  candidateWindow_.Create(g_hInst);
-  tooltipWindow_.Create(g_hInst);
-
-  // Register LangBar button
-  ITfLangBarItemMgr* pLangBarItemMgr = nullptr;
-  if (SUCCEEDED(ptim_->QueryInterface(IID_ITfLangBarItemMgr,
-                                      (void**)&pLangBarItemMgr))) {
-    pModeIconButton_ = new CLangBarButton(this, GUID_LBI_INPUTMODE,
-                                          CLangBarButton::Kind::ModeIcon);
-    pSwitchLangButton_ = new CLangBarButton(
-        this, GUID_LBI_SWITCH_LANG, CLangBarButton::Kind::SwitchLanguageToggle);
-    pSettingsButton_ = new CLangBarButton(this, GUID_LBI_SETTINGS,
-                                          CLangBarButton::Kind::SettingsMenu);
-    pLangBarItemMgr->AddItem(pModeIconButton_);
-    pLangBarItemMgr->AddItem(pSwitchLangButton_);
-    pLangBarItemMgr->AddItem(pSettingsButton_);
-    pLangBarItemMgr->Release();
-  }
   LogMessage("McBopomofoTIP::ActivateEx succeeded");
   return S_OK;
 }
