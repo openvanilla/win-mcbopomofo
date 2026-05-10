@@ -61,6 +61,7 @@ struct StateUpdatePayload {
   bool forceVertical = false;  // Add flag to force vertical layout
   bool useShiftKeySelection = false;
   std::string tooltip;
+  std::string hint;
   std::vector<std::string> candidates;
 };
 

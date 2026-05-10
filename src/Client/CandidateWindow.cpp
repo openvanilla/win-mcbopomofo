@@ -49,7 +49,9 @@ CandidateWindow::CandidateWindow()
       _pRenderTarget(nullptr),
       _pDWriteFactory(nullptr),
       _pTextFormat(nullptr),
+      _pHintFormat(nullptr),
       _pTextLayout(nullptr),
+      _pHintLayout(nullptr),
       _pTextBrush(nullptr),
       _pBgBrush(nullptr),
       _pBorderBrush(nullptr),
@@ -62,8 +64,14 @@ CandidateWindow::CandidateWindow()
 CandidateWindow::~CandidateWindow() {
   Destroy();
   DiscardDeviceResources();
+  if (_pHintLayout) {
+    _pHintLayout->Release();
+  }
   if (_pTextLayout) {
     _pTextLayout->Release();
+  }
+  if (_pHintFormat) {
+    _pHintFormat->Release();
   }
   if (_pTextFormat) {
     _pTextFormat->Release();
@@ -105,6 +113,11 @@ void CandidateWindow::CreateDeviceIndependentResources() {
                                    // Emoji support
         NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"zh-TW", &_pTextFormat);
+
+    _pDWriteFactory->CreateTextFormat(
+        L"Microsoft JhengHei UI", NULL, DWRITE_FONT_WEIGHT_NORMAL,
+        DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 10.0f, L"zh-TW",
+        &_pHintFormat);
   }
 }
 
@@ -242,7 +255,8 @@ void CandidateWindow::Destroy() {
 
 void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
                                int cursorIndex, bool forceVertical,
-                               bool useShiftKeySelection) {
+                               bool useShiftKeySelection,
+                               const std::string& hint) {
   if (!_hwnd) return;
 
   _dpiScale = GetDpiScale();
@@ -252,6 +266,7 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
     _candidates.push_back(McBopomofo::Utf8ToUtf16(c));
   }
   _cursorIndex = cursorIndex;
+  _hint = McBopomofo::Utf8ToUtf16(hint);
 
   if (_candidates.empty()) {
     Hide();
@@ -336,6 +351,10 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
     _pTextLayout->Release();
     _pTextLayout = nullptr;
   }
+  if (_pHintLayout) {
+    _pHintLayout->Release();
+    _pHintLayout = nullptr;
+  }
 
   if (_pDWriteFactory && _pTextFormat) {
     _pDWriteFactory->CreateTextLayout(
@@ -351,6 +370,12 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
     }
   }
 
+  if (_pDWriteFactory && _pHintFormat && !_hint.empty()) {
+    _pDWriteFactory->CreateTextLayout(_hint.c_str(), (UINT32)_hint.length(),
+                                      _pHintFormat, 10000.0f, 10000.0f,
+                                      &_pHintLayout);
+  }
+
   float textWidth = 0, textHeight = 0;
   if (_pTextLayout) {
     DWRITE_TEXT_METRICS metrics;
@@ -359,8 +384,22 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
     textHeight = metrics.height;
   }
 
-  int width = (int)std::ceil(textWidth * _dpiScale) + (int)(24 * _dpiScale);
-  int height = (int)std::ceil(textHeight * _dpiScale) + (int)(16 * _dpiScale);
+  float hintWidth = 0, hintHeight = 0;
+  if (_pHintLayout) {
+    DWRITE_TEXT_METRICS metrics;
+    _pHintLayout->GetMetrics(&metrics);
+    hintWidth = metrics.width;
+    hintHeight = metrics.height;
+  }
+
+  int width = (int)std::ceil(std::max(textWidth, hintWidth) * _dpiScale) +
+              (int)(24 * _dpiScale);
+  int height = (int)std::ceil((textHeight + hintHeight) * _dpiScale) +
+               (int)(16 * _dpiScale);
+
+  if (_pHintLayout) {
+    height += (int)(4 * _dpiScale);  // Gap between hint and candidates
+  }
 
   // Enforce a minimum size to prevent the window from collapsing or being
   // rejected by the OS
@@ -433,58 +472,70 @@ LRESULT CandidateWindow::OnPaint(HWND hwnd) {
     _pRenderTarget->SetTransform(D2D1::Matrix3x2F::Scale(_dpiScale, _dpiScale));
     _pRenderTarget->Clear(_pBgBrush->GetColor());
 
-    if (_pTextLayout && _pTextBrush) {
-      // Draw highlight background if we have a selected range
-      if (_selectedRange.length > 0 && _pHighlightBgBrush) {
-        UINT32 actualHitTestCount = 0;
-        _pTextLayout->HitTestTextRange(_selectedRange.start,
-                                       _selectedRange.length, 0, 0, nullptr, 0,
-                                       &actualHitTestCount);
+    if (_pTextBrush) {
+      float currentY = 8.0f;
 
-        if (actualHitTestCount > 0) {
-          std::vector<DWRITE_HIT_TEST_METRICS> hitTestMetrics(
-              actualHitTestCount);
-          _pTextLayout->HitTestTextRange(
-              _selectedRange.start, _selectedRange.length, 12.0f, 8.0f,
-              hitTestMetrics.data(), actualHitTestCount, &actualHitTestCount);
+      if (_pHintLayout) {
+        _pRenderTarget->DrawTextLayout(D2D1::Point2F(12.0f, currentY),
+                                       _pHintLayout, _pTextBrush);
 
-          float layoutWidth = 0;
-          bool isVerticalLayout = _isVertical || _forceVertical;
-          if (isVerticalLayout) {
-            DWRITE_TEXT_METRICS textMetrics;
-            _pTextLayout->GetMetrics(&textMetrics);
-            layoutWidth = textMetrics.width;
-          }
-
-          for (const auto& metrics : hitTestMetrics) {
-            float right = metrics.left + metrics.width;
-            if (isVerticalLayout) {
-              right = 12.0f + layoutWidth;
-            }
-
-            D2D1_RECT_F rect =
-                D2D1::RectF(metrics.left - 4.0f, metrics.top - 2.0f,
-                            right + 4.0f, metrics.top + metrics.height + 2.0f);
-            _pRenderTarget->FillRectangle(rect, _pHighlightBgBrush);
-          }
-        }
-
-        // Apply highlight text color effect
-        DWRITE_TEXT_RANGE dwriteRange = {_selectedRange.start,
-                                         _selectedRange.length};
-        _pTextLayout->SetDrawingEffect(_pHighlightTextBrush, dwriteRange);
+        DWRITE_TEXT_METRICS hintMetrics;
+        _pHintLayout->GetMetrics(&hintMetrics);
+        currentY += hintMetrics.height + 4.0f;
       }
 
-      _pRenderTarget->DrawTextLayout(D2D1::Point2F(12.0f, 8.0f), _pTextLayout,
-                                     _pTextBrush,
-                                     D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+      if (_pTextLayout) {
+        // Draw highlight background if we have a selected range
+        if (_selectedRange.length > 0 && _pHighlightBgBrush) {
+          UINT32 actualHitTestCount = 0;
+          _pTextLayout->HitTestTextRange(_selectedRange.start,
+                                         _selectedRange.length, 0, 0, nullptr, 0,
+                                         &actualHitTestCount);
 
-      // Revert drawing effect so it doesn't leak into subsequent frames if
-      // brush is destroyed
-      if (_selectedRange.length > 0) {
-        DWRITE_TEXT_RANGE dwriteRange = {_selectedRange.start,
-                                         _selectedRange.length};
-        _pTextLayout->SetDrawingEffect(nullptr, dwriteRange);
+          if (actualHitTestCount > 0) {
+            std::vector<DWRITE_HIT_TEST_METRICS> hitTestMetrics(
+                actualHitTestCount);
+            _pTextLayout->HitTestTextRange(
+                _selectedRange.start, _selectedRange.length, 12.0f, currentY,
+                hitTestMetrics.data(), actualHitTestCount, &actualHitTestCount);
+
+            float layoutWidth = 0;
+            bool isVerticalLayout = _isVertical || _forceVertical;
+            if (isVerticalLayout) {
+              DWRITE_TEXT_METRICS textMetrics;
+              _pTextLayout->GetMetrics(&textMetrics);
+              layoutWidth = textMetrics.width;
+            }
+
+            for (const auto& metrics : hitTestMetrics) {
+              float right = metrics.left + metrics.width;
+              if (isVerticalLayout) {
+                right = 12.0f + layoutWidth;
+              }
+
+              D2D1_RECT_F rect = D2D1::RectF(
+                  metrics.left - 4.0f, metrics.top - 2.0f, right + 4.0f,
+                  metrics.top + metrics.height + 2.0f);
+              _pRenderTarget->FillRectangle(rect, _pHighlightBgBrush);
+            }
+          }
+
+          // Apply highlight text color effect
+          DWRITE_TEXT_RANGE dwriteRange = {_selectedRange.start,
+                                           _selectedRange.length};
+          _pTextLayout->SetDrawingEffect(_pHighlightTextBrush, dwriteRange);
+        }
+
+        _pRenderTarget->DrawTextLayout(
+            D2D1::Point2F(12.0f, currentY), _pTextLayout, _pTextBrush,
+            D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+
+        // Revert drawing effect
+        if (_selectedRange.length > 0) {
+          DWRITE_TEXT_RANGE dwriteRange = {_selectedRange.start,
+                                           _selectedRange.length};
+          _pTextLayout->SetDrawingEffect(nullptr, dwriteRange);
+        }
       }
     }
 

@@ -193,6 +193,7 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
   WriteSizedString(ss, payload.commitString);
   WriteSizedString(ss, payload.composingBuffer);
   WriteSizedString(ss, payload.tooltip);
+  WriteSizedString(ss, payload.hint);
 
   ss << payload.candidates.size() << "\n";
 
@@ -231,6 +232,7 @@ bool DeserializeStateUpdate(const std::string& data,
   if (!ReadSizedString(ss, payload.commitString)) return false;
   if (!ReadSizedString(ss, payload.composingBuffer)) return false;
   if (!ReadSizedString(ss, payload.tooltip)) return false;
+  if (!ReadSizedString(ss, payload.hint)) return false;
 
   if (!std::getline(ss, line)) return false;
   size_t count = std::stoul(line);

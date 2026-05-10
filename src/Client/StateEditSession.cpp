@@ -36,6 +36,23 @@ POINT ComputeAuxiliaryWindowPoint(const RECT& rc) {
   return POINT{rc.left, rc.bottom + verticalGap};
 }
 
+void MoveAuxiliaryWindowsInternal(McBopomofoTIP* tip, POINT pt) {
+  auto* candWin = tip->GetCandidateWindow();
+  auto* tooltipWin = tip->GetTooltipWindow();
+
+  const bool candVisible = candWin->IsVisible();
+  const bool tooltipVisible = tooltipWin->IsVisible();
+
+  if (candVisible && tooltipVisible) {
+    tooltipWin->Move(pt.x, pt.y);
+    candWin->Move(pt.x, pt.y + tooltipWin->GetHeight() + 4);
+  } else if (tooltipVisible) {
+    tooltipWin->Move(pt.x, pt.y);
+  } else if (candVisible) {
+    candWin->Move(pt.x, pt.y);
+  }
+}
+
 bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
                         McBopomofoTIP* tip) {
   if (!range || !tip) {
@@ -52,8 +69,7 @@ bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
   bool moved = false;
   if (SUCCEEDED(pView->GetTextExt(ec, range, &rc, &fClipped))) {
     POINT pt = ComputeAuxiliaryWindowPoint(rc);
-    tip->GetCandidateWindow()->Move(pt.x, pt.y);
-    tip->GetTooltipWindow()->Move(pt.x, pt.y);
+    MoveAuxiliaryWindowsInternal(tip, pt);
     moved = true;
   }
   pView->Release();
@@ -86,8 +102,7 @@ void MoveWindowsToCaretFallback(McBopomofoTIP* tip) {
     RECT caretRect = gti.rcCaret;
     POINT pt = ComputeAuxiliaryWindowPoint(caretRect);
     ClientToScreen(gti.hwndCaret, &pt);
-    tip->GetCandidateWindow()->Move(pt.x, pt.y);
-    tip->GetTooltipWindow()->Move(pt.x, pt.y);
+    MoveAuxiliaryWindowsInternal(tip, pt);
   }
 }
 
@@ -310,7 +325,22 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         sel.style.fInterimChar = FALSE;
         _pContext->SetSelection(ec, 1, &sel);
 
-        // Try to find the coordinates for the candidate window or tooltip
+        // Update UI content first so windows have correct sizes
+        if (!_state.tooltip.empty()) {
+          _pTIP->GetTooltipWindow()->UpdateUI(_state.tooltip);
+        } else {
+          _pTIP->GetTooltipWindow()->Hide();
+        }
+
+        if (!_state.candidates.empty()) {
+          _pTIP->GetCandidateWindow()->UpdateUI(
+              _state.candidates, _state.candidateIndex, _state.forceVertical,
+              _state.useShiftKeySelection, _state.hint);
+        } else {
+          _pTIP->GetCandidateWindow()->Hide();
+        }
+
+        // Now move the auxiliary windows
         if (!directCommitWithoutComposition &&
             (!_state.candidates.empty() || !_state.tooltip.empty())) {
           MoveAuxiliaryWindows(ec, _pContext, pCursorRange, _pTIP);
@@ -340,21 +370,25 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
   }
 
-  if (!directCommitWithoutComposition &&
-      ((compStr.empty() && !_state.candidates.empty()) ||
-       !_state.tooltip.empty())) {
-    MoveAuxiliaryWindows(ec, _pContext, nullptr, _pTIP);
-  }
+  // Handle case where we have candidates or tooltip but no active composition
+  // (e.g. from ChoosingPunctuationList triggered from Empty state)
+  if (!directCommitWithoutComposition && _pTIP->GetComposition() == nullptr &&
+      (!_state.candidates.empty() || !_state.tooltip.empty())) {
+    if (!_state.tooltip.empty()) {
+      _pTIP->GetTooltipWindow()->UpdateUI(_state.tooltip);
+    } else {
+      _pTIP->GetTooltipWindow()->Hide();
+    }
 
-  // 4. Update Candidate and Tooltip Window UI
-  if (!_state.tooltip.empty()) {
-    _pTIP->GetTooltipWindow()->UpdateUI(_state.tooltip);
-    _pTIP->GetCandidateWindow()->Hide();
-  } else {
-    _pTIP->GetTooltipWindow()->Hide();
-    _pTIP->GetCandidateWindow()->UpdateUI(
-        _state.candidates, _state.candidateIndex, _state.forceVertical,
-        _state.useShiftKeySelection);
+    if (!_state.candidates.empty()) {
+      _pTIP->GetCandidateWindow()->UpdateUI(
+          _state.candidates, _state.candidateIndex, _state.forceVertical,
+          _state.useShiftKeySelection, _state.hint);
+    } else {
+      _pTIP->GetCandidateWindow()->Hide();
+    }
+
+    MoveAuxiliaryWindows(ec, _pContext, nullptr, _pTIP);
   }
 
   return S_OK;

@@ -247,6 +247,7 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
     payload.composingBuffer = assoc->composingBuffer;
     payload.cursorIndex = static_cast<int>(assoc->cursorIndex);
     payload.useShiftKeySelection = assoc->useShiftKey;
+    payload.hint = assoc->prefixValue;
     for (const auto& c : assoc->candidates) {
       payload.candidates.push_back(c.value);
     }

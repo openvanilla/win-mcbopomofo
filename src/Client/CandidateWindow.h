@@ -38,9 +38,18 @@ class CandidateWindow {
   void Destroy();
 
   void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex,
-                bool forceVertical = false, bool useShiftKeySelection = false);
+                bool forceVertical = false, bool useShiftKeySelection = false,
+                const std::string& hint = "");
   void Move(int x, int y);
   void Hide();
+
+  bool IsVisible() const { return _hwnd && IsWindowVisible(_hwnd); }
+  int GetHeight() const {
+    if (!_hwnd) return 0;
+    RECT rc;
+    GetWindowRect(_hwnd, &rc);
+    return rc.bottom - rc.top;
+  }
 
   // For testing purposes
   std::wstring GetDisplayString() const { return _displayString; }
@@ -68,6 +77,7 @@ class CandidateWindow {
   std::vector<std::wstring> _candidates;
   int _cursorIndex;
   std::wstring _displayString;
+  std::wstring _hint;
   std::wstring _candidateKeys;
   int _candidateKeysCount;
   bool _isVertical;
@@ -82,7 +92,9 @@ class CandidateWindow {
   ID2D1HwndRenderTarget* _pRenderTarget;
   IDWriteFactory* _pDWriteFactory;
   IDWriteTextFormat* _pTextFormat;
+  IDWriteTextFormat* _pHintFormat;
   IDWriteTextLayout* _pTextLayout;
+  IDWriteTextLayout* _pHintLayout;
 
   ID2D1SolidColorBrush* _pTextBrush;
   ID2D1SolidColorBrush* _pBgBrush;

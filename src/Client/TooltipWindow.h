@@ -40,6 +40,14 @@ class TooltipWindow {
   void Move(int x, int y);
   void Hide();
 
+  bool IsVisible() const { return _hwnd && IsWindowVisible(_hwnd); }
+  int GetHeight() const {
+    if (!_hwnd) return 0;
+    RECT rc;
+    GetWindowRect(_hwnd, &rc);
+    return rc.bottom - rc.top;
+  }
+
  private:
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
                                   LPARAM lParam);
