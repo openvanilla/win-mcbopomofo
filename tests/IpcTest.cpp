@@ -16,6 +16,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     payload.forceVertical = true;
     payload.useShiftKeySelection = true;
     payload.tooltip = "tip\ntext";
+    payload.hint = "hint\ntext";
     payload.candidates = {
         "一二三",
         "一〢三〤\n千單位",
@@ -36,6 +37,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     EXPECT_EQ(decoded.forceVertical, payload.forceVertical);
     EXPECT_EQ(decoded.useShiftKeySelection, payload.useShiftKeySelection);
     EXPECT_EQ(decoded.tooltip, payload.tooltip);
+    EXPECT_EQ(decoded.hint, payload.hint);
     EXPECT_EQ(decoded.candidates, payload.candidates);
 }
 

@@ -34,6 +34,15 @@ public:
     std::string markingNotAvailableInFontAnnotationMode() override { return ""; }
 };
 
+class DummyInputControllerLocalizedStrings : public InputController::LocalizedStrings {
+public:
+    std::string boost() override { return "Boost"; }
+    std::string exclude() override { return "Exclude"; }
+    std::string cancel() override { return "Cancel"; }
+    std::string boostPrompt() override { return "Boost?"; }
+    std::string excludePrompt() override { return "Exclude?"; }
+};
+
 class DummyUserPhraseAdder : public UserPhraseAdder {
 public:
     void addUserPhrase(const std::string_view&, const std::string_view&) override {}
@@ -52,7 +61,9 @@ protected:
             std::make_unique<DummyLocalizedStrings>()
         );
         ui = std::make_unique<MockUI>();
-        controller = std::make_unique<InputController>(keyHandler, ui.get());
+        controller = std::make_unique<InputController>(
+            keyHandler, ui.get(), 
+            std::make_unique<DummyInputControllerLocalizedStrings>());
         keyHandler->setChineseConversionEnabled(true);
     }
 
