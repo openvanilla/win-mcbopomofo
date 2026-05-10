@@ -27,6 +27,11 @@ BEGIN
     IDS_MARKING_NOT_AVAILABLE_IN_FONT_ANNOTATION_MODE "Marking not available in font annotation mode"
     IDS_FONT_ANNOTATION_MODE_TOOLTIP "Font annotation mode"
     IDS_FONT_ANNOTATION_MODE_TOOLTIP_ADVANCED "Font annotation mode (Advanced)"
+    IDS_BOOST                      "Boost"
+    IDS_EXCLUDE                    "Exclude"
+    IDS_CANCEL                     "Cancel"
+    IDS_BOOST_PROMPT               "Do you want to boost the score of the phrase?"
+    IDS_EXCLUDE_PROMPT             "Do you want to exclude the phrase?"
 END
 
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
@@ -51,6 +56,11 @@ BEGIN
     IDS_MARKING_NOT_AVAILABLE_IN_FONT_ANNOTATION_MODE "注音標示模式下無法加詞"
     IDS_FONT_ANNOTATION_MODE_TOOLTIP "注音標示模式"
     IDS_FONT_ANNOTATION_MODE_TOOLTIP_ADVANCED "注音標示模式 (進階)"
+    IDS_BOOST                      "提昇權重"
+    IDS_EXCLUDE                    "加入排除字隨"
+    IDS_CANCEL                     "取消"
+    IDS_BOOST_PROMPT               "您想要提昇這個詞的權重嗎？"
+    IDS_EXCLUDE_PROMPT             "您想要排除這個詞嗎？"
 END
 
 

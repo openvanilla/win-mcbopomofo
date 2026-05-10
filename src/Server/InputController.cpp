@@ -291,10 +291,12 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
 }
 
 InputController::InputController(std::shared_ptr<KeyHandler> keyHandler,
-                                 UIInterface* ui)
-    : keyHandler_(std::move(keyHandler)), ui_(ui) {
-  currentState_ = std::make_unique<InputStates::Empty>();
-}
+                                 UIInterface* ui,
+                                 std::unique_ptr<LocalizedStrings> localizedStrings)
+    : keyHandler_(std::move(keyHandler)),
+      ui_(ui),
+      currentState_(std::make_unique<InputStates::Empty>()),
+      localizedStrings_(std::move(localizedStrings)) {}
 
 void InputController::setDataDirectory(const std::filesystem::path& dataDir) {
   try {
@@ -744,21 +746,23 @@ void InputController::enterPhraseActionMenu_(
 
   std::vector<InputStates::CustomMenu::MenuEntry> entries;
   if (boost) {
-    entries.emplace_back("Boost", [this, reading = candidate.reading,
-                                   value = candidate.value]() {
-      keyHandler_->boostPhrase(reading, value);
-      changeState_(std::move(currentState_),
-                   keyHandler_->buildInputtingState());
-    });
+    entries.emplace_back(localizedStrings_->boost(),
+                         [this, reading = candidate.reading,
+                          value = candidate.value]() {
+                           keyHandler_->boostPhrase(reading, value);
+                           changeState_(std::move(currentState_),
+                                        keyHandler_->buildInputtingState());
+                         });
   } else {
-    entries.emplace_back("Exclude", [this, reading = candidate.reading,
-                                     value = candidate.value]() {
-      keyHandler_->excludePhrase(reading, value);
-      changeState_(std::move(currentState_),
-                   keyHandler_->buildInputtingState());
-    });
+    entries.emplace_back(localizedStrings_->exclude(),
+                         [this, reading = candidate.reading,
+                          value = candidate.value]() {
+                           keyHandler_->excludePhrase(reading, value);
+                           changeState_(std::move(currentState_),
+                                        keyHandler_->buildInputtingState());
+                         });
   }
-  entries.emplace_back("Cancel", [this]() {
+  entries.emplace_back(localizedStrings_->cancel(), [this]() {
     auto inputting = keyHandler_->buildInputtingState();
     auto choosing = keyHandler_->buildChoosingCandidateState(
         inputting.get(), keyHandler_->candidateCursorIndex());
@@ -769,8 +773,8 @@ void InputController::enterPhraseActionMenu_(
   auto copy = std::make_unique<InputStates::ChoosingCandidate>(choosing);
   auto menu = std::make_unique<InputStates::CustomMenu>(
       std::move(copy),
-      boost ? "Do you want to boost the score of the phrase?"
-            : "Do you want to exclude the phrase?",
+      boost ? localizedStrings_->boostPrompt()
+            : localizedStrings_->excludePrompt(),
       std::move(entries));
   changeState_(std::move(currentState_), std::move(menu));
 }

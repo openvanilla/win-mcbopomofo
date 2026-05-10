@@ -215,7 +215,8 @@ class ServerUI : public UIInterface {
   }
 };
 
-class WinLocalizedStrings : public LocalizedStrings {
+class WinLocalizedStrings : public LocalizedStrings,
+                           public InputController::LocalizedStrings {
  public:
   std::string cursorIsBetweenSyllables(const std::string& prevReading,
                                        const std::string& nextReading) override {
@@ -269,6 +270,25 @@ class WinLocalizedStrings : public LocalizedStrings {
     return Utf16ToUtf8(LoadLocalizedStringW(
         GetModuleHandle(NULL),
         IDS_MARKING_NOT_AVAILABLE_IN_FONT_ANNOTATION_MODE));
+  }
+
+  // InputController::LocalizedStrings
+  std::string boost() override {
+    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL), IDS_BOOST));
+  }
+  std::string exclude() override {
+    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL), IDS_EXCLUDE));
+  }
+  std::string cancel() override {
+    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL), IDS_CANCEL));
+  }
+  std::string boostPrompt() override {
+    return Utf16ToUtf8(
+        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_BOOST_PROMPT));
+  }
+  std::string excludePrompt() override {
+    return Utf16ToUtf8(
+        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_EXCLUDE_PROMPT));
   }
 };
 
@@ -548,7 +568,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                           << dictionaryServiceJsonPath;
 
   ServerUI ui;
-  InputController controller(keyHandler, &ui);
+  InputController controller(
+      keyHandler, &ui,
+      std::unique_ptr<InputController::LocalizedStrings>(
+          new WinLocalizedStrings()));
   g_Controller = &controller;
 
   controller.setDataDirectory(exeDir / "data");

@@ -33,7 +33,18 @@ namespace McBopomofo {
 
 class InputController {
  public:
-  InputController(std::shared_ptr<KeyHandler> keyHandler, UIInterface* ui);
+  class LocalizedStrings {
+   public:
+    virtual ~LocalizedStrings() = default;
+    virtual std::string boost() = 0;
+    virtual std::string exclude() = 0;
+    virtual std::string cancel() = 0;
+    virtual std::string boostPrompt() = 0;
+    virtual std::string excludePrompt() = 0;
+  };
+
+  InputController(std::shared_ptr<KeyHandler> keyHandler, UIInterface* ui,
+                  std::unique_ptr<LocalizedStrings> localizedStrings);
   ~InputController() = default;
 
   // Handles a key press and returns true if the key was consumed by the IME.
@@ -103,6 +114,7 @@ class InputController {
   bool candidateWindowVertical_ = false;
 
   std::unique_ptr<opencc::SimpleConverter> openccConverter_;
+  std::unique_ptr<LocalizedStrings> localizedStrings_;
 };
 
 }  // namespace McBopomofo
