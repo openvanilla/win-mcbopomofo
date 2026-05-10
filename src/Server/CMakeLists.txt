@@ -58,6 +58,7 @@ add_executable(McBopomofoServer
     InputController.cpp
     WindowsKeyBridge.cpp
     Settings.cpp
+    SettingsApp.cpp
 )
 set_target_properties(McBopomofoServer PROPERTIES WIN32_EXECUTABLE TRUE)
 target_include_directories(McBopomofoServer PRIVATE ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src)

@@ -34,7 +34,6 @@
 #include "NamedPipe.h"
 #include "PathCompat.h"
 #include "Register.h"
-#include "SettingsApp.h"
 
 // GUID of the IME mode icon in Windows 8/10
 extern const GUID GUID_LBI_INPUTMODE = {
@@ -315,7 +314,9 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
       break;
     }
     case MENU_OPEN_SETTINGS: {
-      McBopomofo::OpenSettingsApp();
+      McBopomofo::IPC::NamedPipeClient client(McBopomofo::IPC::PIPE_NAME);
+      std::string response;
+      client.Call(McBopomofo::IPC::SerializeOpenSettings(), response);
       break;
     }
     case MENU_EDIT_USER_PHRASES: {
