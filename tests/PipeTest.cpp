@@ -19,16 +19,25 @@ TEST(PipeTest, BasicCommunication) {
     server.Start();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    NamedPipeClient client(pipeNameA);
-    std::string response;
-    bool success = client.Call("hello", response);
+    {
+        NamedPipeClient client(pipeNameA);
+        std::string response;
+        bool success = client.Call("hello", response);
 
-    EXPECT_TRUE(success);
-    EXPECT_EQ(response, "world");
+        EXPECT_TRUE(success);
+        EXPECT_EQ(response, "world");
+    }
 
-    success = client.Call("test", response);
-    EXPECT_TRUE(success);
-    EXPECT_EQ(response, "unknown");
+    // Small delay to ensure the server loop has time to reset the pipe connection
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    {
+        NamedPipeClient client2(pipeNameA);
+        std::string response2;
+        bool success = client2.Call("test", response2);
+        EXPECT_TRUE(success);
+        EXPECT_EQ(response2, "unknown");
+    }
 
     server.Stop();
 }
