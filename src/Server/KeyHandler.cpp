@@ -319,6 +319,20 @@ bool KeyHandler::handle(Key key, McBopomofo::InputState* state,
     return handleDeleteKeys(key, state, stateCallback, errorCallback);
   }
 
+  // Question key
+  if (key.ascii == '?') {
+    auto* marking = dynamic_cast<InputStates::Marking*>(state);
+    if (marking != nullptr) {
+      // Enter the state to select a dictionary service.
+      std::string markedText = marking->markedText;
+      auto copy = std::make_unique<InputStates::Marking>(*marking);
+      auto selecting =
+          buildSelectingDictionaryState(std::move(copy), markedText, 0);
+      stateCallback(std::move(selecting));
+      return true;
+    }
+  }
+
   // Enter.
   if (key.ascii == Key::RETURN) {
     if (maybeNotEmptyState == nullptr) {
