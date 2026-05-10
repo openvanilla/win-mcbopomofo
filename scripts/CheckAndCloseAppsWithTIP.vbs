@@ -1,19 +1,34 @@
 Sub Main()
-    Dim objShell, objExec, strOutput, arrLines, i, msgResult
+    Dim objShell, objFSO, objFile, strTempFile, strOutput, arrLines, i, msgResult
     Dim found, processName, count, msg
     Dim arrUniqueProcesses()
 
     Set objShell = CreateObject("WScript.Shell")
+    Set objFSO = CreateObject("Scripting.FileSystemObject")
 
-    On Error Resume Next
-    Set objExec = objShell.Exec("tasklist /m McBopomofoTIP*.dll 2>nul")
-    If Err.Number <> 0 Then
-        Err.Clear
+    strTempFile = objFSO.GetSpecialFolder(2) & "\mcbopomofo_tasklist_" & objFSO.GetTempName()
+
+    ' Run tasklist silently and pipe output to temp file
+    objShell.Run "cmd.exe /c tasklist /m McBopomofoTIP*.dll > """ & strTempFile & """ 2>nul", 0, True
+
+    strOutput = ""
+    If objFSO.FileExists(strTempFile) Then
+        On Error Resume Next
+        Set objFile = objFSO.OpenTextFile(strTempFile, 1)
+        If Err.Number = 0 Then
+            If Not objFile.AtEndOfStream Then
+                strOutput = objFile.ReadAll()
+            End If
+            objFile.Close
+        End If
+        On Error Goto 0
+        objFSO.DeleteFile strTempFile, True
+    End If
+
+    If Len(strOutput) = 0 Then
         Exit Sub
     End If
-    On Error Goto 0
 
-    strOutput = objExec.StdOut.ReadAll()
     arrLines = Split(strOutput, vbCRLF)
 
     ReDim arrUniqueProcesses(0)
