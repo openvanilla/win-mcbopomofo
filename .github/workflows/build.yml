@@ -26,7 +26,10 @@ jobs:
         run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Install WiX Toolset
-        run: dotnet tool install --global wix --version 4.0.5
+        run: |
+          winget install --id WiXToolset.WiXCLI --accept-package-agreements --accept-source-agreements
+          $env:Path += ";C:\Program Files\WiX Toolset v7.0\bin"
+          wix eula accept wix7
 
       - name: Build MSI Installer
         run: .\build_msi.ps1
