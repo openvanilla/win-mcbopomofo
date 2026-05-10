@@ -332,10 +332,6 @@ private:
     std::function<void()> reloadUserPhrases_;
 };
 
-//bool IsCtrlSpace(const IPC::KeyEventPayload& key) {
-//    return key.vk == VK_SPACE && key.ctrl;
-//}
-
 #define IDM_SETTINGS 1003
 #define IDM_OPEN_USER_PHRASES 1004
 #define IDM_OPEN_EXCLUDED_PHRASES 1005
@@ -354,20 +350,13 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
       GetCursorPos(&pt);
       HMENU hMenu = CreatePopupMenu();
 
-      // bool isConversionEnabled =
-      //     g_Controller && g_Controller->isChineseConversionEnabled();
-      // LPCWSTR conversionText =
-      //     isConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文";
-      // UINT loggingFlags = MF_BYPOSITION | MF_STRING;
-      // if (ServerLoggingEnabled()) {
-      //   loggingFlags |= MF_CHECKED;
-      // }
+      UINT loggingFlags = MF_BYPOSITION | MF_STRING;
+      if (ServerLoggingEnabled()) {
+        loggingFlags |= MF_CHECKED;
+      }
 
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_SETTINGS,
                   L"設定");
-      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
-      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
-                  IDM_TOGGLE_CONVERSION, conversionText);
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
                   IDM_OPEN_USER_PHRASES, L"編輯使用者詞庫");
@@ -556,11 +545,6 @@ int main(int argc, char* argv[]) {
         if (IPC::DeserializeKeyEvent(req, keyReq)) {
             FCITX_MCBOPOMOFO_INFO() << "IPC Recv: VK=" << keyReq.vk << ", ASCII=" << keyReq.ascii << ", SHIFT=" << keyReq.shift << ", CTRL=" << keyReq.ctrl;
             bool consumed = true;
-            //if (IsCtrlSpace(keyReq)) {
-            //    FCITX_MCBOPOMOFO_INFO() << "IPC Ctrl+Space: Chinese/English mode toggle handled before input controller.";
-            //} else {
-
-            //}
             consumed = controller.handleKey(mapIpcKey(keyReq));
             ui.currentState.consumed = consumed;
             return IPC::SerializeStateUpdate(ui.currentState);

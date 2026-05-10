@@ -161,6 +161,20 @@ bool IsServerHandledShortcutKey(WPARAM wParam, const BYTE keyboardState[256]) {
   return ctrlPressed && IsServerHandledCtrlShortcutKey(wParam);
 }
 
+bool IsStandaloneModifierKey(WPARAM wParam) {
+  switch (wParam) {
+    case VK_SHIFT:
+    case VK_LSHIFT:
+    case VK_RSHIFT:
+    case VK_CONTROL:
+    case VK_LCONTROL:
+    case VK_RCONTROL:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool GetFocusedContext(ITfThreadMgr* threadMgr, ITfContext** context) {
   if (!threadMgr || !context) {
     return false;
@@ -464,6 +478,11 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
   GetKeyboardState(keyboardState);
 
   if (!IsOpen()) {
+    *pfEaten = FALSE;
+    return S_OK;
+  }
+
+  if (IsStandaloneModifierKey(wParam)) {
     *pfEaten = FALSE;
     return S_OK;
   }
