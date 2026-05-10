@@ -1,5 +1,48 @@
 #include "resource.h"
+#include <winres.h>
 
 IDI_ICON_APP ICON "res\\app.ico"
 IDI_ICON_ZH ICON "res\\zh.ico"
 IDI_ICON_EN ICON "res\\en.ico"
+
+#pragma code_page(65001)
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+    IDS_SWITCH_TO_ENGLISH          "Switch to English Mode (A)"
+    IDS_SWITCH_TO_CHINESE          "Switch to Chinese Mode (中)"
+    IDS_OUTPUT_SIMPLIFIED          "Output: Simplified Chinese"
+    IDS_OUTPUT_TRADITIONAL         "Output: Traditional Chinese"
+    IDS_PUNCTUATION_HALF           "Punctuation: Half-width"
+    IDS_PUNCTUATION_FULL           "Punctuation: Full-width"
+    IDS_ENABLE_ASSOCIATED_PHRASES  "Enable Associated Phrases"
+    IDS_ENABLE_BOPOMOFO_ANNOTATION "Enable Bopomofo Annotation"
+    IDS_SETTINGS                   "Settings"
+    IDS_EDIT_USER_PHRASES          "Edit User Phrases"
+    IDS_EDIT_EXCLUDED_PHRASES      "Edit Excluded Phrases"
+    IDS_OPEN_USER_DATA_FOLDER      "Open User Data Folder"
+    IDS_IME_MODE_TOOLTIP           "Chinese/Simplified/English Mode"
+    IDS_WIN_MCBOPOMOFO             "Win-McBopomofo"
+END
+
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
+STRINGTABLE
+BEGIN
+    IDS_SWITCH_TO_ENGLISH          "切換到英文模式 (A)"
+    IDS_SWITCH_TO_CHINESE          "切換到中文模式 (中)"
+    IDS_OUTPUT_SIMPLIFIED          "輸出：簡體中文"
+    IDS_OUTPUT_TRADITIONAL         "輸出：繁體中文"
+    IDS_PUNCTUATION_HALF           "標點：半形"
+    IDS_PUNCTUATION_FULL           "標點：全形"
+    IDS_ENABLE_ASSOCIATED_PHRASES  "啟用聯想詞"
+    IDS_ENABLE_BOPOMOFO_ANNOTATION "啟用注音標示"
+    IDS_SETTINGS                   "設定"
+    IDS_EDIT_USER_PHRASES          "編輯使用者詞庫"
+    IDS_EDIT_EXCLUDED_PHRASES      "編輯排除詞庫"
+    IDS_OPEN_USER_DATA_FOLDER      "開啟使用者資料夾"
+    IDS_IME_MODE_TOOLTIP           "中/簡/英文模式"
+    IDS_WIN_MCBOPOMOFO             "小麥注音"
+END
+
+

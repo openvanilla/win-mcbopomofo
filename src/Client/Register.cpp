@@ -24,10 +24,12 @@
 #include "Register.h"
 
 #include <strsafe.h>
+#include <string>
 
 #include "DisplayAttributeInfo.h"
 #include "Globals.h"
 #include "resource.h"
+#include "UTFHelper.h"
 
 // Profile GUID for McBopomofo (Genereted a new random one)
 // {A3668853-2ED4-4D4B-A951-DE1C8B4C0A29}
@@ -67,7 +69,9 @@ BOOL RegisterServer() {
   StringCchPrintfW(szKey, ARRAYSIZE(szKey), L"%s%s", c_szInfoKeyPrefix,
                    szCLSID);
 
-  if (!SetRegString(HKEY_CLASSES_ROOT, szKey, nullptr, L"Win-McBopomofo TIP"))
+  if (!SetRegString(
+          HKEY_CLASSES_ROOT, szKey, nullptr,
+          McBopomofo::LoadLocalizedStringW(g_hInst, IDS_WIN_MCBOPOMOFO).c_str()))
     return FALSE;
 
   WCHAR szInProcKey[256];
@@ -109,10 +113,11 @@ BOOL RegisterProfiles() {
   // Register for Traditional Chinese (Taiwan)
   LANGID langid = MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL);
 
+  std::wstring desc =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_WIN_MCBOPOMOFO);
   hr = pProfileMgr->RegisterProfile(
-      c_clsidMcBopomofoTIP, langid, c_guidMcBopomofoProfile, L"Win-McBopomofo",
-      (ULONG)wcslen(L"Win-McBopomofo"), szModulePath,
-      (ULONG)wcslen(szModulePath),
+      c_clsidMcBopomofoTIP, langid, c_guidMcBopomofoProfile, desc.c_str(),
+      (ULONG)desc.length(), szModulePath, (ULONG)wcslen(szModulePath),
       (UINT)-IDI_ICON_APP,  // Icon index (negative for resource ID)
       0,                    // hkl substitute
       0,                    // Preferred layout

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-US" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="ProductName" Value="Win-McBopomofo" />
+  <String Id="Manufacturer" Value="OpenVanila.org" />
+  <String Id="CoreFeatureTitle" Value="Win-McBopomofo Core" />
+  <String Id="ConfigShortcutName" Value="McBopomofo Configuration" />
+  <String Id="ConfigShortcutDesc" Value="Configure Win-McBopomofo Settings" />
+  <String Id="DowngradeError" Value="A newer version of [ProductName] is already installed." />
+</WixLocalization>

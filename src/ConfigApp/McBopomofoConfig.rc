@@ -1,3 +1,63 @@
 #include "resource.h"
+#include <winres.h>
 
 IDI_ICON_APP ICON "..\\Client\\res\\app.ico"
+
+#pragma code_page(65001)
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+    IDS_CONFIG_TITLE           "Win-McBopomofo Configuration"
+    IDS_RELOAD                 "Reload"
+    IDS_KEYBOARD_LAYOUT        "Keyboard Layout"
+    IDS_INPUT_MODE             "Input Mode"
+    IDS_CANDIDATE_WINDOW       "Candidate Window"
+    IDS_VERTICAL               "Vertical"
+    IDS_HORIZONTAL             "Horizontal"
+    IDS_CANDIDATE_KEYS         "Selection Keys"
+    IDS_CANDIDATES_PER_PAGE    "Candidates Per Page"
+    IDS_SELECTION_CURSOR       "Selection Cursor"
+    IDS_SELECT_BEFORE          "Select phrase before cursor"
+    IDS_SELECT_AFTER           "Select phrase after cursor"
+    IDS_MOVE_CURSOR            "Move cursor after selection"
+    IDS_INPUT_BEHAVIOR         "Input Behavior"
+    IDS_SHIFT_LETTER_UPPER     "Shift + Letter outputs Uppercase"
+    IDS_SHIFT_LETTER_LOWER     "Shift + Letter outputs Lowercase"
+    IDS_ESC_CLEAR              "Esc clears entire buffer"
+    IDS_SHIFT_ENTER            "Shift + Enter for associated phrases"
+    IDS_CTRL_ENTER             "Ctrl + Enter"
+    IDS_CANDIDATES_PUNCTUATION "Candidates & Punctuation"
+    IDS_REPEATED_PUNCTUATION   "Choose punctuation on repeated key"
+    IDS_CHOOSE_SPACE           "Use Space to choose candidate"
+END
+
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
+STRINGTABLE
+BEGIN
+    IDS_CONFIG_TITLE           "小麥注音偏好設定"
+    IDS_RELOAD                 "重新載入"
+    IDS_KEYBOARD_LAYOUT        "鍵盤佈局"
+    IDS_INPUT_MODE             "輸入模式"
+    IDS_CANDIDATE_WINDOW       "候選字窗"
+    IDS_VERTICAL               "垂直"
+    IDS_HORIZONTAL             "水平"
+    IDS_CANDIDATE_KEYS         "選字按鍵"
+    IDS_CANDIDATES_PER_PAGE    "每頁候選字"
+    IDS_SELECTION_CURSOR       "選字游標"
+    IDS_SELECT_BEFORE          "以游標前方字詞為候選字"
+    IDS_SELECT_AFTER           "以游標後方字詞為候選字"
+    IDS_MOVE_CURSOR            "選字後移動游標"
+    IDS_INPUT_BEHAVIOR         "輸入行為"
+    IDS_SHIFT_LETTER_UPPER     "Shift + 字母輸出大寫字母"
+    IDS_SHIFT_LETTER_LOWER     "Shift + 字母輸出小寫字母"
+    IDS_ESC_CLEAR              "Esc 清除整個輸入緩衝區"
+    IDS_SHIFT_ENTER            "Shift + Enter 顯示聯想詞"
+    IDS_CTRL_ENTER             "Ctrl + Enter"
+    IDS_CANDIDATES_PUNCTUATION "候選字與標點"
+    IDS_REPEATED_PUNCTUATION   "重複標點時選擇候選標點"
+    IDS_CHOOSE_SPACE           "使用空白鍵選取候選字"
+END
+
+
+

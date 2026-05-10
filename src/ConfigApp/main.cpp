@@ -36,6 +36,7 @@
 #include "NamedPipe.h"
 #include "Settings.h"
 #include "resource.h"
+#include "../Common/UTFHelper.h"
 
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "uxtheme.lib")
@@ -523,41 +524,53 @@ void SaveAndNotify() {
 
 void CreateControls(HWND hwnd) {
   g_ContentHeight = 0;
-  CreateSectionTitle(hwnd, L"小麥注音偏好設定", 28, 22, 520);
+  HINSTANCE hInst = GetModuleHandle(nullptr);
+
+  CreateSectionTitle(hwnd, LoadLocalizedStringW(hInst, IDS_CONFIG_TITLE).c_str(), 28, 22, 520);
 
   hReloadBtn = CreateWindowW(
-      L"Button", L"重新載入", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_OWNERDRAW,
-      Scale(468), Scale(20), Scale(104), Scale(34), hwnd,
+      L"Button", LoadLocalizedStringW(hInst, IDS_RELOAD).c_str(),
+      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_OWNERDRAW, Scale(468), Scale(20),
+      Scale(104), Scale(34), hwnd,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(kReloadCommand)), nullptr,
       nullptr);
   TrackControl(hReloadBtn);
   TrackContentBottom(20, 34);
 
   CreateGroup(hwnd, 24, 72, 548, 116);
-  CreateLabel(hwnd, L"鍵盤佈局", 56, 104, 140);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_KEYBOARD_LAYOUT).c_str(), 56,
+              104, 140);
   hLayoutCombo = CreateCombo(hwnd, 210, 100, 260);
   for (const auto& option : kLayoutOptions) {
     AddComboString(hLayoutCombo, option.label);
   }
 
-  CreateLabel(hwnd, L"輸入模式", 56, 144, 140);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_INPUT_MODE).c_str(), 56, 144,
+              140);
   hModeCombo = CreateCombo(hwnd, 210, 140, 260);
   for (const auto* label : kInputModeLabels) {
     AddComboString(hModeCombo, label);
   }
 
   CreateGroup(hwnd, 24, 206, 548, 284);
-  CreateLabel(hwnd, L"候選字窗", 56, 240, 140);
-  hVerticalRadio = CreateRadio(hwnd, L"垂直", 210, 236, 120, true);
-  hHorizontalRadio = CreateRadio(hwnd, L"水平", 210, 268, 120, false);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATE_WINDOW).c_str(),
+              56, 240, 140);
+  hVerticalRadio =
+      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_VERTICAL).c_str(), 210,
+                  236, 120, true);
+  hHorizontalRadio =
+      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_HORIZONTAL).c_str(), 210,
+                  268, 120, false);
 
-  CreateLabel(hwnd, L"選字按鍵", 56, 310, 140);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATE_KEYS).c_str(), 56,
+              310, 140);
   hCandidateKeysCombo = CreateCombo(hwnd, 210, 306, 260);
   for (const auto& option : kCandidateKeyOptions) {
     AddComboString(hCandidateKeysCombo, option.label);
   }
 
-  CreateLabel(hwnd, L"每頁候選字", 56, 350, 140);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATES_PER_PAGE).c_str(),
+              56, 350, 140);
   hCandidateKeysCountCombo = CreateCombo(hwnd, 210, 346, 120);
   for (int count = 4; count <= 9; ++count) {
     wchar_t text[4] = {};
@@ -565,34 +578,51 @@ void CreateControls(HWND hwnd) {
     AddComboString(hCandidateKeysCountCombo, text);
   }
 
-  CreateLabel(hwnd, L"選字游標", 56, 390, 140);
-  hSelectBeforeRadio =
-      CreateRadio(hwnd, L"以游標前方字詞為候選字", 210, 386, 310, true);
-  hSelectAfterRadio =
-      CreateRadio(hwnd, L"以游標後方字詞為候選字", 210, 418, 310, false);
-  hMoveCursorCheck = CreateCheck(hwnd, L"選字後移動游標", 210, 450, 280);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SELECTION_CURSOR).c_str(),
+              56, 390, 140);
+  hSelectBeforeRadio = CreateRadio(
+      hwnd, LoadLocalizedStringW(hInst, IDS_SELECT_BEFORE).c_str(), 210, 386,
+      310, true);
+  hSelectAfterRadio = CreateRadio(
+      hwnd, LoadLocalizedStringW(hInst, IDS_SELECT_AFTER).c_str(), 210, 418, 310,
+      false);
+  hMoveCursorCheck =
+      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_MOVE_CURSOR).c_str(),
+                  210, 450, 280);
 
   CreateGroup(hwnd, 24, 508, 548, 184);
-  CreateLabel(hwnd, L"輸入行為", 56, 542, 140);
-  hUppercaseRadio =
-      CreateRadio(hwnd, L"Shift + 字母輸出大寫字母", 210, 538, 320, true);
-  hLowercaseRadio =
-      CreateRadio(hwnd, L"Shift + 字母輸出小寫字母", 210, 570, 320, false);
-  hEscClearCheck = CreateCheck(hwnd, L"Esc 清除整個輸入緩衝區", 210, 602, 320);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_INPUT_BEHAVIOR).c_str(), 56,
+              542, 140);
+  hUppercaseRadio = CreateRadio(
+      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER_UPPER).c_str(), 210,
+      538, 320, true);
+  hLowercaseRadio = CreateRadio(
+      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER_LOWER).c_str(), 210,
+      570, 320, false);
+  hEscClearCheck =
+      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_ESC_CLEAR).c_str(), 210,
+                  602, 320);
   hShiftEnterCheck =
-      CreateCheck(hwnd, L"Shift + Enter 顯示聯想詞", 210, 634, 320);
+      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_ENTER).c_str(),
+                  210, 634, 320);
 
-  CreateLabel(hwnd, L"Ctrl + Enter", 56, 666, 140);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CTRL_ENTER).c_str(), 56, 666,
+              140);
   hCtrlEnterCombo = CreateCombo(hwnd, 210, 662, 260);
   for (const auto& option : kCtrlEnterOptions) {
     AddComboString(hCtrlEnterCombo, option.label);
   }
 
   CreateGroup(hwnd, 24, 710, 548, 108);
-  CreateLabel(hwnd, L"候選字與標點", 56, 744, 140);
-  hRepeatedPunctuationCheck =
-      CreateCheck(hwnd, L"重複標點時選擇候選標點", 210, 740, 330);
-  hChooseSpaceCheck = CreateCheck(hwnd, L"使用空白鍵選取候選字", 210, 772, 320);
+  CreateLabel(hwnd,
+              LoadLocalizedStringW(hInst, IDS_CANDIDATES_PUNCTUATION).c_str(),
+              56, 744, 140);
+  hRepeatedPunctuationCheck = CreateCheck(
+      hwnd, LoadLocalizedStringW(hInst, IDS_REPEATED_PUNCTUATION).c_str(), 210,
+      740, 330);
+  hChooseSpaceCheck =
+      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_CHOOSE_SPACE).c_str(),
+                  210, 772, 320);
 
   UpdateUI();
   ApplyThemeToControls();
@@ -768,8 +798,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
   wcex.lpszClassName = kClassName;
   RegisterClassExW(&wcex);
 
+  std::wstring windowTitle = LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE);
   HWND hwnd =
-      CreateWindowExW(WS_EX_CONTROLPARENT, kClassName, L"小麥注音偏好設定",
+      CreateWindowExW(WS_EX_CONTROLPARENT, kClassName, windowTitle.c_str(),
                       WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX | WS_VSCROLL,
                       CW_USEDEFAULT, CW_USEDEFAULT, Scale(620), Scale(640),
                       nullptr, nullptr, hInstance, nullptr);

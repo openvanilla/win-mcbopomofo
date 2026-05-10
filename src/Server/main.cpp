@@ -365,24 +365,30 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
         loggingFlags |= MF_CHECKED;
       }
 
+      HINSTANCE hInst = GetModuleHandle(NULL);
+
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_SETTINGS,
-                  L"設定");
+                  LoadLocalizedStringW(hInst, IDS_SETTINGS).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
-                  IDM_OPEN_USER_PHRASES, L"編輯使用者詞庫");
+                  IDM_OPEN_USER_PHRASES,
+                  LoadLocalizedStringW(hInst, IDS_EDIT_USER_PHRASES).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
-                  IDM_OPEN_EXCLUDED_PHRASES, L"編輯排除詞庫");
+                  IDM_OPEN_EXCLUDED_PHRASES,
+                  LoadLocalizedStringW(hInst, IDS_EDIT_EXCLUDED_PHRASES).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
-                  IDM_OPEN_USER_DIR, L"開啟使用者資料夾");
+                  IDM_OPEN_USER_DIR,
+                  LoadLocalizedStringW(hInst, IDS_OPEN_USER_DATA_FOLDER).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
-                  IDM_OPEN_LOG_FOLDER, L"開啟 Log 資料夾");
+                  IDM_OPEN_LOG_FOLDER,
+                  LoadLocalizedStringW(hInst, IDS_OPEN_LOG_FOLDER).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, loggingFlags, IDM_TOGGLE_LOGGING,
-                  L"啟用 Logging");
+                  LoadLocalizedStringW(hInst, IDS_ENABLE_LOGGING).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_TRACE_LOG,
-                  L"Trace Log");
+                  LoadLocalizedStringW(hInst, IDS_TRACE_LOG).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_RESTART,
-                  L"重新啟動 Server");
+                  LoadLocalizedStringW(hInst, IDS_RESTART_SERVER).c_str());
       SetForegroundWindow(hwnd);
       TrackPopupMenu(hMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0,
                      hwnd, NULL);
@@ -428,7 +434,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     return 0;
   }
 
-  FCITX_MCBOPOMOFO_INFO() << "Win-McBopomofo Server daemon starting...";
+  HINSTANCE hInst = GetModuleHandle(NULL);
+  FCITX_MCBOPOMOFO_INFO() << Utf16ToUtf8(LoadLocalizedStringW(hInst, IDS_DAEMON_STARTING));
 
   WCHAR szExePath[MAX_PATH];
   GetModuleFileNameW(NULL, szExePath, MAX_PATH);
@@ -624,12 +631,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
   nid.uCallbackMessage = WM_USER_TRAY;
   nid.hIcon = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
-  wcscpy_s(nid.szTip, L"小麥注音 Server");
+  wcscpy_s(nid.szTip, LoadLocalizedStringW(hInst, IDS_TRAY_TIP).c_str());
 
   Shell_NotifyIconW(NIM_ADD, &nid);
 
   FCITX_MCBOPOMOFO_INFO()
-      << "Server is running in background. Check System Tray to exit.";
+      << Utf16ToUtf8(LoadLocalizedStringW(hInst, IDS_SERVER_RUNNING));
 
   // Standard message loop to keep the process alive and poll file changes.
   MSG msg;

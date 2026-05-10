@@ -34,6 +34,8 @@
 #include "NamedPipe.h"
 #include "PathCompat.h"
 #include "Register.h"
+#include "resource.h"
+#include "UTFHelper.h"
 
 // GUID of the IME mode icon in Windows 8/10
 extern const GUID GUID_LBI_INPUTMODE = {
@@ -108,25 +110,52 @@ std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip) {
   const bool bopomofoFontAnnotationEnabled =
       ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false);
 
+  static std::wstring switchEnglish =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_SWITCH_TO_ENGLISH);
+  static std::wstring switchChinese =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_SWITCH_TO_CHINESE);
+  static std::wstring outputSimplified =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_OUTPUT_SIMPLIFIED);
+  static std::wstring outputTraditional =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_OUTPUT_TRADITIONAL);
+  static std::wstring punctuationHalf =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_PUNCTUATION_HALF);
+  static std::wstring punctuationFull =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_PUNCTUATION_FULL);
+  static std::wstring enableAssoc =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_ENABLE_ASSOCIATED_PHRASES);
+  static std::wstring enableAnnot =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_ENABLE_BOPOMOFO_ANNOTATION);
+  static std::wstring settingsStr =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_SETTINGS);
+  static std::wstring editUser =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_EDIT_USER_PHRASES);
+  static std::wstring editExcluded =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_EDIT_EXCLUDED_PHRASES);
+  static std::wstring openUserData =
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_OPEN_USER_DATA_FOLDER);
+
   return {
       {MENU_TOGGLE_OPEN_CLOSE,
-       isOpen ? L"切換到英文模式 (A)" : L"切換到中文模式 (中)", false, false},
+       isOpen ? switchEnglish.c_str() : switchChinese.c_str(), false, false},
       {0, nullptr, false, true},
       {MENU_TOGGLE_CHINESE_CONVERSION,
-       chineseConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文", false,
-       false},
+       chineseConversionEnabled ? outputSimplified.c_str()
+                                : outputTraditional.c_str(),
+       false, false},
       {MENU_TOGGLE_HALF_WIDTH_PUNCTUATION,
-       halfWidthPunctuationEnabled ? L"標點：半形" : L"標點：全形", false,
-       false},
-      {MENU_TOGGLE_ASSOCIATED_PHRASES, L"啟用聯想詞", associatedPhrasesEnabled,
-       false},
-      {MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION, L"啟用注音標示",
+       halfWidthPunctuationEnabled ? punctuationHalf.c_str()
+                                   : punctuationFull.c_str(),
+       false, false},
+      {MENU_TOGGLE_ASSOCIATED_PHRASES, enableAssoc.c_str(),
+       associatedPhrasesEnabled, false},
+      {MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION, enableAnnot.c_str(),
        bopomofoFontAnnotationEnabled, false},
       {0, nullptr, false, true},
-      {MENU_OPEN_SETTINGS, L"設定", false, false},
-      {MENU_EDIT_USER_PHRASES, L"編輯使用者詞庫", false, false},
-      {MENU_EDIT_EXCLUDED_PHRASES, L"編輯排除詞庫", false, false},
-      {MENU_OPEN_USER_DATA_FOLDER, L"開啟使用者資料夾", false, false},
+      {MENU_OPEN_SETTINGS, settingsStr.c_str(), false, false},
+      {MENU_EDIT_USER_PHRASES, editUser.c_str(), false, false},
+      {MENU_EDIT_EXCLUDED_PHRASES, editExcluded.c_str(), false, false},
+      {MENU_OPEN_USER_DATA_FOLDER, openUserData.c_str(), false, false},
   };
 }
 
@@ -234,7 +263,8 @@ STDMETHODIMP CLangBarButton::Show(BOOL fShow) {
 
 STDMETHODIMP CLangBarButton::GetTooltipString(BSTR* pbstrToolTip) {
   if (!pbstrToolTip) return E_INVALIDARG;
-  *pbstrToolTip = SysAllocString(L"中/簡/英文模式");
+  *pbstrToolTip = SysAllocString(
+      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_IME_MODE_TOOLTIP).c_str());
   return S_OK;
 }
 

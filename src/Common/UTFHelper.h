@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #pragma once
+#include <windows.h>
 #include <string>
 
 namespace McBopomofo {
@@ -29,5 +30,6 @@ namespace McBopomofo {
 std::wstring Utf8ToUtf16(const std::string& utf8);
 std::string Utf16ToUtf8(const std::wstring& utf16);
 size_t Utf8OffsetToUtf16Offset(const std::string& utf8, size_t utf8Offset);
+std::wstring LoadLocalizedStringW(HINSTANCE hInstance, UINT uID);
 
 }  // namespace McBopomofo

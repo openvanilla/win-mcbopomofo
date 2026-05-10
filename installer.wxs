@@ -3,8 +3,8 @@
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <!-- Use a static upgrade code to allow seamless upgrades later -->
-  <Package Name="Win-McBopomofo"
-           Manufacturer="McBopomofo Authors"
+  <Package Name="!(loc.ProductName)"
+           Manufacturer="!(loc.Manufacturer)"
            Version="1.0.0.0"
            UpgradeCode="4e4b52c0-cf52-47b1-9b7e-976c6dfcbb17"
            Scope="perMachine"
@@ -19,7 +19,7 @@
     <WixVariable Id="WixUILicenseRtf" Value="build_msi_generated\LICENSE.rtf" />
 
     <MajorUpgrade AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+                  DowngradeErrorMessage="!(loc.DowngradeError)" />
 
     <!-- Ensure cab files are embedded in the MSI -->
     <MediaTemplate EmbedCab="yes" />
@@ -100,8 +100,8 @@
       <!-- Start Menu Shortcut -->
       <Component Id="ApplicationShortcutX86" Guid="7ab59b8a-b853-4702-abaa-281ceeb7357c" Condition="NOT VersionNT64">
         <Shortcut Id="ApplicationStartMenuShortcut" 
-                  Name="McBopomofo Configuration" 
-                  Description="Configure Win-McBopomofo Settings"
+                  Name="!(loc.ConfigShortcutName)" 
+                  Description="!(loc.ConfigShortcutDesc)"
                   Target="[INSTALLFOLDER]McBopomofoConfig_x86.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Directory="ApplicationProgramsFolder" />
@@ -109,8 +109,8 @@
       </Component>
       <Component Id="ApplicationShortcutX64" Guid="4fd147f5-cfd2-4960-b145-77a08ee2a6f0" Condition="VersionNT64 AND WIX_NATIVE_MACHINE = 34404">
         <Shortcut Id="ApplicationStartMenuShortcutX64" 
-                  Name="McBopomofo Configuration" 
-                  Description="Configure Win-McBopomofo Settings"
+                  Name="!(loc.ConfigShortcutName)" 
+                  Description="!(loc.ConfigShortcutDesc)"
                   Target="[INSTALLFOLDER]McBopomofoConfig_x64.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Directory="ApplicationProgramsFolder" />
@@ -118,8 +118,8 @@
       </Component>
       <Component Id="ApplicationShortcutArm64" Guid="99ca3024-dfe5-4352-b89b-1fc98a251dd0" Condition="WIX_NATIVE_MACHINE = 43620">
         <Shortcut Id="ApplicationStartMenuShortcutArm64" 
-                  Name="McBopomofo Configuration" 
-                  Description="Configure Win-McBopomofo Settings"
+                  Name="!(loc.ConfigShortcutName)" 
+                  Description="!(loc.ConfigShortcutDesc)"
                   Target="[INSTALLFOLDER]McBopomofoConfig_arm64.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Directory="ApplicationProgramsFolder" />
@@ -246,7 +246,7 @@
       <Custom Action="StartServer_ARM64" After="InstallFinalize" Condition="NOT REMOVE=&quot;ALL&quot; AND WIX_NATIVE_MACHINE = 43620" />
     </InstallExecuteSequence>
 
-    <Feature Id="MainFeature" Title="Win-McBopomofo Core" Level="1">
+    <Feature Id="MainFeature" Title="!(loc.CoreFeatureTitle)" Level="1">
       <ComponentGroupRef Id="ProductComponents" />
       <ComponentGroupRef Id="DataComponents" />
     </Feature>

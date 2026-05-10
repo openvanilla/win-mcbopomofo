@@ -65,4 +65,13 @@ size_t Utf8OffsetToUtf16Offset(const std::string& utf8, size_t utf8Offset) {
   return Utf8ToUtf16(sub).length();
 }
 
+std::wstring LoadLocalizedStringW(HINSTANCE hInstance, UINT uID) {
+  LPWSTR lpBuffer = nullptr;
+  int length = LoadStringW(hInstance, uID, reinterpret_cast<LPWSTR>(&lpBuffer), 0);
+  if (length > 0) {
+    return std::wstring(lpBuffer, length);
+  }
+  return L"";
+}
+
 }  // namespace McBopomofo

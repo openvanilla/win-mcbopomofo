@@ -1,3 +1,40 @@
 #include "resource.h"
+#include <winres.h>
 
 IDI_ICON_APP ICON "..\\Client\\res\\app.ico"
+
+#pragma code_page(65001)
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+    IDS_SETTINGS                   "Settings"
+    IDS_EDIT_USER_PHRASES          "Edit User Phrases"
+    IDS_EDIT_EXCLUDED_PHRASES      "Edit Excluded Phrases"
+    IDS_OPEN_USER_DATA_FOLDER      "Open User Data Folder"
+    IDS_OPEN_LOG_FOLDER            "Open Log Folder"
+    IDS_ENABLE_LOGGING             "Enable Logging"
+    IDS_TRACE_LOG                  "Trace Log"
+    IDS_RESTART_SERVER             "Restart Server"
+    IDS_TRAY_TIP                   "Win-McBopomofo Server"
+    IDS_DAEMON_STARTING            "Win-McBopomofo Server daemon starting..."
+    IDS_SERVER_RUNNING             "Server is running in background. Check System Tray to exit."
+END
+
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
+STRINGTABLE
+BEGIN
+    IDS_SETTINGS                   "設定"
+    IDS_EDIT_USER_PHRASES          "編輯使用者詞庫"
+    IDS_EDIT_EXCLUDED_PHRASES      "編輯排除詞庫"
+    IDS_OPEN_USER_DATA_FOLDER      "開啟使用者資料夾"
+    IDS_OPEN_LOG_FOLDER            "開啟 Log 資料夾"
+    IDS_ENABLE_LOGGING             "啟用 Logging"
+    IDS_TRACE_LOG                  "Trace Log"
+    IDS_RESTART_SERVER             "重新啟動 Server"
+    IDS_TRAY_TIP                   "小麥注音 Server"
+    IDS_DAEMON_STARTING            "小麥注音 Server 啟動中..."
+    IDS_SERVER_RUNNING             "Server 正在背景執行，請檢查系統匣圖示。"
+END
+
+

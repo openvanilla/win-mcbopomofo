@@ -312,6 +312,9 @@ function Invoke-Wix4Build([string]$WixExe, [string]$MsiPath, [string]$X64BinDir,
         -ext $uiRef `
         -ext $utilRef `
         .\installer.wxs `
+        .\zh-TW.wxl `
+        .\en-US.wxl `
+        -cultures zh-TW `
         -o $MsiPath `
         -b "X64BinDir=$X64BinDir" `
         -b "X86BinDir=$X86BinDir" `
@@ -362,6 +365,9 @@ if ($WixMajorVersion -eq 4) {
         -ext $UiExtension `
         -ext $UtilExtension `
         .\installer.wxs `
+        .\zh-TW.wxl `
+        .\en-US.wxl `
+        -cultures zh-TW `
         -o $MsiPath `
         -b "X64BinDir=$X64BinDir" `
         -b "X86BinDir=$X86BinDir" `
