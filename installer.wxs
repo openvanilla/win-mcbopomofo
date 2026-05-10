@@ -229,9 +229,8 @@
                   Return="asyncNoWait" />
 
     <InstallExecuteSequence>
-      <!-- Check for and close applications with loaded TIP DLL before installation starts -->
       <Custom Action="CheckAndCloseAppsWithTIP" Before="InstallInitialize" Condition="NOT REMOVE=&quot;ALL&quot;" />
-      
+
       <Custom Action="UnregisterTIP_X86" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT VersionNT64" />
       <Custom Action="UnregisterTIP_X64" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND VersionNT64 AND WIX_NATIVE_MACHINE = 34404" />
       <Custom Action="UnregisterTIP_ARM64" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND WIX_NATIVE_MACHINE = 43620" />
