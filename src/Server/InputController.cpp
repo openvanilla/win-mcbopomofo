@@ -9,6 +9,7 @@
 #include "UTF8Helper.h"
 #include "McBopomofoLM.h"
 #include "Log.h"
+#include "Ipc.h"
 
 namespace McBopomofo {
 
@@ -85,6 +86,13 @@ bool IsForcedVerticalCandidateState(InputState* state) {
     return false;
 }
 
+bool IsShiftKeySelectionCandidateState(InputState* state) {
+    if (auto* associated = dynamic_cast<InputStates::AssociatedPhrases*>(state)) {
+        return associated->useShiftKey;
+    }
+    return dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state) != nullptr;
+}
+
 int SelectionIndexFromKey(const Key& key, bool useShiftKey, const std::string& candidateKeys, int candidateKeysCount) {
     if (useShiftKey) {
         if (!key.shiftPressed) {
@@ -133,6 +141,112 @@ bool HasInvalidDictionaryPrefix(const std::string& reading) {
 }
 
 }  // namespace
+
+void InputController::NotifyUI() {
+    if (ui_) {
+        ui_->Update(BuildStateUpdatePayload());
+    }
+}
+
+IPC::StateUpdatePayload InputController::BuildStateUpdatePayload() const {
+    IPC::StateUpdatePayload payload;
+    payload.forceVertical = false;
+    payload.useShiftKeySelection = false;
+    payload.markStart = -1;
+    payload.markEnd = -1;
+    payload.candidateIndex = candidateIndex_;
+
+    auto* state = currentState_.get();
+    if (auto* notEmptyState = dynamic_cast<InputStates::NotEmpty*>(state)) {
+        payload.tooltip = notEmptyState->tooltip;
+    }
+
+    if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||
+        dynamic_cast<InputStates::SelectingDictionary*>(state) != nullptr ||
+        dynamic_cast<InputStates::ShowingCharInfo*>(state) != nullptr ||
+        dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr ||
+        dynamic_cast<InputStates::SelectingDateMacro*>(state) != nullptr) {
+        payload.forceVertical = true;
+    }
+
+    if (auto* inputting = dynamic_cast<InputStates::Inputting*>(state)) {
+        payload.composingBuffer = inputting->composingBuffer;
+        payload.cursorIndex = static_cast<int>(inputting->cursorIndex);
+    } else if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(state)) {
+        payload.composingBuffer = choosing->composingBuffer;
+        payload.cursorIndex = static_cast<int>(choosing->cursorIndex);
+        for (const auto& c : choosing->candidates) {
+            payload.candidates.push_back(c.value);
+            if (CodePointCount(c.value) > 8) {
+                payload.forceVertical = true;
+            }
+        }
+    } else if (auto* selDict = dynamic_cast<InputStates::SelectingDictionary*>(state)) {
+        payload.composingBuffer = selDict->composingBuffer;
+        payload.cursorIndex = static_cast<int>(selDict->cursorIndex);
+        for (const auto& m : selDict->menu) {
+            payload.candidates.push_back(m);
+        }
+    } else if (auto* charInfo = dynamic_cast<InputStates::ShowingCharInfo*>(state)) {
+        payload.composingBuffer = charInfo->composingBuffer;
+        payload.cursorIndex = static_cast<int>(charInfo->cursorIndex);
+        payload.candidates = {
+            "UTF8 String Length: " + std::to_string(charInfo->selectedPhrase.length()),
+            "Code Point Count: " + std::to_string(CodePointCount(charInfo->selectedPhrase))
+        };
+    } else if (auto* marking = dynamic_cast<InputStates::Marking*>(state)) {
+        payload.composingBuffer = marking->composingBuffer;
+        payload.cursorIndex = static_cast<int>(marking->cursorIndex);
+        payload.markStart = static_cast<int>(marking->head.length());
+        payload.markEnd =
+            static_cast<int>(marking->head.length() + marking->markedText.length());
+    } else if (auto* assoc = dynamic_cast<InputStates::AssociatedPhrases*>(state)) {
+        payload.composingBuffer = assoc->composingBuffer;
+        payload.cursorIndex = static_cast<int>(assoc->cursorIndex);
+        payload.useShiftKeySelection = assoc->useShiftKey;
+        for (const auto& c : assoc->candidates) {
+            payload.candidates.push_back(c.value);
+        }
+    } else if (auto* assocPlain =
+                   dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state)) {
+        payload.useShiftKeySelection = true;
+        for (const auto& c : assocPlain->candidates) {
+            payload.candidates.push_back(c.value);
+        }
+    } else if (auto* numInput = dynamic_cast<InputStates::NumberInput*>(state)) {
+        payload.composingBuffer = numInput->composingBuffer;
+        payload.cursorIndex = static_cast<int>(numInput->cursorIndex);
+        for (const auto& c : numInput->candidates) {
+            payload.candidates.push_back(c);
+        }
+    } else if (auto* big5 = dynamic_cast<InputStates::Big5*>(state)) {
+        payload.composingBuffer = big5->composingBuffer();
+        payload.cursorIndex = static_cast<int>(payload.composingBuffer.length());
+    } else if (auto* irohaState = dynamic_cast<InputStates::Iroha*>(state)) {
+        payload.composingBuffer = irohaState->composingBuffer();
+        payload.cursorIndex = static_cast<int>(payload.composingBuffer.length());
+    } else if (auto* selectingFeature =
+                   dynamic_cast<InputStates::SelectingFeature*>(state)) {
+        for (const auto& feature : selectingFeature->features) {
+            payload.candidates.push_back(feature.name);
+        }
+    } else if (auto* selectingDateMacro =
+                   dynamic_cast<InputStates::SelectingDateMacro*>(state)) {
+        payload.candidates = selectingDateMacro->menu;
+    } else if (auto* iroha = dynamic_cast<InputStates::IrohaCandidate*>(state)) {
+        payload.composingBuffer = iroha->composingBuffer();
+        payload.cursorIndex = static_cast<int>(payload.composingBuffer.length());
+        payload.candidates = iroha->candidates;
+    } else if (auto* customMenu = dynamic_cast<InputStates::CustomMenu*>(state)) {
+        payload.composingBuffer = customMenu->composingBuffer;
+        payload.cursorIndex = static_cast<int>(customMenu->cursorIndex);
+        for (const auto& entry : customMenu->entries) {
+            payload.candidates.push_back(entry.name);
+        }
+    }
+
+    return payload;
+}
 
 InputController::InputController(std::shared_ptr<KeyHandler> keyHandler, UIInterface* ui)
     : keyHandler_(std::move(keyHandler)), ui_(ui) {
@@ -206,6 +320,28 @@ bool InputController::HandleKey(const Key& key) {
                 },
                 []() {})) {
             return true;
+        }
+    }
+
+    if (IsShiftKeySelectionCandidateState(currentState_.get())) {
+        int selectionIndex =
+            SelectionIndexFromKey(key, true, candidateKeys_, candidateKeysCount_);
+        if (selectionIndex == -1) {
+            if (auto* associated =
+                    dynamic_cast<InputStates::AssociatedPhrases*>(currentState_.get())) {
+                if (auto* inputting = dynamic_cast<InputStates::Inputting*>(
+                        associated->previousState.get())) {
+                    ChangeState(std::move(currentState_),
+                                std::make_unique<InputStates::Inputting>(*inputting));
+                } else {
+                    ChangeState(std::move(currentState_),
+                                std::make_unique<InputStates::EmptyIgnoringPrevious>());
+                }
+            } else if (dynamic_cast<InputStates::AssociatedPhrasesPlain*>(
+                           currentState_.get()) != nullptr) {
+                ChangeState(std::move(currentState_),
+                            std::make_unique<InputStates::EmptyIgnoringPrevious>());
+            }
         }
     }
 
@@ -299,9 +435,7 @@ bool InputController::HandleCandidateKey(const Key& key) {
             return false;
         }
         MoveCandidatePage(true);
-        if (ui_) {
-            ui_->Update(currentState_.get());
-        }
+        NotifyUI();
         return true;
     }
 
@@ -389,9 +523,7 @@ bool InputController::HandleCandidateNavigation(const Key& key) {
         return false;
     }
 
-    if (ui_) {
-        ui_->Update(currentState_.get());
-    }
+    NotifyUI();
     return true;
 }
 
@@ -789,7 +921,7 @@ void InputController::ChangeState(std::unique_ptr<InputState> previousState,
         if (ui_) ui_->CommitString(commitText);
         newState = std::make_unique<InputStates::Empty>();
         currentState_ = std::move(newState);
-        if (ui_) ui_->Update(currentState_.get());
+        NotifyUI();
         return;
     }
 
@@ -804,7 +936,7 @@ void InputController::ChangeState(std::unique_ptr<InputState> previousState,
         }
         currentState_ = std::move(newState);
         candidateIndex_ = -1;
-        if (ui_) ui_->Update(currentState_.get());
+        NotifyUI();
         return;
     }
 
@@ -812,7 +944,7 @@ void InputController::ChangeState(std::unique_ptr<InputState> previousState,
         if (ui_) ui_->Reset();
         currentState_ = std::make_unique<InputStates::Empty>();
         candidateIndex_ = -1;
-        if (ui_) ui_->Update(currentState_.get());
+        NotifyUI();
         return;
     }
     
@@ -837,7 +969,7 @@ void InputController::ChangeState(std::unique_ptr<InputState> previousState,
     }
 
     currentState_ = std::move(newState);
-    if (ui_) ui_->Update(currentState_.get());
+    NotifyUI();
 }
 
 } // namespace McBopomofo

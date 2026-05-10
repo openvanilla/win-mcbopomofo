@@ -230,6 +230,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                     // Apply marking attribute to the marked portion
                     size_t startOffset = McBopomofo::Utf8OffsetToUtf16Offset(_state.composingBuffer, _state.markStart);
                     size_t endOffset = McBopomofo::Utf8OffsetToUtf16Offset(_state.composingBuffer, _state.markEnd);
+                    size_t markLength = endOffset >= startOffset ? endOffset - startOffset : 0;
                     
                     ITfRange* pMarkRange = nullptr;
                     if (SUCCEEDED(pRange->Clone(&pMarkRange))) {
@@ -237,7 +238,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                         // Collapse to start, then shift to the marked range
                         pMarkRange->Collapse(ec, TF_ANCHOR_START);
                         pMarkRange->ShiftStart(ec, (LONG)startOffset, &cch, nullptr);
-                        pMarkRange->ShiftEnd(ec, (LONG)endOffset, &cch, nullptr);
+                        pMarkRange->ShiftEnd(ec, (LONG)markLength, &cch, nullptr);
                         SetDisplayAttribute(ec, _pContext, pMarkRange, gaMarked);
                         pMarkRange->Release();
                     }
@@ -301,7 +302,9 @@ if (!_state.tooltip.empty()) {
     _pTIP->GetCandidateWindow()->Hide();
 } else {
     _pTIP->GetTooltipWindow()->Hide();
-    _pTIP->GetCandidateWindow()->UpdateUI(_state.candidates, _state.candidateIndex, _state.forceVertical);
+    _pTIP->GetCandidateWindow()->UpdateUI(
+        _state.candidates, _state.candidateIndex, _state.forceVertical,
+        _state.useShiftKeySelection);
 }
 
 return S_OK;

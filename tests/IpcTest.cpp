@@ -14,6 +14,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     payload.markStart = 1;
     payload.markEnd = 4;
     payload.forceVertical = true;
+    payload.useShiftKeySelection = true;
     payload.tooltip = "tip\ntext";
     payload.candidates = {
         "一二三",
@@ -33,6 +34,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     EXPECT_EQ(decoded.markStart, payload.markStart);
     EXPECT_EQ(decoded.markEnd, payload.markEnd);
     EXPECT_EQ(decoded.forceVertical, payload.forceVertical);
+    EXPECT_EQ(decoded.useShiftKeySelection, payload.useShiftKeySelection);
     EXPECT_EQ(decoded.tooltip, payload.tooltip);
     EXPECT_EQ(decoded.candidates, payload.candidates);
 }
@@ -40,6 +42,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
 TEST(IpcTest, RejectsTruncatedSizedStringPayload) {
     std::string malformed =
         "1\n"
+        "0\n"
         "0\n"
         "0\n"
         "0\n"

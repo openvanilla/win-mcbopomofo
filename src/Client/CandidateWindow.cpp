@@ -12,7 +12,8 @@ const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
 CandidateWindow::CandidateWindow() 
     : _hwnd(nullptr), _dpiScale(1.0f), _cursorIndex(0), _candidateKeys(L"123456789"),
-      _candidateKeysCount(9), _isVertical(false), _forceVertical(false), _isDarkMode(false),
+      _candidateKeysCount(9), _isVertical(false), _forceVertical(false),
+      _useShiftKeySelection(false), _isDarkMode(false),
       _pD2DFactory(nullptr), _pRenderTarget(nullptr), _pDWriteFactory(nullptr), 
       _pTextFormat(nullptr), _pTextLayout(nullptr),
       _pTextBrush(nullptr), _pBgBrush(nullptr), _pBorderBrush(nullptr),
@@ -180,7 +181,9 @@ void CandidateWindow::Destroy() {
     }
 }
 
-void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical) {
+void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
+                               int cursorIndex, bool forceVertical,
+                               bool useShiftKeySelection) {
     if (!_hwnd) return;
 
     _dpiScale = GetDpiScale();
@@ -203,6 +206,7 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
 
     bool drawVertical = _isVertical || forceVertical;
     _forceVertical = forceVertical;
+    _useShiftKeySelection = useShiftKeySelection;
 
     const int pageSize = _candidateKeysCount;
     int pageIndex = _cursorIndex / pageSize;
@@ -216,9 +220,16 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates, int c
 
     for (int i = startIndex; i < endIndex; ++i) {
         int displayIndex = i - startIndex;
-        wchar_t key = displayIndex < static_cast<int>(_candidateKeys.length()) ? _candidateKeys[displayIndex] : L'?';
-        std::wstring keyStr(1, key);
-        keyStr += L". ";
+        std::wstring keyStr;
+        if (_useShiftKeySelection) {
+            keyStr = L"\u21e7";
+            keyStr += static_cast<wchar_t>(L'1' + displayIndex);
+            keyStr += L". ";
+        } else {
+            wchar_t key = displayIndex < static_cast<int>(_candidateKeys.length()) ? _candidateKeys[displayIndex] : L'?';
+            keyStr.assign(1, key);
+            keyStr += L". ";
+        }
         std::wstring candStr = _candidates[i];
 
         if (i == _cursorIndex) {

@@ -87,6 +87,22 @@ int test_invalid_negative_cursor_index_clamps_to_first_candidate() {
     return 0;
 }
 
+int test_shift_key_selection_keycaps() {
+    CandidateWindow window;
+    window.Create(GetModuleHandle(NULL));
+    window.SetVertical(false);
+
+    std::vector<std::string> candidates = {"A", "B", "C"};
+    window.UpdateUI(candidates, 0, false, true);
+
+    std::wstring result = window.GetDisplayString();
+    std::wstring expected = L"\u21e71. A   \u21e72. B   \u21e73. C";
+    ASSERT_EQ(expected, result);
+
+    std::cout << "test_shift_key_selection_keycaps passed." << std::endl;
+    return 0;
+}
+
 int main() {
     int failures = 0;
     
@@ -96,6 +112,7 @@ int main() {
     failures += test_multiple_candidates();
     failures += test_single_candidate_on_second_page();
     failures += test_invalid_negative_cursor_index_clamps_to_first_candidate();
+    failures += test_shift_key_selection_keycaps();
 
     if (failures == 0) {
         std::cout << "All tests passed!" << std::endl;

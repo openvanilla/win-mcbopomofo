@@ -35,6 +35,7 @@ struct StateUpdatePayload {
     int markStart = -1; // -1 means no mark
     int markEnd = -1;
     bool forceVertical = false; // Add flag to force vertical layout
+    bool useShiftKeySelection = false;
     std::string tooltip;
     std::vector<std::string> candidates;
 };

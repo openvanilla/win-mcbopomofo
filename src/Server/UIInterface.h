@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
-#include <vector>
-#include "InputState.h"
+#include "Ipc.h"
 
 namespace McBopomofo {
 
@@ -16,7 +15,7 @@ public:
     virtual void CommitString(const std::string& text) = 0;
 
     // Called when the composition or candidate window state changes.
-    virtual void Update(McBopomofo::InputState* state) = 0;
+    virtual void Update(const IPC::StateUpdatePayload& state) = 0;
 };
 
 } // namespace McBopomofo

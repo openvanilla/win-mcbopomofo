@@ -11,14 +11,14 @@ class MockUI : public UIInterface {
 public:
     void Reset() override { resetCalled = true; }
     void CommitString(const std::string& text) override { committedString = text; }
-    void Update(InputState* state) override { 
-        lastState = state; 
+    void Update(const IPC::StateUpdatePayload& state) override {
+        lastState = state;
         updateCount++;
     }
 
     bool resetCalled = false;
     std::string committedString;
-    InputState* lastState = nullptr;
+    IPC::StateUpdatePayload lastState;
     int updateCount = 0;
 };
 
@@ -67,15 +67,15 @@ TEST_F(BugReproTest, JumpToBig5State) {
     controller->HandleKey(Key::asciiKey('\\', false, true));
     
     // Check if it's in SelectingFeature state
-    ASSERT_NE(dynamic_cast<InputStates::SelectingFeature*>(ui->lastState), nullptr);
+    ASSERT_EQ(ui->lastState.composingBuffer, "");
+    ASSERT_GE(ui->lastState.candidates.size(), 4u);
+    ASSERT_EQ(ui->lastState.candidates[0], "Big5 輸入");
     
     // Select Big5 (first feature)
     controller->SelectCandidate(0);
     
     // Now it should be in Big5 state
-    auto* big5State = dynamic_cast<InputStates::Big5*>(ui->lastState);
-    ASSERT_NE(big5State, nullptr);
-    EXPECT_EQ(big5State->composingBuffer(), "[Big5碼] ");
+    EXPECT_EQ(ui->lastState.composingBuffer, "[Big5碼] ");
 }
 
 TEST_F(BugReproTest, JumpToIrohaState) {
@@ -84,9 +84,7 @@ TEST_F(BugReproTest, JumpToIrohaState) {
     // Select Iroha (fourth feature, index 3)
     controller->SelectCandidate(3);
     
-    auto* irohaState = dynamic_cast<InputStates::Iroha*>(ui->lastState);
-    ASSERT_NE(irohaState, nullptr);
-    EXPECT_EQ(irohaState->composingBuffer(), "[伊呂波] ");
+    EXPECT_EQ(ui->lastState.composingBuffer, "[伊呂波] ");
 }
 
 TEST_F(BugReproTest, SelectingDateMacroCrashRepro) {
@@ -96,8 +94,7 @@ TEST_F(BugReproTest, SelectingDateMacroCrashRepro) {
     controller->SelectCandidate(1);
     
     // Should be in SelectingDateMacro state
-    auto* dateMacroState = dynamic_cast<InputStates::SelectingDateMacro*>(ui->lastState);
-    ASSERT_NE(dateMacroState, nullptr);
+    ASSERT_GT(ui->lastState.candidates.size(), 0u);
     
     // Select the first candidate (Today Short)
     // This is where it's reported to crash.
@@ -112,24 +109,22 @@ TEST_F(BugReproTest, SelectingDateMacroCrashRepro) {
 
 TEST_F(BugReproTest, SpacePagesSelectingDateMacroCandidates) {
     ASSERT_TRUE(controller->HandleKey(Key::asciiKey('\\', false, true)));
-    ASSERT_NE(dynamic_cast<InputStates::SelectingFeature*>(ui->lastState), nullptr);
+    ASSERT_EQ(ui->lastState.candidates[1], "日期與時間");
     controller->SelectCandidate(1);  // Date/Time
 
-    auto* dateMacroState = dynamic_cast<InputStates::SelectingDateMacro*>(ui->lastState);
-    ASSERT_NE(dateMacroState, nullptr);
-    ASSERT_GT(static_cast<int>(dateMacroState->menu.size()), 9);
+    ASSERT_GT(static_cast<int>(ui->lastState.candidates.size()), 9);
     ASSERT_EQ(controller->GetCandidateIndex(), 0);
 
     int previousUpdateCount = ui->updateCount;
     EXPECT_TRUE(controller->HandleKey(Key::asciiKey(Key::SPACE, false, false)));
     EXPECT_EQ(controller->GetCandidateIndex(), 9);
     EXPECT_GT(ui->updateCount, previousUpdateCount);
-    EXPECT_NE(dynamic_cast<InputStates::SelectingDateMacro*>(ui->lastState), nullptr);
+    EXPECT_GT(static_cast<int>(ui->lastState.candidates.size()), 9);
 }
 
 TEST_F(BugReproTest, EscInSelectingFeatureReturnsToEmpty) {
     controller->HandleKey(Key::asciiKey('\\', false, true));
-    ASSERT_NE(dynamic_cast<InputStates::SelectingFeature*>(ui->lastState), nullptr);
+    ASSERT_EQ(ui->lastState.candidates[0], "Big5 輸入");
     
     controller->HandleKey(Key::asciiKey(Key::ESC, false, false));
     
@@ -143,12 +138,30 @@ TEST_F(BugReproTest, EscInSelectingFeatureReturnsToEmpty) {
 TEST_F(BugReproTest, BackspaceInSelectingFeatureReturnsToEmpty) {
     ui->resetCalled = false; // Reset for this test
     controller->HandleKey(Key::asciiKey('\\', false, true));
-    ASSERT_NE(dynamic_cast<InputStates::SelectingFeature*>(ui->lastState), nullptr);
+    ASSERT_EQ(ui->lastState.candidates[0], "Big5 輸入");
     
     controller->HandleKey(Key::asciiKey(Key::BACKSPACE, false, false));
     
     EXPECT_TRUE(ui->resetCalled);
     EXPECT_NE(dynamic_cast<InputStates::Empty*>(controller->GetCurrentState()), nullptr);
+}
+
+TEST_F(BugReproTest, ShiftKeyAssociatedPhrasesDismissOnNonSelectionKey) {
+    controller->SetStateForTesting(
+        std::make_unique<InputStates::AssociatedPhrases>(
+            std::make_unique<InputStates::Inputting>("", 0), 0, "ㄇㄧㄥˊ", "名",
+            0,
+            std::vector<InputStates::ChoosingCandidate::Candidate>{
+                {"ㄇㄧㄥˊ-ㄘˊ", "名詞", "名詞"}},
+            true),
+        0);
+
+    EXPECT_TRUE(controller->HandleKey(Key::asciiKey(Key::BACKSPACE, false, false)));
+    EXPECT_NE(dynamic_cast<InputStates::Inputting*>(controller->GetCurrentState()),
+              nullptr);
+    EXPECT_EQ(
+        dynamic_cast<InputStates::AssociatedPhrases*>(controller->GetCurrentState()),
+        nullptr);
 }
 
 int main(int argc, char **argv) {

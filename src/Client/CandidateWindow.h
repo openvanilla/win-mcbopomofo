@@ -13,7 +13,9 @@ public:
     bool Create(HINSTANCE hInstance);
     void Destroy();
 
-    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex, bool forceVertical = false);                                                                                                                    
+    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex,
+                  bool forceVertical = false,
+                  bool useShiftKeySelection = false);
     void Move(int x, int y);
     void Hide();
 
@@ -45,6 +47,7 @@ private:
     int _candidateKeysCount;
     bool _isVertical;
     bool _forceVertical;
+    bool _useShiftKeySelection;
     bool _isDarkMode;
 
     TextRange _selectedRange;

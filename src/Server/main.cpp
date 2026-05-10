@@ -114,7 +114,6 @@ private:
 class ServerUI : public UIInterface {
 public:
     IPC::StateUpdatePayload currentState;
-    InputController* controller = nullptr;
 
     void Reset() override {
         std::string savedCommit = currentState.commitString;
@@ -126,119 +125,8 @@ public:
         currentState.commitString += text;
     }
 
-    void Update(InputState* state) override {
-        currentState.forceVertical = false;
-        currentState.markStart = -1;
-        currentState.markEnd = -1;
-        currentState.candidateIndex = controller ? controller->GetCandidateIndex() : -1;
-        currentState.tooltip = "";
-        if (auto* notEmptyState = dynamic_cast<InputStates::NotEmpty*>(state)) {
-            currentState.tooltip = notEmptyState->tooltip;
-        }
-
-        // Determine if we need to force vertical layout
-        if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||
-            dynamic_cast<InputStates::SelectingDictionary*>(state) != nullptr ||
-            dynamic_cast<InputStates::ShowingCharInfo*>(state) != nullptr ||
-            dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr ||
-            dynamic_cast<InputStates::SelectingDateMacro*>(state) != nullptr) {
-            currentState.forceVertical = true;
-        }
-
-        if (auto* inputting = dynamic_cast<InputStates::Inputting*>(state)) {
-            currentState.composingBuffer = inputting->composingBuffer;
-            currentState.cursorIndex = (int)inputting->cursorIndex;
-            currentState.candidates.clear();
-        } else if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(state)) {
-            currentState.composingBuffer = choosing->composingBuffer;
-            currentState.cursorIndex = (int)choosing->cursorIndex;
-            currentState.candidates.clear();
-            for (const auto& c : choosing->candidates) {
-                currentState.candidates.push_back(c.value);
-
-                // If any candidate string length > 8, force vertical
-                if (CodePointCount(c.value) > 8) {
-                    currentState.forceVertical = true;
-                }
-            }
-        } else if (auto* selDict = dynamic_cast<InputStates::SelectingDictionary*>(state)) {
-            currentState.composingBuffer = selDict->composingBuffer;
-            currentState.cursorIndex = (int)selDict->cursorIndex;
-            currentState.candidates.clear();
-            for (const auto& m : selDict->menu) {
-                currentState.candidates.push_back(m);
-            }
-        } else if (auto* charInfo = dynamic_cast<InputStates::ShowingCharInfo*>(state)) {
-            currentState.composingBuffer = charInfo->composingBuffer;
-            currentState.cursorIndex = (int)charInfo->cursorIndex;
-            currentState.candidates = {
-                "UTF8 String Length: " + std::to_string(charInfo->selectedPhrase.length()),
-                "Code Point Count: " + std::to_string(CodePointCount(charInfo->selectedPhrase))
-            };
-        } else if (auto* marking = dynamic_cast<InputStates::Marking*>(state)) {
-            currentState.composingBuffer = marking->composingBuffer;
-            currentState.cursorIndex = (int)marking->cursorIndex;
-            currentState.candidates.clear();
-            currentState.markStart = (int)marking->head.length();
-            currentState.markEnd = (int)(marking->head.length() + marking->markedText.length());
-        } else if (auto* assoc = dynamic_cast<InputStates::AssociatedPhrases*>(state)) {
-            currentState.composingBuffer = assoc->composingBuffer;
-            currentState.cursorIndex = (int)assoc->cursorIndex;
-            currentState.candidates.clear();
-            for (const auto& c : assoc->candidates) {
-                currentState.candidates.push_back(c.value);
-            }
-        } else if (auto* assocPlain = dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state)) {
-            currentState.composingBuffer.clear();
-            currentState.cursorIndex = 0;
-            currentState.candidates.clear();
-            for (const auto& c : assocPlain->candidates) {
-                currentState.candidates.push_back(c.value);
-            }
-        } else if (auto* numInput = dynamic_cast<InputStates::NumberInput*>(state)) {
-            currentState.composingBuffer = numInput->composingBuffer;
-            currentState.cursorIndex = (int)numInput->cursorIndex;
-            currentState.candidates.clear();
-            for (const auto& c : numInput->candidates) {
-                currentState.candidates.push_back(c);
-            }
-        } else if (auto* big5 = dynamic_cast<InputStates::Big5*>(state)) {
-            currentState.composingBuffer = big5->composingBuffer();
-            currentState.cursorIndex = (int)currentState.composingBuffer.length();
-            currentState.candidates.clear();
-        } else if (auto* irohaState = dynamic_cast<InputStates::Iroha*>(state)) {
-            currentState.composingBuffer = irohaState->composingBuffer();
-            currentState.cursorIndex = (int)currentState.composingBuffer.length();
-            currentState.candidates.clear();
-        } else if (auto* selectingFeature = dynamic_cast<InputStates::SelectingFeature*>(state)) {
-            currentState.composingBuffer.clear();
-            currentState.cursorIndex = 0;
-            currentState.candidates.clear();
-            for (const auto& feature : selectingFeature->features) {
-                currentState.candidates.push_back(feature.name);
-            }
-        } else if (auto* selectingDateMacro = dynamic_cast<InputStates::SelectingDateMacro*>(state)) {
-            currentState.composingBuffer.clear();
-            currentState.cursorIndex = 0;
-            currentState.candidates = selectingDateMacro->menu;
-        } else if (auto* iroha = dynamic_cast<InputStates::IrohaCandidate*>(state)) {
-            currentState.composingBuffer = iroha->composingBuffer();
-            currentState.cursorIndex = (int)currentState.composingBuffer.length();
-            currentState.candidates = iroha->candidates;
-        } else if (auto* customMenu = dynamic_cast<InputStates::CustomMenu*>(state)) {
-            currentState.composingBuffer = customMenu->composingBuffer;
-            currentState.cursorIndex = (int)customMenu->cursorIndex;
-            currentState.candidates.clear();
-            for (const auto& entry : customMenu->entries) {
-                currentState.candidates.push_back(entry.name);
-            }
-        } else if (auto* empty = dynamic_cast<InputStates::Empty*>(state)) {
-            currentState.composingBuffer.clear();
-            currentState.candidates.clear();
-        } else {
-            currentState.composingBuffer.clear();
-            currentState.candidates.clear();
-        }
+    void Update(const IPC::StateUpdatePayload& state) override {
+        currentState = state;
     }
 };
 
@@ -580,7 +468,6 @@ int main(int argc, char* argv[]) {
 
     ServerUI ui;
     InputController controller(keyHandler, &ui);
-    ui.controller = &controller;
     g_Controller = &controller;
 
     controller.SetDataDirectory(exeDir / "data");

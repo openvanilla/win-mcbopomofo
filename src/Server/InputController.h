@@ -46,10 +46,17 @@ public:
 
     int GetCandidateIndex() const { return candidateIndex_; }
     InputState* GetCurrentState() const { return currentState_.get(); }
+    void SetStateForTesting(std::unique_ptr<InputState> state,
+                            int candidateIndex = -1) {
+        currentState_ = std::move(state);
+        candidateIndex_ = candidateIndex;
+    }
 
 private:
     void ChangeState(std::unique_ptr<InputState> previousState,
                      std::unique_ptr<InputState> newState);
+    void NotifyUI();
+    IPC::StateUpdatePayload BuildStateUpdatePayload() const;
     bool HandleCandidateKey(const Key& key);
     bool HandleCandidateNavigation(const Key& key);
     void MoveCandidateCursor(bool forward);
