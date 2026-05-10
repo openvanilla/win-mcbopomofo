@@ -22,84 +22,87 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #pragma once
-#include <memory>
-#include "KeyHandler.h"
-#include "InputState.h"
-#include "UIInterface.h"
 #include <SimpleConverter.hpp>
+#include <memory>
+
+#include "InputState.h"
+#include "KeyHandler.h"
+#include "UIInterface.h"
 
 namespace McBopomofo {
 
 class InputController {
-public:
-    InputController(std::shared_ptr<KeyHandler> keyHandler, UIInterface* ui);
-    ~InputController() = default;
+ public:
+  InputController(std::shared_ptr<KeyHandler> keyHandler, UIInterface* ui);
+  ~InputController() = default;
 
-    // Handles a key press and returns true if the key was consumed by the IME.
-    bool handleKey(const Key& key);
+  // Handles a key press and returns true if the key was consumed by the IME.
+  bool handleKey(const Key& key);
 
-    // Forces the current composing string to be committed and resets the state.
-    void reset();
+  // Forces the current composing string to be committed and resets the state.
+  void reset();
 
-    // Selects a candidate by its index in the current candidate list.
-    void selectCandidate(int index);
+  // Selects a candidate by its index in the current candidate list.
+  void selectCandidate(int index);
 
-    // Settings passthrough
-    void setInputMode(InputMode mode);
-    void setKeyboardLayout(const Formosa::Mandarin::BopomofoKeyboardLayout* layout);
-    void setSelectPhraseAfterCursorAsCandidate(bool flag);
-    void setMoveCursorAfterSelection(bool flag);
-    void setPutLowercaseLettersToComposingBuffer(bool flag);
-    void setEscKeyClearsEntireComposingBuffer(bool flag);
-    void setShiftEnterEnabled(bool flag);
-    void setCtrlEnterKeyBehavior(KeyHandlerCtrlEnter behavior);
-    void setAssociatedPhrasesEnabled(bool enabled);
-    void setHalfWidthPunctuationEnabled(bool enabled);
-    void setBopomofoFontAnnotationSupportEnabled(bool enabled);
-    void setRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
-    void setChooseCandidateUsingSpace(bool enabled);
-    void setCandidateKeys(const std::string& keys);
-    void setCandidateKeysCount(int count);
-    void setCandidateWindowVertical(bool vertical);
-    void setChineseConversionEnabled(bool enabled);
+  // Settings passthrough
+  void setInputMode(InputMode mode);
+  void setKeyboardLayout(
+      const Formosa::Mandarin::BopomofoKeyboardLayout* layout);
+  void setSelectPhraseAfterCursorAsCandidate(bool flag);
+  void setMoveCursorAfterSelection(bool flag);
+  void setPutLowercaseLettersToComposingBuffer(bool flag);
+  void setEscKeyClearsEntireComposingBuffer(bool flag);
+  void setShiftEnterEnabled(bool flag);
+  void setCtrlEnterKeyBehavior(KeyHandlerCtrlEnter behavior);
+  void setAssociatedPhrasesEnabled(bool enabled);
+  void setHalfWidthPunctuationEnabled(bool enabled);
+  void setBopomofoFontAnnotationSupportEnabled(bool enabled);
+  void setRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
+  void setChooseCandidateUsingSpace(bool enabled);
+  void setCandidateKeys(const std::string& keys);
+  void setCandidateKeysCount(int count);
+  void setCandidateWindowVertical(bool vertical);
+  void setChineseConversionEnabled(bool enabled);
 
-    void setDataDirectory(const std::filesystem::path& dataDir);
-    void toggleChineseConversion();
-    bool isChineseConversionEnabled() const;
+  void setDataDirectory(const std::filesystem::path& dataDir);
+  void toggleChineseConversion();
+  bool isChineseConversionEnabled() const;
 
-    int candidateIndex() const { return candidateIndex_; }
-    InputState* currentState() const { return currentState_.get(); }
-    void setStateForTesting(std::unique_ptr<InputState> state,
-                            int candidateIndex = -1) {
-        currentState_ = std::move(state);
-        candidateIndex_ = candidateIndex;
-    }
+  int candidateIndex() const { return candidateIndex_; }
+  InputState* currentState() const { return currentState_.get(); }
+  void setStateForTesting(std::unique_ptr<InputState> state,
+                          int candidateIndex = -1) {
+    currentState_ = std::move(state);
+    candidateIndex_ = candidateIndex;
+  }
 
-private:
-    void changeState_(std::unique_ptr<InputState> previousState,
-                      std::unique_ptr<InputState> newState);
-    void notifyUI_();
-    IPC::StateUpdatePayload buildStateUpdatePayload_() const;
-    bool handleCandidateKey_(const Key& key);
-    bool handleCandidateNavigation_(const Key& key);
-    void moveCandidateCursor_(bool forward);
-    void moveCandidatePage_(bool forward);
-    void moveReadingCursorInCandidatePanel_(bool forward);
-    void cancelCandidatePanel_();
-    void buildAssociatedPhrasesForCurrentCandidate_(
-        InputStates::ChoosingCandidate& choosing);
-    void enterDictionaryState_(InputStates::ChoosingCandidate& choosing);
-    void enterPhraseActionMenu_(InputStates::ChoosingCandidate& choosing, bool boost);
+ private:
+  void changeState_(std::unique_ptr<InputState> previousState,
+                    std::unique_ptr<InputState> newState);
+  void notifyUI_();
+  IPC::StateUpdatePayload buildStateUpdatePayload_() const;
+  bool handleCandidateKey_(const Key& key);
+  bool handleCandidateNavigation_(const Key& key);
+  void moveCandidateCursor_(bool forward);
+  void moveCandidatePage_(bool forward);
+  void moveReadingCursorInCandidatePanel_(bool forward);
+  void cancelCandidatePanel_();
+  void buildAssociatedPhrasesForCurrentCandidate_(
+      InputStates::ChoosingCandidate& choosing);
+  void enterDictionaryState_(InputStates::ChoosingCandidate& choosing);
+  void enterPhraseActionMenu_(InputStates::ChoosingCandidate& choosing,
+                              bool boost);
 
-    std::shared_ptr<KeyHandler> keyHandler_;
-    UIInterface* ui_;
-    std::unique_ptr<InputState> currentState_;
-    int candidateIndex_ = -1;
-    std::string candidateKeys_ = "123456789";
-    int candidateKeysCount_ = 9;
-    bool candidateWindowVertical_ = false;
-    
-    std::unique_ptr<opencc::SimpleConverter> openccConverter_;
+  std::shared_ptr<KeyHandler> keyHandler_;
+  UIInterface* ui_;
+  std::unique_ptr<InputState> currentState_;
+  int candidateIndex_ = -1;
+  std::string candidateKeys_ = "123456789";
+  int candidateKeysCount_ = 9;
+  bool candidateWindowVertical_ = false;
+
+  std::unique_ptr<opencc::SimpleConverter> openccConverter_;
 };
 
-} // namespace McBopomofo
+}  // namespace McBopomofo

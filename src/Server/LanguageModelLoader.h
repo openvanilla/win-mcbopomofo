@@ -28,9 +28,9 @@
 #include <string>
 #include <string_view>
 
-#include "McBopomofoLM.h"
 #include "InputMacro.h"
 #include "InputMode.h"
+#include "McBopomofoLM.h"
 #include "TimestampedPath.h"
 #include "VariantAnnotator.h"
 

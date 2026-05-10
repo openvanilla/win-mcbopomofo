@@ -29,37 +29,43 @@
 #include <string>
 #include <vector>
 
-#include "Mandarin/Mandarin.h"
 #include "DictionaryService.h"
-#include "UserOverrideModel.h"
-#include "gramambular2/language_model.h"
-#include "gramambular2/reading_grid.h"
 #include "InputMode.h"
 #include "InputState.h"
 #include "Key.h"
+#include "Mandarin/Mandarin.h"
+#include "UserOverrideModel.h"
+#include "gramambular2/language_model.h"
+#include "gramambular2/reading_grid.h"
 
 namespace McBopomofo {
 
 class VariantAnnotator;
 
 class LocalizedStrings {
-public:
-    virtual ~LocalizedStrings() = default;
-    virtual std::string cursorIsBetweenSyllables(const std::string& prevReading, const std::string& nextReading) = 0;
-    virtual std::string syllablesRequired(size_t syllables) = 0;
-    virtual std::string syllablesMaximum(size_t syllables) = 0;
-    virtual std::string phraseAlreadyExists() = 0;
-    virtual std::string pressEnterToAddThePhrase() = 0;
-    virtual std::string markedWithSyllablesAndStatus(const std::string& marked, const std::string& readingUiText, const std::string& status) = 0;
-    virtual std::string bopomofoFontAnnotationModeTooltip(bool hasUnicodeVariantSelectors, bool hasPUABlocks) = 0;
-    virtual std::string markingNotAvailableInFontAnnotationMode() = 0;
+ public:
+  virtual ~LocalizedStrings() = default;
+  virtual std::string cursorIsBetweenSyllables(
+      const std::string& prevReading, const std::string& nextReading) = 0;
+  virtual std::string syllablesRequired(size_t syllables) = 0;
+  virtual std::string syllablesMaximum(size_t syllables) = 0;
+  virtual std::string phraseAlreadyExists() = 0;
+  virtual std::string pressEnterToAddThePhrase() = 0;
+  virtual std::string markedWithSyllablesAndStatus(
+      const std::string& marked, const std::string& readingUiText,
+      const std::string& status) = 0;
+  virtual std::string bopomofoFontAnnotationModeTooltip(
+      bool hasUnicodeVariantSelectors, bool hasPUABlocks) = 0;
+  virtual std::string markingNotAvailableInFontAnnotationMode() = 0;
 };
 
 class UserPhraseAdder {
-public:
-    virtual ~UserPhraseAdder() = default;
-    virtual void addUserPhrase(const std::string_view& reading, const std::string_view& phrase) = 0;
-    virtual void removeUserPhrase(const std::string_view& reading, const std::string_view& phrase) = 0;
+ public:
+  virtual ~UserPhraseAdder() = default;
+  virtual void addUserPhrase(const std::string_view& reading,
+                             const std::string_view& phrase) = 0;
+  virtual void removeUserPhrase(const std::string_view& reading,
+                                const std::string_view& phrase) = 0;
 };
 
 enum class KeyHandlerCtrlEnter {
@@ -135,7 +141,8 @@ class KeyHandler {
 
   McBopomofo::InputMode inputMode();
   void setInputMode(McBopomofo::InputMode mode);
-  void setKeyboardLayout(const Formosa::Mandarin::BopomofoKeyboardLayout* layout);
+  void setKeyboardLayout(
+      const Formosa::Mandarin::BopomofoKeyboardLayout* layout);
   void setSelectPhraseAfterCursorAsCandidate(bool flag);
   void setMoveCursorAfterSelection(bool flag);
   void setPutLowercaseLettersToComposingBuffer(bool flag);
@@ -144,15 +151,20 @@ class KeyHandler {
   void setCtrlEnterKeyBehavior(KeyHandlerCtrlEnter behavior);
   void setAssociatedPhrasesEnabled(bool enabled);
   void setHalfWidthPunctuationEnabled(bool enabled);
-  void setOnAddNewPhrase(std::function<void(const std::string&)> onAddNewPhrase);
+  void setOnAddNewPhrase(
+      std::function<void(const std::string&)> onAddNewPhrase);
   void setRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
   void setChooseCandidateUsingSpace(bool enabled);
   void setBopomofoFontAnnotationSupportEnabled(bool enabled);
-  bool bopomofoFontAnnotationSupportEnabled() const { return bopomofoFontAnnotationSupportEnabled_; }
+  bool bopomofoFontAnnotationSupportEnabled() const {
+    return bopomofoFontAnnotationSupportEnabled_;
+  }
 
   void setChineseConversionEnabled(bool enabled);
   bool chineseConversionEnabled() const { return chineseConversionEnabled_; }
-  std::shared_ptr<Formosa::Gramambular2::LanguageModel> getLM() const { return lm_; }
+  std::shared_ptr<Formosa::Gramambular2::LanguageModel> getLM() const {
+    return lm_;
+  }
 
   size_t actualCandidateCursorIndex();
   size_t computeActualCandidateCursorIndex(size_t index);
@@ -211,7 +223,8 @@ class KeyHandler {
   std::string getHTMLRubyText();
   std::string getHanyuPinyin();
 
-  std::unique_ptr<InputStates::Marking> buildMarkingState(size_t beginCursorIndex);
+  std::unique_ptr<InputStates::Marking> buildMarkingState(
+      size_t beginCursorIndex);
 
   void pinNode(size_t originalCursor,
                const InputStates::ChoosingCandidate::Candidate& candidate,
@@ -249,7 +262,8 @@ class KeyHandler {
   bool bopomofoFontAnnotationSupportEnabled_ = false;
   bool chineseConversionEnabled_ = false;
   KeyHandlerCtrlEnter ctrlEnterKey_ = KeyHandlerCtrlEnter::Disabled;
-  std::function<void(const std::string&)> onAddNewPhrase_ = [](const std::string&){};
+  std::function<void(const std::string&)> onAddNewPhrase_ =
+      [](const std::string&) {};
 };
 
 }  // namespace McBopomofo

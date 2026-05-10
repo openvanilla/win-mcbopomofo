@@ -25,26 +25,26 @@
 #include <windows.h>
 #include <shellapi.h>
 
-#include "McBopomofoLM.h"
-#include "KeyHandler.h"
-#include "InputController.h"
-#include "InputMacro.h"
-#include "WindowsKeyBridge.h"
-#include "UIInterface.h"
-#include "Settings.h"
-#include "VariantAnnotator.h"
-#include "UTFHelper.h"
-#include "UTF8Helper.h"
-#include "NamedPipe.h"
-#include "Log.h"
-#include "resource.h"
-
-#include "PathCompat.h"
 #include <array>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <mutex>
+
+#include "InputController.h"
+#include "InputMacro.h"
+#include "KeyHandler.h"
+#include "Log.h"
+#include "McBopomofoLM.h"
+#include "NamedPipe.h"
+#include "PathCompat.h"
+#include "Settings.h"
+#include "UIInterface.h"
+#include "UTF8Helper.h"
+#include "UTFHelper.h"
+#include "VariantAnnotator.h"
+#include "WindowsKeyBridge.h"
+#include "resource.h"
 
 using namespace McBopomofo;
 
@@ -52,44 +52,43 @@ using namespace McBopomofo;
 #define IDM_RESTART 1001
 #define IDM_EXIT 1002
 
-constexpr const wchar_t* kServerSingleInstanceMutexName = L"Local\\WinMcBopomofoServerSingleInstance";
+constexpr const wchar_t* kServerSingleInstanceMutexName =
+    L"Local\\WinMcBopomofoServerSingleInstance";
 InputController* g_Controller = nullptr;
 bool g_RestartRequested = false;
 
 namespace {
 
 void LogDataFileStatus(const char* label, const std::filesystem::path& path) {
-    FCITX_MCBOPOMOFO_INFO() << label << ": " << path.string()
-                            << ", exists: " << std::filesystem::exists(path);
+  FCITX_MCBOPOMOFO_INFO() << label << ": " << path.string()
+                          << ", exists: " << std::filesystem::exists(path);
 }
 
 std::shared_ptr<VariantAnnotator> LoadVariantAnnotator(
     const std::filesystem::path& exeDir) {
-    auto annotator = std::make_shared<VariantAnnotator>();
-    const std::filesystem::path puaPath = exeDir / "data" / "bpmfvs-pua.txt";
-    const std::filesystem::path variantsPath =
-        exeDir / "data" / "bpmfvs-variants.txt";
+  auto annotator = std::make_shared<VariantAnnotator>();
+  const std::filesystem::path puaPath = exeDir / "data" / "bpmfvs-pua.txt";
+  const std::filesystem::path variantsPath =
+      exeDir / "data" / "bpmfvs-variants.txt";
 
-    LogDataFileStatus("Bopomofo annotation file", puaPath);
-    LogDataFileStatus("Bopomofo annotation file", variantsPath);
+  LogDataFileStatus("Bopomofo annotation file", puaPath);
+  LogDataFileStatus("Bopomofo annotation file", variantsPath);
 
-    const bool puaLoaded = annotator->loadPUAFile(puaPath);
-    const bool variantsLoaded = annotator->loadVariantsFile(variantsPath);
+  const bool puaLoaded = annotator->loadPUAFile(puaPath);
+  const bool variantsLoaded = annotator->loadVariantsFile(variantsPath);
 
-    FCITX_MCBOPOMOFO_INFO() << "Bopomofo annotation PUA db loaded: "
-                            << puaLoaded;
-    FCITX_MCBOPOMOFO_INFO() << "Bopomofo annotation variants db loaded: "
-                            << variantsLoaded;
+  FCITX_MCBOPOMOFO_INFO() << "Bopomofo annotation PUA db loaded: " << puaLoaded;
+  FCITX_MCBOPOMOFO_INFO() << "Bopomofo annotation variants db loaded: "
+                          << variantsLoaded;
 
-    if (!puaLoaded && !variantsLoaded) {
-        FCITX_MCBOPOMOFO_WARN()
-            << "Bopomofo annotation data failed to load; annotation mode will"
-            << " remain inactive.";
-    }
+  if (!puaLoaded && !variantsLoaded) {
+    FCITX_MCBOPOMOFO_WARN()
+        << "Bopomofo annotation data failed to load; annotation mode will"
+        << " remain inactive.";
+  }
 
-    return annotator;
+  return annotator;
 }
-
 
 void OpenFileInExplorer(const std::wstring& path) {
   std::wstring args = L"/select,\"" + path + L"\"";
@@ -156,180 +155,202 @@ void OpenSettingsApp() {
                 SW_SHOWNORMAL);
 }
 
-
-}
+}  // namespace
 
 class WinUserPhraseAdder : public UserPhraseAdder {
-public:
-    WinUserPhraseAdder(std::shared_ptr<McBopomofoLM> lm) : lm_(lm) {
-        userPhrasesPath_ = fcitx5_compat::userDirectory() + "/user.txt";
-        excludedPhrasesPath_ = fcitx5_compat::userDirectory() + "/exclude.txt";
+ public:
+  WinUserPhraseAdder(std::shared_ptr<McBopomofoLM> lm) : lm_(lm) {
+    userPhrasesPath_ = fcitx5_compat::userDirectory() + "/user.txt";
+    excludedPhrasesPath_ = fcitx5_compat::userDirectory() + "/exclude.txt";
+  }
+
+  void addUserPhrase(const std::string_view& reading,
+                     const std::string_view& phrase) override {
+    std::ofstream ofs(userPhrasesPath_, std::ios::app);
+    if (ofs) {
+      ofs << phrase << " " << reading << "\n";
+      ofs.close();
+      lm_->loadUserPhrases(userPhrasesPath_.c_str(),
+                           excludedPhrasesPath_.c_str());
     }
+  }
 
-    void addUserPhrase(const std::string_view& reading, const std::string_view& phrase) override {
-        std::ofstream ofs(userPhrasesPath_, std::ios::app);
-        if (ofs) {
-            ofs << phrase << " " << reading << "\n";
-            ofs.close();
-            lm_->loadUserPhrases(userPhrasesPath_.c_str(), excludedPhrasesPath_.c_str());
-        }
+  void removeUserPhrase(const std::string_view& reading,
+                        const std::string_view& phrase) override {
+    std::ifstream ifs(userPhrasesPath_);
+    if (!ifs) return;
+
+    std::vector<std::string> lines;
+    std::string line;
+    std::string target = std::string(phrase) + " " + std::string(reading);
+    while (std::getline(ifs, line)) {
+      if (!line.empty() && line != target) {
+        lines.push_back(line);
+      }
     }
+    ifs.close();
 
-    void removeUserPhrase(const std::string_view& reading, const std::string_view& phrase) override {
-        std::ifstream ifs(userPhrasesPath_);
-        if (!ifs) return;
-
-        std::vector<std::string> lines;
-        std::string line;
-        std::string target = std::string(phrase) + " " + std::string(reading);
-        while (std::getline(ifs, line)) {
-            if (!line.empty() && line != target) {
-                lines.push_back(line);
-            }
-        }
-        ifs.close();
-
-        std::ofstream ofs(userPhrasesPath_);
-        for (const auto& l : lines) {
-            ofs << l << "\n";
-        }
-        ofs.close();
-        lm_->loadUserPhrases(userPhrasesPath_.c_str(), excludedPhrasesPath_.c_str());
+    std::ofstream ofs(userPhrasesPath_);
+    for (const auto& l : lines) {
+      ofs << l << "\n";
     }
+    ofs.close();
+    lm_->loadUserPhrases(userPhrasesPath_.c_str(),
+                         excludedPhrasesPath_.c_str());
+  }
 
-private:
-    std::shared_ptr<McBopomofoLM> lm_;
-    std::string userPhrasesPath_;
-    std::string excludedPhrasesPath_;
+ private:
+  std::shared_ptr<McBopomofoLM> lm_;
+  std::string userPhrasesPath_;
+  std::string excludedPhrasesPath_;
 };
 
 class ServerUI : public UIInterface {
-public:
-    IPC::StateUpdatePayload currentState;
+ public:
+  IPC::StateUpdatePayload currentState;
 
-    void reset() override {
-        std::string savedCommit = currentState.commitString;
-        currentState = IPC::StateUpdatePayload();
-        currentState.commitString = savedCommit;
-    }
+  void reset() override {
+    std::string savedCommit = currentState.commitString;
+    currentState = IPC::StateUpdatePayload();
+    currentState.commitString = savedCommit;
+  }
 
-    void commitString(const std::string& text) override {
-        currentState.commitString += text;
-    }
+  void commitString(const std::string& text) override {
+    currentState.commitString += text;
+  }
 
-    void update(const IPC::StateUpdatePayload& state) override {
-        std::string savedCommit = currentState.commitString;
-        currentState = state;
-        currentState.commitString = savedCommit;
-    }
+  void update(const IPC::StateUpdatePayload& state) override {
+    std::string savedCommit = currentState.commitString;
+    currentState = state;
+    currentState.commitString = savedCommit;
+  }
 };
 
 class DummyLocalizedStrings : public LocalizedStrings {
-public:
-    std::string cursorIsBetweenSyllables(const std::string&, const std::string&) override { return "Cursor between syllables"; }
-    std::string bopomofoFontAnnotationModeTooltip(bool, bool) override { return "Font annotation mode"; }
-    std::string syllablesRequired(size_t s) override { return "Requires " + std::to_string(s) + " syllables"; }
-    std::string syllablesMaximum(size_t s) override { return "Maximum " + std::to_string(s) + " syllables"; }
-    std::string phraseAlreadyExists() override { return "Phrase exists"; }
-    std::string pressEnterToAddThePhrase() override { return "Press Enter to add"; }
-    std::string markedWithSyllablesAndStatus(const std::string&, const std::string&, const std::string& s) override { return s; }
-    std::string markingNotAvailableInFontAnnotationMode() override { return "Not available in font annotation mode"; }
+ public:
+  std::string cursorIsBetweenSyllables(const std::string&,
+                                       const std::string&) override {
+    return "Cursor between syllables";
+  }
+  std::string bopomofoFontAnnotationModeTooltip(bool, bool) override {
+    return "Font annotation mode";
+  }
+  std::string syllablesRequired(size_t s) override {
+    return "Requires " + std::to_string(s) + " syllables";
+  }
+  std::string syllablesMaximum(size_t s) override {
+    return "Maximum " + std::to_string(s) + " syllables";
+  }
+  std::string phraseAlreadyExists() override { return "Phrase exists"; }
+  std::string pressEnterToAddThePhrase() override {
+    return "Press Enter to add";
+  }
+  std::string markedWithSyllablesAndStatus(const std::string&,
+                                           const std::string&,
+                                           const std::string& s) override {
+    return s;
+  }
+  std::string markingNotAvailableInFontAnnotationMode() override {
+    return "Not available in font annotation mode";
+  }
 };
 
 class DummyUserPhraseAdder : public UserPhraseAdder {
-public:
-    void addUserPhrase(const std::string_view&, const std::string_view&) override {}
-    void removeUserPhrase(const std::string_view&, const std::string_view&) override {}
+ public:
+  void addUserPhrase(const std::string_view&,
+                     const std::string_view&) override {}
+  void removeUserPhrase(const std::string_view&,
+                        const std::string_view&) override {}
 };
 
 class WatchedFile {
-public:
-    explicit WatchedFile(std::filesystem::path path)
-        : path_(std::move(path)) {
-        Refresh();
+ public:
+  explicit WatchedFile(std::filesystem::path path) : path_(std::move(path)) {
+    Refresh();
+  }
+
+  const std::filesystem::path& Path() const { return path_; }
+
+  bool HasChanged() {
+    bool currentExists = std::filesystem::exists(path_);
+    std::filesystem::file_time_type currentWriteTime{};
+    if (currentExists) {
+      std::error_code ec;
+      currentWriteTime = std::filesystem::last_write_time(path_, ec);
+      if (ec) {
+        currentExists = false;
+        currentWriteTime = {};
+      }
     }
 
-    const std::filesystem::path& Path() const { return path_; }
+    bool changed = currentExists != exists_ ||
+                   (currentExists && currentWriteTime != lastWriteTime_);
+    exists_ = currentExists;
+    lastWriteTime_ = currentWriteTime;
+    return changed;
+  }
 
-    bool HasChanged() {
-        bool currentExists = std::filesystem::exists(path_);
-        std::filesystem::file_time_type currentWriteTime{};
-        if (currentExists) {
-            std::error_code ec;
-            currentWriteTime = std::filesystem::last_write_time(path_, ec);
-            if (ec) {
-                currentExists = false;
-                currentWriteTime = {};
-            }
-        }
-
-        bool changed = currentExists != exists_ ||
-                       (currentExists && currentWriteTime != lastWriteTime_);
-        exists_ = currentExists;
-        lastWriteTime_ = currentWriteTime;
-        return changed;
+ private:
+  void Refresh() {
+    exists_ = std::filesystem::exists(path_);
+    if (exists_) {
+      std::error_code ec;
+      lastWriteTime_ = std::filesystem::last_write_time(path_, ec);
+      if (ec) {
+        exists_ = false;
+        lastWriteTime_ = {};
+      }
     }
+  }
 
-private:
-    void Refresh() {
-        exists_ = std::filesystem::exists(path_);
-        if (exists_) {
-            std::error_code ec;
-            lastWriteTime_ = std::filesystem::last_write_time(path_, ec);
-            if (ec) {
-                exists_ = false;
-                lastWriteTime_ = {};
-            }
-        }
-    }
-
-    std::filesystem::path path_;
-    bool exists_ = false;
-    std::filesystem::file_time_type lastWriteTime_{};
+  std::filesystem::path path_;
+  bool exists_ = false;
+  std::filesystem::file_time_type lastWriteTime_{};
 };
 
 class ServerFileReloader {
-public:
-    ServerFileReloader(std::filesystem::path settingsPath,
-                       std::filesystem::path userPhrasesPath,
-                       std::filesystem::path excludedPhrasesPath,
-                       std::function<void()> reloadSettings,
-                       std::function<void()> reloadUserPhrases)
-        : settingsFile_(std::move(settingsPath)),
-          userPhrasesFile_(std::move(userPhrasesPath)),
-          excludedPhrasesFile_(std::move(excludedPhrasesPath)),
-          reloadSettings_(std::move(reloadSettings)),
-          reloadUserPhrases_(std::move(reloadUserPhrases)) {}
+ public:
+  ServerFileReloader(std::filesystem::path settingsPath,
+                     std::filesystem::path userPhrasesPath,
+                     std::filesystem::path excludedPhrasesPath,
+                     std::function<void()> reloadSettings,
+                     std::function<void()> reloadUserPhrases)
+      : settingsFile_(std::move(settingsPath)),
+        userPhrasesFile_(std::move(userPhrasesPath)),
+        excludedPhrasesFile_(std::move(excludedPhrasesPath)),
+        reloadSettings_(std::move(reloadSettings)),
+        reloadUserPhrases_(std::move(reloadUserPhrases)) {}
 
-    void LogWatchedFiles() const {
-        FCITX_MCBOPOMOFO_INFO() << "Watching settings file: "
-                                << settingsFile_.Path().string();
-        FCITX_MCBOPOMOFO_INFO() << "Watching user phrases file: "
-                                << userPhrasesFile_.Path().string();
-        FCITX_MCBOPOMOFO_INFO() << "Watching excluded phrases file: "
-                                << excludedPhrasesFile_.Path().string();
+  void LogWatchedFiles() const {
+    FCITX_MCBOPOMOFO_INFO()
+        << "Watching settings file: " << settingsFile_.Path().string();
+    FCITX_MCBOPOMOFO_INFO()
+        << "Watching user phrases file: " << userPhrasesFile_.Path().string();
+    FCITX_MCBOPOMOFO_INFO() << "Watching excluded phrases file: "
+                            << excludedPhrasesFile_.Path().string();
+  }
+
+  void Check() {
+    if (settingsFile_.HasChanged()) {
+      FCITX_MCBOPOMOFO_INFO() << "Settings file changed; reloading settings.";
+      reloadSettings_();
     }
 
-    void Check() {
-        if (settingsFile_.HasChanged()) {
-            FCITX_MCBOPOMOFO_INFO() << "Settings file changed; reloading settings.";
-            reloadSettings_();
-        }
-
-        bool userPhrasesChanged = userPhrasesFile_.HasChanged();
-        bool excludedPhrasesChanged = excludedPhrasesFile_.HasChanged();
-        if (userPhrasesChanged || excludedPhrasesChanged) {
-            FCITX_MCBOPOMOFO_INFO() << "User phrase files changed; reloading user phrases.";
-            reloadUserPhrases_();
-        }
+    bool userPhrasesChanged = userPhrasesFile_.HasChanged();
+    bool excludedPhrasesChanged = excludedPhrasesFile_.HasChanged();
+    if (userPhrasesChanged || excludedPhrasesChanged) {
+      FCITX_MCBOPOMOFO_INFO()
+          << "User phrase files changed; reloading user phrases.";
+      reloadUserPhrases_();
     }
+  }
 
-private:
-    WatchedFile settingsFile_;
-    WatchedFile userPhrasesFile_;
-    WatchedFile excludedPhrasesFile_;
-    std::function<void()> reloadSettings_;
-    std::function<void()> reloadUserPhrases_;
+ private:
+  WatchedFile settingsFile_;
+  WatchedFile userPhrasesFile_;
+  WatchedFile excludedPhrasesFile_;
+  std::function<void()> reloadSettings_;
+  std::function<void()> reloadUserPhrases_;
 };
 
 #define IDM_SETTINGS 1003
@@ -411,228 +432,239 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
   return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-
 int main(int argc, char* argv[]) {
-    HANDLE hSingleInstanceMutex = CreateMutexW(nullptr, TRUE, kServerSingleInstanceMutexName);
-    if (hSingleInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
-        return 0;
-    }
-
-    FCITX_MCBOPOMOFO_INFO() << "Win-McBopomofo Server daemon starting...";
-    
-    WCHAR szExePath[MAX_PATH];
-    GetModuleFileNameW(NULL, szExePath, MAX_PATH);
-    std::filesystem::path exeDir = std::filesystem::path(szExePath).parent_path();
-
-    std::string dataPath = (exeDir / "data" / "data.txt").string();
-    if (argc >= 2) {
-        dataPath = argv[1];
-    }
-    LogDataFileStatus("Language model data file", dataPath);
-
-    auto lm = std::make_shared<McBopomofoLM>();
-    lm->loadLanguageModel(dataPath.c_str());
-    FCITX_MCBOPOMOFO_INFO() << "Language model loaded: " << lm->isDataModelLoaded();
-
-    std::string assocPath = (exeDir / "data" / "associated-phrases-v2.txt").string();
-    LogDataFileStatus("Associated phrases file", assocPath);
-    if (std::filesystem::exists(assocPath)) {
-        lm->loadAssociatedPhrasesV2(assocPath.c_str());
-        FCITX_MCBOPOMOFO_INFO() << "Associated phrases loaded from: " << assocPath;
-    } else {
-        FCITX_MCBOPOMOFO_WARN() << "Associated phrases file missing: " << assocPath;
-    }
-
-    std::string variantsPath = (exeDir / "data" / "bpmfvs-variants.txt").string();
-    LogDataFileStatus("Phrase replacement file", variantsPath);
-    if (std::filesystem::exists(variantsPath)) {
-        lm->loadPhraseReplacementMap(variantsPath.c_str());
-        FCITX_MCBOPOMOFO_INFO() << "Phrase replacement map loaded from: " << variantsPath;
-    } else {
-        FCITX_MCBOPOMOFO_WARN() << "Phrase replacement file missing: " << variantsPath;
-    }
-
-    auto variantAnnotator = LoadVariantAnnotator(exeDir);
-
-    if (!lm->isDataModelLoaded()) {
-        FCITX_MCBOPOMOFO_ERROR() << "Failed to load language model from: " << dataPath;
-        if (hSingleInstanceMutex) {
-            ReleaseMutex(hSingleInstanceMutex);
-            CloseHandle(hSingleInstanceMutex);
-        }
-        return 1;
-    }
-
-    std::string userDir = fcitx5_compat::userDirectory();
-    std::string userPhrasesPath = userDir + "/user.txt";
-    std::string excludedPhrasesPath = userDir + "/exclude.txt";
-    
-    // Create empty files if they don't exist
-    if (!std::filesystem::exists(userPhrasesPath)) {
-        std::ofstream(userPhrasesPath).close();
-    }
-    if (!std::filesystem::exists(excludedPhrasesPath)) {
-        std::ofstream(excludedPhrasesPath).close();
-    }
-
-    lm->loadUserPhrases(userPhrasesPath.c_str(), excludedPhrasesPath.c_str());
-
-    // Set macro converter in LM
-    InputMacroController macroController;
-    lm->setMacroConverter([&macroController](const std::string& input) {
-        return macroController.handle(input);
-    });
-
-    std::shared_ptr<KeyHandler> keyHandler(new KeyHandler(
-        lm, 
-        variantAnnotator,
-        std::make_shared<WinUserPhraseAdder>(lm), 
-        std::unique_ptr<LocalizedStrings>(new DummyLocalizedStrings())
-    ));
-
-    std::string dictionaryServiceJsonPath = (exeDir / "data" / "dictionary_service.json").string();
-    LogDataFileStatus("Dictionary service file", dictionaryServiceJsonPath);
-    keyHandler->getDictionaryServices()->load(dictionaryServiceJsonPath);
-    FCITX_MCBOPOMOFO_INFO() << "Dictionary service load attempted from: "
-                            << dictionaryServiceJsonPath;
-
-    ServerUI ui;
-    InputController controller(keyHandler, &ui);
-    g_Controller = &controller;
-
-    controller.setDataDirectory(exeDir / "data");
-
-    Settings settings;
-    settings.applyTo(controller);
-    std::mutex reloadMutex;
-
-    auto reloadSettings = [&]() {
-        FCITX_MCBOPOMOFO_INFO() << "Reloading settings from: "
-                                << (std::filesystem::path(userDir) / "mcbopomofo.ini").string();
-        settings.load();
-        settings.applyTo(controller);
-    };
-
-    auto reloadUserPhrases = [&]() {
-        FCITX_MCBOPOMOFO_INFO() << "Reloading user phrase files from: "
-                                << userPhrasesPath << " and " << excludedPhrasesPath;
-        lm->loadUserPhrases(userPhrasesPath.c_str(), excludedPhrasesPath.c_str());
-    };
-
-    ServerFileReloader fileReloader(
-        std::filesystem::path(userDir) / "mcbopomofo.ini",
-        userPhrasesPath,
-        excludedPhrasesPath,
-        [&]() {
-            std::lock_guard<std::mutex> lock(reloadMutex);
-            reloadSettings();
-        },
-        [&]() {
-            std::lock_guard<std::mutex> lock(reloadMutex);
-            reloadUserPhrases();
-        });
-    fileReloader.LogWatchedFiles();
-
-    FCITX_MCBOPOMOFO_INFO() << "Starting Named Pipe server at " << IPC::PIPE_NAME;
-
-    IPC::NamedPipeServer server(IPC::PIPE_NAME, [&](const std::string& req) {
-        std::lock_guard<std::mutex> lock(reloadMutex);
-
-        // Reset UI payload before processing
-        ui.currentState.commitString.clear();
-
-        IPC::KeyEventPayload keyReq;
-        if (IPC::DeserializeKeyEvent(req, keyReq)) {
-            FCITX_MCBOPOMOFO_INFO() << "IPC Recv: VK=" << keyReq.vk << ", ASCII=" << keyReq.ascii << ", SHIFT=" << keyReq.shift << ", CTRL=" << keyReq.ctrl;
-            bool consumed = true;
-            consumed = controller.handleKey(mapIpcKey(keyReq));
-            ui.currentState.consumed = consumed;
-            return IPC::SerializeStateUpdate(ui.currentState);
-        }
-        
-        IPC::SelectCandidatePayload selReq;
-        if (IPC::DeserializeSelectCandidate(req, selReq)) {
-            FCITX_MCBOPOMOFO_INFO() << "IPC Recv: SELECT_CANDIDATE Index=" << selReq.index;
-            controller.selectCandidate(selReq.index);
-            ui.currentState.consumed = true;
-            return IPC::SerializeStateUpdate(ui.currentState);
-        }
-
-        if (IPC::IsReloadSettingsCommand(req)) {
-            FCITX_MCBOPOMOFO_INFO() << "IPC Recv: RELOAD_SETTINGS";
-            reloadSettings();
-            ui.currentState.consumed = true;
-            return IPC::SerializeStateUpdate(ui.currentState);
-        }
-
-        if (IPC::IsResetCommand(req)) {
-            FCITX_MCBOPOMOFO_INFO() << "IPC Recv: RESET";
-            controller.reset();
-            ui.currentState.consumed = true;
-            return IPC::SerializeStateUpdate(ui.currentState);
-        }
-
-        FCITX_MCBOPOMOFO_WARN() << "IPC Failed to deserialize request.";
-        return std::string();
-    });
-
-    server.Start();
-
-    // Create a hidden window for the Tray Icon
-    WNDCLASSEXW wcex = { sizeof(WNDCLASSEXW) };
-    wcex.lpfnWndProc = TrayWndProc;
-    wcex.hInstance = GetModuleHandle(NULL);
-    wcex.hIcon = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
-    wcex.hIconSm = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
-    wcex.lpszClassName = L"WinMcBopomofoServerTray";
-    RegisterClassExW(&wcex);
-
-    HWND hwndTray = CreateWindowExW(0, L"WinMcBopomofoServerTray", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, wcex.hInstance, NULL);
-
-    NOTIFYICONDATAW nid = { sizeof(NOTIFYICONDATAW) };
-    nid.hWnd = hwndTray;
-    nid.uID = 1u;
-    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    nid.uCallbackMessage = WM_USER_TRAY;
-    nid.hIcon = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
-    wcscpy_s(nid.szTip, L"小麥注音 Server");
-
-    Shell_NotifyIconW(NIM_ADD, &nid);
-
-    FCITX_MCBOPOMOFO_INFO() << "Server is running in background. Check System Tray to exit.";
-
-    // Standard message loop to keep the process alive and poll file changes.
-    MSG msg;
-    bool running = true;
-    while (running) {
-        DWORD waitResult = MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
-        if (waitResult == WAIT_TIMEOUT) {
-            fileReloader.Check();
-            continue;
-        }
-
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            if (msg.message == WM_QUIT) {
-                running = false;
-                break;
-            }
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
-    
-    server.Stop();
-    Shell_NotifyIconW(NIM_DELETE, &nid);
-    DestroyWindow(hwndTray);
-
-    if (hSingleInstanceMutex) {
-        ReleaseMutex(hSingleInstanceMutex);
-        CloseHandle(hSingleInstanceMutex);
-    }
-
-    if (g_RestartRequested) {
-        RelaunchCurrentProcess();
-    }
-
+  HANDLE hSingleInstanceMutex =
+      CreateMutexW(nullptr, TRUE, kServerSingleInstanceMutexName);
+  if (hSingleInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
     return 0;
+  }
+
+  FCITX_MCBOPOMOFO_INFO() << "Win-McBopomofo Server daemon starting...";
+
+  WCHAR szExePath[MAX_PATH];
+  GetModuleFileNameW(NULL, szExePath, MAX_PATH);
+  std::filesystem::path exeDir = std::filesystem::path(szExePath).parent_path();
+
+  std::string dataPath = (exeDir / "data" / "data.txt").string();
+  if (argc >= 2) {
+    dataPath = argv[1];
+  }
+  LogDataFileStatus("Language model data file", dataPath);
+
+  auto lm = std::make_shared<McBopomofoLM>();
+  lm->loadLanguageModel(dataPath.c_str());
+  FCITX_MCBOPOMOFO_INFO() << "Language model loaded: "
+                          << lm->isDataModelLoaded();
+
+  std::string assocPath =
+      (exeDir / "data" / "associated-phrases-v2.txt").string();
+  LogDataFileStatus("Associated phrases file", assocPath);
+  if (std::filesystem::exists(assocPath)) {
+    lm->loadAssociatedPhrasesV2(assocPath.c_str());
+    FCITX_MCBOPOMOFO_INFO() << "Associated phrases loaded from: " << assocPath;
+  } else {
+    FCITX_MCBOPOMOFO_WARN() << "Associated phrases file missing: " << assocPath;
+  }
+
+  std::string variantsPath = (exeDir / "data" / "bpmfvs-variants.txt").string();
+  LogDataFileStatus("Phrase replacement file", variantsPath);
+  if (std::filesystem::exists(variantsPath)) {
+    lm->loadPhraseReplacementMap(variantsPath.c_str());
+    FCITX_MCBOPOMOFO_INFO()
+        << "Phrase replacement map loaded from: " << variantsPath;
+  } else {
+    FCITX_MCBOPOMOFO_WARN()
+        << "Phrase replacement file missing: " << variantsPath;
+  }
+
+  auto variantAnnotator = LoadVariantAnnotator(exeDir);
+
+  if (!lm->isDataModelLoaded()) {
+    FCITX_MCBOPOMOFO_ERROR()
+        << "Failed to load language model from: " << dataPath;
+    if (hSingleInstanceMutex) {
+      ReleaseMutex(hSingleInstanceMutex);
+      CloseHandle(hSingleInstanceMutex);
+    }
+    return 1;
+  }
+
+  std::string userDir = fcitx5_compat::userDirectory();
+  std::string userPhrasesPath = userDir + "/user.txt";
+  std::string excludedPhrasesPath = userDir + "/exclude.txt";
+
+  // Create empty files if they don't exist
+  if (!std::filesystem::exists(userPhrasesPath)) {
+    std::ofstream(userPhrasesPath).close();
+  }
+  if (!std::filesystem::exists(excludedPhrasesPath)) {
+    std::ofstream(excludedPhrasesPath).close();
+  }
+
+  lm->loadUserPhrases(userPhrasesPath.c_str(), excludedPhrasesPath.c_str());
+
+  // Set macro converter in LM
+  InputMacroController macroController;
+  lm->setMacroConverter([&macroController](const std::string& input) {
+    return macroController.handle(input);
+  });
+
+  std::shared_ptr<KeyHandler> keyHandler(new KeyHandler(
+      lm, variantAnnotator, std::make_shared<WinUserPhraseAdder>(lm),
+      std::unique_ptr<LocalizedStrings>(new DummyLocalizedStrings())));
+
+  std::string dictionaryServiceJsonPath =
+      (exeDir / "data" / "dictionary_service.json").string();
+  LogDataFileStatus("Dictionary service file", dictionaryServiceJsonPath);
+  keyHandler->getDictionaryServices()->load(dictionaryServiceJsonPath);
+  FCITX_MCBOPOMOFO_INFO() << "Dictionary service load attempted from: "
+                          << dictionaryServiceJsonPath;
+
+  ServerUI ui;
+  InputController controller(keyHandler, &ui);
+  g_Controller = &controller;
+
+  controller.setDataDirectory(exeDir / "data");
+
+  Settings settings;
+  settings.applyTo(controller);
+  std::mutex reloadMutex;
+
+  auto reloadSettings = [&]() {
+    FCITX_MCBOPOMOFO_INFO()
+        << "Reloading settings from: "
+        << (std::filesystem::path(userDir) / "mcbopomofo.ini").string();
+    settings.load();
+    settings.applyTo(controller);
+  };
+
+  auto reloadUserPhrases = [&]() {
+    FCITX_MCBOPOMOFO_INFO()
+        << "Reloading user phrase files from: " << userPhrasesPath << " and "
+        << excludedPhrasesPath;
+    lm->loadUserPhrases(userPhrasesPath.c_str(), excludedPhrasesPath.c_str());
+  };
+
+  ServerFileReloader fileReloader(
+      std::filesystem::path(userDir) / "mcbopomofo.ini", userPhrasesPath,
+      excludedPhrasesPath,
+      [&]() {
+        std::lock_guard<std::mutex> lock(reloadMutex);
+        reloadSettings();
+      },
+      [&]() {
+        std::lock_guard<std::mutex> lock(reloadMutex);
+        reloadUserPhrases();
+      });
+  fileReloader.LogWatchedFiles();
+
+  FCITX_MCBOPOMOFO_INFO() << "Starting Named Pipe server at " << IPC::PIPE_NAME;
+
+  IPC::NamedPipeServer server(IPC::PIPE_NAME, [&](const std::string& req) {
+    std::lock_guard<std::mutex> lock(reloadMutex);
+
+    // Reset UI payload before processing
+    ui.currentState.commitString.clear();
+
+    IPC::KeyEventPayload keyReq;
+    if (IPC::DeserializeKeyEvent(req, keyReq)) {
+      FCITX_MCBOPOMOFO_INFO()
+          << "IPC Recv: VK=" << keyReq.vk << ", ASCII=" << keyReq.ascii
+          << ", SHIFT=" << keyReq.shift << ", CTRL=" << keyReq.ctrl;
+      bool consumed = true;
+      consumed = controller.handleKey(mapIpcKey(keyReq));
+      ui.currentState.consumed = consumed;
+      return IPC::SerializeStateUpdate(ui.currentState);
+    }
+
+    IPC::SelectCandidatePayload selReq;
+    if (IPC::DeserializeSelectCandidate(req, selReq)) {
+      FCITX_MCBOPOMOFO_INFO()
+          << "IPC Recv: SELECT_CANDIDATE Index=" << selReq.index;
+      controller.selectCandidate(selReq.index);
+      ui.currentState.consumed = true;
+      return IPC::SerializeStateUpdate(ui.currentState);
+    }
+
+    if (IPC::IsReloadSettingsCommand(req)) {
+      FCITX_MCBOPOMOFO_INFO() << "IPC Recv: RELOAD_SETTINGS";
+      reloadSettings();
+      ui.currentState.consumed = true;
+      return IPC::SerializeStateUpdate(ui.currentState);
+    }
+
+    if (IPC::IsResetCommand(req)) {
+      FCITX_MCBOPOMOFO_INFO() << "IPC Recv: RESET";
+      controller.reset();
+      ui.currentState.consumed = true;
+      return IPC::SerializeStateUpdate(ui.currentState);
+    }
+
+    FCITX_MCBOPOMOFO_WARN() << "IPC Failed to deserialize request.";
+    return std::string();
+  });
+
+  server.Start();
+
+  // Create a hidden window for the Tray Icon
+  WNDCLASSEXW wcex = {sizeof(WNDCLASSEXW)};
+  wcex.lpfnWndProc = TrayWndProc;
+  wcex.hInstance = GetModuleHandle(NULL);
+  wcex.hIcon = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
+  wcex.hIconSm = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
+  wcex.lpszClassName = L"WinMcBopomofoServerTray";
+  RegisterClassExW(&wcex);
+
+  HWND hwndTray =
+      CreateWindowExW(0, L"WinMcBopomofoServerTray", L"", 0, 0, 0, 0, 0,
+                      HWND_MESSAGE, NULL, wcex.hInstance, NULL);
+
+  NOTIFYICONDATAW nid = {sizeof(NOTIFYICONDATAW)};
+  nid.hWnd = hwndTray;
+  nid.uID = 1u;
+  nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+  nid.uCallbackMessage = WM_USER_TRAY;
+  nid.hIcon = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
+  wcscpy_s(nid.szTip, L"小麥注音 Server");
+
+  Shell_NotifyIconW(NIM_ADD, &nid);
+
+  FCITX_MCBOPOMOFO_INFO()
+      << "Server is running in background. Check System Tray to exit.";
+
+  // Standard message loop to keep the process alive and poll file changes.
+  MSG msg;
+  bool running = true;
+  while (running) {
+    DWORD waitResult =
+        MsgWaitForMultipleObjects(0, nullptr, FALSE, 1000, QS_ALLINPUT);
+    if (waitResult == WAIT_TIMEOUT) {
+      fileReloader.Check();
+      continue;
+    }
+
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+      if (msg.message == WM_QUIT) {
+        running = false;
+        break;
+      }
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+    }
+  }
+
+  server.Stop();
+  Shell_NotifyIconW(NIM_DELETE, &nid);
+  DestroyWindow(hwndTray);
+
+  if (hSingleInstanceMutex) {
+    ReleaseMutex(hSingleInstanceMutex);
+    CloseHandle(hSingleInstanceMutex);
+  }
+
+  if (g_RestartRequested) {
+    RelaunchCurrentProcess();
+  }
+
+  return 0;
 }

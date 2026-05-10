@@ -110,8 +110,7 @@ KeyHandler::KeyHandler(
       userPhraseAdder_(std::move(userPhraseAdder)),
       localizedStrings_(std::move(localizedStrings)),
       userOverrideModel_(kUserOverrideModelCapacity, kObservedOverrideHalfLife),
-      reading_(Formosa::Mandarin::BopomofoKeyboardLayout::StandardLayout()) {
-}
+      reading_(Formosa::Mandarin::BopomofoKeyboardLayout::StandardLayout()) {}
 
 bool KeyHandler::handle(Key key, McBopomofo::InputState* state,
                         StateCallback stateCallback,
@@ -588,8 +587,9 @@ void KeyHandler::dictionaryServiceSelected(std::string phrase, size_t index,
                                            InputState* currentState,
                                            StateCallback stateCallback) {
   dictionaryServices_.lookup(phrase, index, currentState, stateCallback);
-  if (auto* selDict = dynamic_cast<InputStates::SelectingDictionary*>(currentState)) {
-      stateCallback(std::move(selDict->previousState));
+  if (auto* selDict =
+          dynamic_cast<InputStates::SelectingDictionary*>(currentState)) {
+    stateCallback(std::move(selDict->previousState));
   }
 }
 

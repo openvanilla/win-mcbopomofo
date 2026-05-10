@@ -34,33 +34,33 @@ bool ServerLoggingEnabled();
 void SetServerLoggingEnabled(bool enabled);
 
 class LogMessageContext {
-public:
-    LogMessageContext(const char* level);
-    ~LogMessageContext();
+ public:
+  LogMessageContext(const char* level);
+  ~LogMessageContext();
 
-    template <typename T>
-    LogMessageContext& operator<<(const T& value) {
-        stream_ << value;
-        return *this;
-    }
+  template <typename T>
+  LogMessageContext& operator<<(const T& value) {
+    stream_ << value;
+    return *this;
+  }
 
-    // Overload for stream manipulators like std::endl
-    typedef std::ostream& (*OStreamManipulator)(std::ostream&);
-    LogMessageContext& operator<<(OStreamManipulator manip) {
-        stream_ << manip;
-        return *this;
-    }
+  // Overload for stream manipulators like std::endl
+  typedef std::ostream& (*OStreamManipulator)(std::ostream&);
+  LogMessageContext& operator<<(OStreamManipulator manip) {
+    stream_ << manip;
+    return *this;
+  }
 
-private:
-    const char* level_;
-    std::ostringstream stream_;
+ private:
+  const char* level_;
+  std::ostringstream stream_;
 };
 
-} // namespace McBopomofo
+}  // namespace McBopomofo
 
 #define FCITX_MCBOPOMOFO_ERROR() ::McBopomofo::LogMessageContext("ERROR")
-#define FCITX_MCBOPOMOFO_INFO()  ::McBopomofo::LogMessageContext("INFO")
-#define FCITX_MCBOPOMOFO_WARN()  ::McBopomofo::LogMessageContext("WARN")
+#define FCITX_MCBOPOMOFO_INFO() ::McBopomofo::LogMessageContext("INFO")
+#define FCITX_MCBOPOMOFO_WARN() ::McBopomofo::LogMessageContext("WARN")
 #define FCITX_MCBOPOMOFO_DEBUG() ::McBopomofo::LogMessageContext("DEBUG")
 
-#endif // SRC_LOG_H_
+#endif  // SRC_LOG_H_

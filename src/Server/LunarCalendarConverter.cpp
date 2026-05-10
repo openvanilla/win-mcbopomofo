@@ -38,8 +38,7 @@ constexpr int kMaxSupportedYear = 2100;
 
 std::string formatLunarMonth_(int month) {
   static const std::array<const char*, 12> kMonths = {
-      "正", "二", "三", "四", "五", "六",
-      "七", "八", "九", "十", "冬", "臘"};
+      "正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "臘"};
   if (month < 1 || month > 12) {
     return std::to_string(month);
   }
@@ -131,11 +130,8 @@ bool tryConvertLunarToSolar(const LunarDate& lunar, int* year, int* month,
 }
 
 std::string formatLunarDate(const LunarDate& lunar) {
-  return std::to_string(lunar.year) + "年" +
-         (lunar.isLeapMonth ? "閏" : "") +
-         formatLunarMonth_(lunar.month) +
-         "月" +
-         formatLunarDay_(lunar.day);
+  return std::to_string(lunar.year) + "年" + (lunar.isLeapMonth ? "閏" : "") +
+         formatLunarMonth_(lunar.month) + "月" + formatLunarDay_(lunar.day);
 }
 
 }  // namespace McBopomofo

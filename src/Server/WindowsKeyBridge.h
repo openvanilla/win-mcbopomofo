@@ -25,12 +25,13 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "Key.h"
+
 #include "Ipc.h"
+#include "Key.h"
 
 namespace McBopomofo {
 
 // Utility to convert IPC Key Payload to McBopomofo::Key
 Key mapIpcKey(const IPC::KeyEventPayload& payload);
 
-} // namespace McBopomofo
+}  // namespace McBopomofo
