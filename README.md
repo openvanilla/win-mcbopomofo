@@ -2,6 +2,7 @@
 
 Windows port of McBopomofo built on TSF.
 
+
 ## Development Requirements
 
 To build this project, you need to install the following tools:
@@ -60,8 +61,9 @@ Ensure all [Requirements](#development-requirements) are met. Run the `winget` c
 
 For day-to-day development, use the `install.ps1` script to build all architectures and install them to a local `dist/` folder. **Note: This script requires Administrator privileges.**
 
+Note: In an elevated PowerShell terminal:
+
 ```powershell
-# In an elevated PowerShell terminal:
 .\install.ps1
 ```
 
@@ -84,10 +86,13 @@ This script will:
 - **Iterative Workflow**: After making code changes, simply run `.\install.ps1` again to rebuild and re-register the components.
 
 ### 4. Building the Installer
+
 To generate the final MSI installer, run:
+
 ```powershell
 .\build_msi.ps1
 ```
+
 The output will be located in `dist/Win-McBopomofo-Installer.msi`.
 
 ## Vocabulary and Language Model
@@ -103,6 +108,7 @@ This project follows a consistent coding style enforced by `clang-format`.
 - **Configuration**: See `.clang-format` in the root directory.
 - **Requirement**: Please ensure your code is formatted correctly before submitting any pull requests.
 - **Formatting Command**:
+
   ```powershell
   # Format all C++ files in the src directory
   Get-ChildItem -Path src -Include *.cpp,*.h -Recurse | ForEach-Object { clang-format -i $_.FullName }
@@ -114,12 +120,12 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 - **Format**: `<type>(optional scope): <description>`
 - **Common Types**:
-  - `feat`: A new feature
-  - `fix`: A bug fix
-  - `docs`: Documentation only changes
-  - `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc.)
-  - `refactor`: A code change that neither fixes a bug nor adds a feature
-  - `chore`: Updating build tasks, package manager configs, etc.
+    - `feat`: A new feature
+    - `fix`: A bug fix
+    - `docs`: Documentation only changes
+    - `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc.)
+    - `refactor`: A code change that neither fixes a bug nor adds a feature
+    - `chore`: Updating build tasks, package manager configs, etc.
 
 ## Common Scripts
 
