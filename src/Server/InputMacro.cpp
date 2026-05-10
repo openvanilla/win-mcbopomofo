@@ -1,4 +1,28 @@
+// Copyright (c) 2026 and onwards The McBopomofo Authors.
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use,
+// copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following
+// conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+
 #include "InputMacro.h"
+#include "ChineseNumbers/ChineseNumbers.h"
 #include "LunarCalendarConverter.h"
 
 #include <chrono>
@@ -16,6 +40,26 @@ namespace McBopomofo {
 namespace {
 
 std::string GetLunarDate(int dayOffset);
+
+std::string formatChineseDigits(int number) {
+    std::string numberString = std::to_string(number);
+    std::stringstream ss;
+    for (char c : numberString) {
+        ss << ChineseNumbers::Generate(std::string(1, c), "",
+                                       ChineseNumbers::ChineseNumberCase::LOWERCASE);
+    }
+    return ss.str();
+}
+
+std::string formatChineseNumber(int number) {
+    std::string generated = ChineseNumbers::Generate(
+        std::to_string(number), "",
+        ChineseNumbers::ChineseNumberCase::LOWERCASE);
+    if (generated.rfind("一十", 0) == 0) {
+        return generated.substr(std::string("一").size());
+    }
+    return generated;
+}
 
 std::string FormatDate(int dayOffset, const char* format) {
     auto now = std::chrono::system_clock::now();
@@ -83,7 +127,14 @@ std::string GetJapaneseWeekday(int dayOffset) {
 }
 
 std::string GetChineseDate(int dayOffset) {
-    return GetLunarDate(dayOffset);
+    std::tm tm = GetLocalTime(dayOffset);
+    int year = tm.tm_year + 1900;
+    int month = tm.tm_mon + 1;
+    int day = tm.tm_mday;
+
+    return formatChineseDigits(year) + "年" +
+           formatChineseNumber(month) + "月" +
+           formatChineseNumber(day) + "日";
 }
 
 std::string GetJapaneseYear(int dayOffset) {

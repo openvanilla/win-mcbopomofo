@@ -1,3 +1,26 @@
+// Copyright (c) 2026 and onwards The McBopomofo Authors.
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use,
+// copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following
+// conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
@@ -30,6 +53,8 @@ using namespace McBopomofo;
 #define IDM_EXIT 1002
 
 constexpr const wchar_t* kServerSingleInstanceMutexName = L"Local\\WinMcBopomofoServerSingleInstance";
+InputController* g_Controller = nullptr;
+bool g_RestartRequested = false;
 
 namespace {
 
@@ -64,6 +89,73 @@ std::shared_ptr<VariantAnnotator> LoadVariantAnnotator(
 
     return annotator;
 }
+
+
+void OpenFileInExplorer(const std::wstring& path) {
+  std::wstring args = L"/select,\"" + path + L"\"";
+  ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr,
+                SW_SHOWNORMAL);
+}
+
+void OpenLogFolder() {
+  std::wstring logPath = GetLogFilePath();
+  if (logPath.empty()) {
+    return;
+  }
+
+  OpenFileInExplorer(logPath);
+}
+
+void ToggleLogging() {
+  bool enabled = !ServerLoggingEnabled();
+  SetServerLoggingEnabled(enabled);
+  if (enabled) {
+    FCITX_MCBOPOMOFO_INFO() << "Logging enabled.";
+  }
+}
+
+void RestartServer() {
+  g_RestartRequested = true;
+  PostQuitMessage(0);
+}
+
+void TraceLog() {
+  std::wstring logPath = GetLogFilePath();
+  if (logPath.empty()) {
+    return;
+  }
+
+  std::wstring args = L"-NoExit -Command \"Get-Content -Path '" + logPath +
+                      L"' -Wait -Tail 50\"";
+  ShellExecuteW(nullptr, L"open", L"powershell.exe", args.c_str(), nullptr,
+                SW_SHOWNORMAL);
+}
+
+static void RelaunchCurrentProcess() {
+  std::wstring commandLine = GetCommandLineW();
+  STARTUPINFOW si = {};
+  si.cb = sizeof(si);
+  PROCESS_INFORMATION pi = {};
+  std::wstring mutableCommandLine = commandLine;
+  if (CreateProcessW(nullptr, mutableCommandLine.data(), nullptr, nullptr,
+                     FALSE, 0, nullptr, nullptr, &si, &pi)) {
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+  }
+}
+
+void OpenSettingsApp() {
+  WCHAR path[MAX_PATH] = {};
+  if (GetModuleFileNameW(nullptr, path, MAX_PATH) == 0) {
+    return;
+  }
+
+  std::filesystem::path configPath(path);
+  configPath.replace_filename(L"McBopomofoConfig.exe");
+  ShellExecuteW(nullptr, L"open", configPath.c_str(), nullptr, nullptr,
+                SW_SHOWNORMAL);
+}
+
 
 }
 
@@ -126,7 +218,9 @@ public:
     }
 
     void update(const IPC::StateUpdatePayload& state) override {
+        std::string savedCommit = currentState.commitString;
         currentState = state;
+        currentState.commitString = savedCommit;
     }
 };
 
@@ -238,9 +332,9 @@ private:
     std::function<void()> reloadUserPhrases_;
 };
 
-bool IsCtrlSpace(const IPC::KeyEventPayload& key) {
-    return key.vk == VK_SPACE && key.ctrl;
-}
+//bool IsCtrlSpace(const IPC::KeyEventPayload& key) {
+//    return key.vk == VK_SPACE && key.ctrl;
+//}
 
 #define IDM_SETTINGS 1003
 #define IDM_OPEN_USER_PHRASES 1004
@@ -252,135 +346,82 @@ bool IsCtrlSpace(const IPC::KeyEventPayload& key) {
 #define IDM_TRACE_LOG 1010
 #define IDM_EXIT 1002
 
-InputController* g_Controller = nullptr;
-bool g_RestartRequested = false;
+static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
+                                    LPARAM lParam) {
+  if (msg == WM_USER_TRAY) {
+    if (LOWORD(lParam) == WM_RBUTTONUP) {
+      POINT pt;
+      GetCursorPos(&pt);
+      HMENU hMenu = CreatePopupMenu();
 
-void OpenFileInExplorer(const std::wstring& path) {
-    std::wstring args = L"/select,\"" + path + L"\"";
-    ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
-}
+      // bool isConversionEnabled =
+      //     g_Controller && g_Controller->isChineseConversionEnabled();
+      // LPCWSTR conversionText =
+      //     isConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文";
+      // UINT loggingFlags = MF_BYPOSITION | MF_STRING;
+      // if (ServerLoggingEnabled()) {
+      //   loggingFlags |= MF_CHECKED;
+      // }
 
-void OpenLogFolder() {
-    std::wstring logPath = GetLogFilePath();
-    if (logPath.empty()) {
-        return;
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_SETTINGS,
+                  L"設定");
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
+                  IDM_TOGGLE_CONVERSION, conversionText);
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
+                  IDM_OPEN_USER_PHRASES, L"編輯使用者詞庫");
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
+                  IDM_OPEN_EXCLUDED_PHRASES, L"編輯排除詞庫");
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
+                  IDM_OPEN_USER_DIR, L"開啟使用者資料夾");
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
+                  IDM_OPEN_LOG_FOLDER, L"開啟 Log 資料夾");
+      InsertMenuW(hMenu, 0xFFFFFFFFU, loggingFlags, IDM_TOGGLE_LOGGING,
+                  L"啟用 Logging");
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_TRACE_LOG,
+                  L"Trace Log");
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_RESTART,
+                  L"重新啟動 Server");
+      SetForegroundWindow(hwnd);
+      TrackPopupMenu(hMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0,
+                     hwnd, NULL);
+      DestroyMenu(hMenu);
     }
-
-    OpenFileInExplorer(logPath);
-}
-
-void ToggleLogging() {
-    bool enabled = !ServerLoggingEnabled();
-    SetServerLoggingEnabled(enabled);
-    if (enabled) {
-        FCITX_MCBOPOMOFO_INFO() << "Logging enabled.";
+    return 0;
+  } else if (msg == WM_COMMAND) {
+    if (LOWORD(wParam) == IDM_EXIT) {
+      PostQuitMessage(0);
+    } else if (LOWORD(wParam) == IDM_SETTINGS) {
+      OpenSettingsApp();
+    } else if (LOWORD(wParam) == IDM_TOGGLE_CONVERSION) {
+      if (g_Controller) {
+        g_Controller->toggleChineseConversion();
+      }
+    } else if (LOWORD(wParam) == IDM_OPEN_USER_PHRASES) {
+      std::string path = fcitx5_compat::userDirectory() + "/user.txt";
+      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+    } else if (LOWORD(wParam) == IDM_OPEN_EXCLUDED_PHRASES) {
+      std::string path = fcitx5_compat::userDirectory() + "/exclude.txt";
+      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+    } else if (LOWORD(wParam) == IDM_OPEN_USER_DIR) {
+      std::string path = fcitx5_compat::userDirectory();
+      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+    } else if (LOWORD(wParam) == IDM_OPEN_LOG_FOLDER) {
+      OpenLogFolder();
+    } else if (LOWORD(wParam) == IDM_TOGGLE_LOGGING) {
+      ToggleLogging();
+    } else if (LOWORD(wParam) == IDM_TRACE_LOG) {
+      TraceLog();
+    } else if (LOWORD(wParam) == IDM_RESTART) {
+      RestartServer();
     }
+    return 0;
+  }
+  return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void RestartServer() {
-    g_RestartRequested = true;
-    PostQuitMessage(0);
-}
-
-void TraceLog() {
-    std::wstring logPath = GetLogFilePath();
-    if (logPath.empty()) {
-        return;
-    }
-
-    std::wstring args =
-        L"-NoExit -Command \"Get-Content -Path '" + logPath +
-        L"' -Wait -Tail 50\"";
-    ShellExecuteW(nullptr, L"open", L"powershell.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
-}
-
-void RelaunchCurrentProcess() {
-    std::wstring commandLine = GetCommandLineW();
-    STARTUPINFOW si = {};
-    si.cb = sizeof(si);
-    PROCESS_INFORMATION pi = {};
-    std::wstring mutableCommandLine = commandLine;
-    if (CreateProcessW(nullptr, mutableCommandLine.data(), nullptr, nullptr, FALSE,
-                       0, nullptr, nullptr, &si, &pi)) {
-        CloseHandle(pi.hThread);
-        CloseHandle(pi.hProcess);
-    }
-}
-
-void OpenSettingsApp() {
-    WCHAR path[MAX_PATH] = {};
-    if (GetModuleFileNameW(nullptr, path, MAX_PATH) == 0) {
-        return;
-    }
-
-    std::filesystem::path configPath(path);
-    configPath.replace_filename(L"McBopomofoConfig.exe");
-    ShellExecuteW(nullptr, L"open", configPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-}
-
-LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    if (msg == WM_USER_TRAY) {
-        if (LOWORD(lParam) == WM_RBUTTONUP) {
-            POINT pt;
-            GetCursorPos(&pt);
-            HMENU hMenu = CreatePopupMenu();
-            
-            bool isConversionEnabled = g_Controller && g_Controller->isChineseConversionEnabled();
-            LPCWSTR conversionText = isConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文";
-            UINT loggingFlags = MF_BYPOSITION | MF_STRING;
-            if (ServerLoggingEnabled()) {
-                loggingFlags |= MF_CHECKED;
-            }
-
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_SETTINGS, L"設定");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_TOGGLE_CONVERSION, conversionText);
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_PHRASES, L"編輯使用者詞庫");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_EXCLUDED_PHRASES, L"編輯排除詞庫");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_DIR, L"開啟使用者資料夾");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_LOG_FOLDER, L"開啟 Log 資料夾");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, loggingFlags, IDM_TOGGLE_LOGGING, L"啟用 Logging");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_TRACE_LOG, L"Trace Log");
-            InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_RESTART, L"重新啟動 Server");
-            //InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
-            //InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_EXIT, L"結束 (Exit)");
-            SetForegroundWindow(hwnd);
-            TrackPopupMenu(hMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL);
-            DestroyMenu(hMenu);
-        }
-        return 0;
-    } else if (msg == WM_COMMAND) {
-        if (LOWORD(wParam) == IDM_EXIT) {
-            PostQuitMessage(0);
-        } else if (LOWORD(wParam) == IDM_SETTINGS) {
-            OpenSettingsApp();
-        } else if (LOWORD(wParam) == IDM_TOGGLE_CONVERSION) {
-            if (g_Controller) {
-                g_Controller->toggleChineseConversion();
-            }
-        } else if (LOWORD(wParam) == IDM_OPEN_USER_PHRASES) {
-            std::string path = fcitx5_compat::userDirectory() + "/user.txt";
-            ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
-        } else if (LOWORD(wParam) == IDM_OPEN_EXCLUDED_PHRASES) {
-            std::string path = fcitx5_compat::userDirectory() + "/exclude.txt";
-            ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
-        } else if (LOWORD(wParam) == IDM_OPEN_USER_DIR) {
-            std::string path = fcitx5_compat::userDirectory();
-            ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
-        } else if (LOWORD(wParam) == IDM_OPEN_LOG_FOLDER) {
-            OpenLogFolder();
-        } else if (LOWORD(wParam) == IDM_TOGGLE_LOGGING) {
-            ToggleLogging();
-        } else if (LOWORD(wParam) == IDM_TRACE_LOG) {
-            TraceLog();
-        } else if (LOWORD(wParam) == IDM_RESTART) {
-            RestartServer();
-        }
-        return 0;
-    }
-    return DefWindowProc(hwnd, msg, wParam, lParam);
-}
 
 int main(int argc, char* argv[]) {
     HANDLE hSingleInstanceMutex = CreateMutexW(nullptr, TRUE, kServerSingleInstanceMutexName);
@@ -515,11 +556,12 @@ int main(int argc, char* argv[]) {
         if (IPC::DeserializeKeyEvent(req, keyReq)) {
             FCITX_MCBOPOMOFO_INFO() << "IPC Recv: VK=" << keyReq.vk << ", ASCII=" << keyReq.ascii << ", SHIFT=" << keyReq.shift << ", CTRL=" << keyReq.ctrl;
             bool consumed = true;
-            if (IsCtrlSpace(keyReq)) {
-                FCITX_MCBOPOMOFO_INFO() << "IPC Ctrl+Space: Chinese/English mode toggle handled before input controller.";
-            } else {
-                consumed = controller.handleKey(mapIpcKey(keyReq));
-            }
+            //if (IsCtrlSpace(keyReq)) {
+            //    FCITX_MCBOPOMOFO_INFO() << "IPC Ctrl+Space: Chinese/English mode toggle handled before input controller.";
+            //} else {
+
+            //}
+            consumed = controller.handleKey(mapIpcKey(keyReq));
             ui.currentState.consumed = consumed;
             return IPC::SerializeStateUpdate(ui.currentState);
         }
@@ -569,7 +611,7 @@ int main(int argc, char* argv[]) {
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_USER_TRAY;
     nid.hIcon = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
-    wcscpy_s(nid.szTip, L"小麥注音伺服器 (Win-McBopomofo)");
+    wcscpy_s(nid.szTip, L"小麥注音 Server");
 
     Shell_NotifyIconW(NIM_ADD, &nid);
 
