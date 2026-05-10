@@ -52,11 +52,11 @@ class CDisplayAttributeInfo : public ITfDisplayAttributeInfo {
   STDMETHODIMP Reset() override;
 
  private:
-  LONG _cRef;
-  GUID _guid;
-  TF_DISPLAYATTRIBUTE _da;
-  TF_DISPLAYATTRIBUTE _daDefault;
-  const WCHAR* _desc;
+  LONG cRef_;
+  GUID guid_;
+  TF_DISPLAYATTRIBUTE da_;
+  TF_DISPLAYATTRIBUTE daDefault_;
+  const WCHAR* desc_;
 };
 
 class CEnumDisplayAttributeInfo : public IEnumTfDisplayAttributeInfo {
@@ -77,6 +77,6 @@ class CEnumDisplayAttributeInfo : public IEnumTfDisplayAttributeInfo {
   STDMETHODIMP Skip(ULONG ulCount) override;
 
  private:
-  LONG _cRef;
-  int _index;
+  LONG cRef_;
+  int index_;
 };

@@ -74,10 +74,10 @@ class CLangBarButton : public ITfLangBarItemButton, public ITfSource {
   void Update();
 
  private:
-  long _refCount;
-  McBopomofoTIP* _pTIP;
-  GUID _guid;
-  Kind _kind;
-  std::vector<std::pair<DWORD, ITfLangBarItemSink*>> _sinks;
-  static std::atomic<DWORD> _nextCookie;
+  long refCount_;
+  McBopomofoTIP* pTIP_;
+  GUID guid_;
+  Kind kind_;
+  std::vector<std::pair<DWORD, ITfLangBarItemSink*>> sinks_;
+  static std::atomic<DWORD> nextCookie_;
 };

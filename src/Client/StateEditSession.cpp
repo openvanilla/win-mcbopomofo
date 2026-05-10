@@ -122,12 +122,12 @@ void MoveAuxiliaryWindows(TfEditCookie ec, ITfContext* context, ITfRange* range,
 CStateEditSession::CStateEditSession(
     ITfContext* pContext, McBopomofoTIP* pTIP,
     const McBopomofo::IPC::StateUpdatePayload& state)
-    : CEditSessionBase(pContext), _pTIP(pTIP), _state(state) {
-  if (_pTIP) _pTIP->AddRef();
+    : CEditSessionBase(pContext), pTIP_(pTIP), state_(state) {
+  if (pTIP_) pTIP_->AddRef();
 }
 
 CStateEditSession::~CStateEditSession() {
-  if (_pTIP) _pTIP->Release();
+  if (pTIP_) pTIP_->Release();
 }
 
 void SetDisplayAttribute(TfEditCookie ec, ITfContext* pContext,
@@ -143,22 +143,22 @@ void SetDisplayAttribute(TfEditCookie ec, ITfContext* pContext,
 }
 
 STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
-  std::wstring commitStr = McBopomofo::Utf8ToUtf16(_state.commitString);
-  std::wstring compStr = McBopomofo::Utf8ToUtf16(_state.composingBuffer);
+  std::wstring commitStr = McBopomofo::Utf8ToUtf16(state_.commitString);
+  std::wstring compStr = McBopomofo::Utf8ToUtf16(state_.composingBuffer);
   const bool directCommitWithoutComposition =
       !commitStr.empty() && compStr.empty() &&
-      _pTIP->GetComposition() == nullptr;
+      pTIP_->GetComposition() == nullptr;
 
   // 1. Handle Committing Text
   if (!commitStr.empty()) {
-    if (_pTIP->GetComposition()) {
+    if (pTIP_->GetComposition()) {
       ITfRange* pRange = nullptr;
-      if (SUCCEEDED(_pTIP->GetComposition()->GetRange(&pRange))) {
+      if (SUCCEEDED(pTIP_->GetComposition()->GetRange(&pRange))) {
         pRange->SetText(ec, 0, commitStr.c_str(), (LONG)commitStr.length());
 
         // Clear display attributes when committing
         ITfProperty* pProp = nullptr;
-        if (SUCCEEDED(_pContext->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
+        if (SUCCEEDED(pContext_->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
           pProp->Clear(ec, pRange);
           pProp->Release();
         }
@@ -168,11 +168,11 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         sel.range = pRange;
         sel.style.ase = TF_AE_NONE;
         sel.style.fInterimChar = FALSE;
-        _pContext->SetSelection(ec, 1, &sel);
+        pContext_->SetSelection(ec, 1, &sel);
 
-        _pTIP->GetComposition()->EndComposition(ec);
-        _pTIP->GetComposition()->Release();
-        _pTIP->SetComposition(nullptr);
+        pTIP_->GetComposition()->EndComposition(ec);
+        pTIP_->GetComposition()->Release();
+        pTIP_->SetComposition(nullptr);
         pRange->Release();
       }
     } else {
@@ -188,7 +188,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       // 4. Move cursor to the end of inserted text
       // 5. End the composition to commit all changes atomically
       ITfInsertAtSelection* pInsert = nullptr;
-      if (SUCCEEDED(_pContext->QueryInterface(IID_ITfInsertAtSelection,
+      if (SUCCEEDED(pContext_->QueryInterface(IID_ITfInsertAtSelection,
                                               (void**)&pInsert))) {
         ITfRange* pRange = nullptr;
         // First, query the selection position without modifying anything
@@ -199,10 +199,10 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           // Now we have a valid range at the current selection
           // Create a composition at this position
           ITfContextComposition* pContextComp = nullptr;
-          if (SUCCEEDED(_pContext->QueryInterface(IID_ITfContextComposition,
+          if (SUCCEEDED(pContext_->QueryInterface(IID_ITfContextComposition,
                                                   (void**)&pContextComp))) {
             ITfComposition* pComp = nullptr;
-            if (SUCCEEDED(pContextComp->StartComposition(ec, pRange, _pTIP,
+            if (SUCCEEDED(pContextComp->StartComposition(ec, pRange, pTIP_,
                                                          &pComp)) &&
                 pComp) {
               // Insert text into the composition range
@@ -215,7 +215,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
               sel.range = pRange;
               sel.style.ase = TF_AE_NONE;
               sel.style.fInterimChar = FALSE;
-              _pContext->SetSelection(ec, 1, &sel);
+              pContext_->SetSelection(ec, 1, &sel);
 
               // Immediately end the composition to commit all changes
               pComp->EndComposition(ec);
@@ -235,8 +235,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     // We still need to explicitly hide auxiliary UI first, otherwise the
     // candidate window can be left visible after a direct commit.
     if (directCommitWithoutComposition) {
-      _pTIP->GetCandidateWindow()->Hide();
-      _pTIP->GetTooltipWindow()->Hide();
+      pTIP_->GetCandidateWindow()->Hide();
+      pTIP_->GetTooltipWindow()->Hide();
       return S_OK;
     }
   }
@@ -244,32 +244,32 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
   // 2. Handle Composing Text
   if (!compStr.empty()) {
     ITfRange* pRange = nullptr;
-    if (!_pTIP->GetComposition()) {
+    if (!pTIP_->GetComposition()) {
       // Start composition
       ITfInsertAtSelection* pInsert = nullptr;
-      if (SUCCEEDED(_pContext->QueryInterface(IID_ITfInsertAtSelection,
+      if (SUCCEEDED(pContext_->QueryInterface(IID_ITfInsertAtSelection,
                                               (void**)&pInsert))) {
         pInsert->InsertTextAtSelection(ec, TF_IAS_QUERYONLY, NULL, 0, &pRange);
         pInsert->Release();
       }
       if (pRange) {
         ITfContextComposition* pContextComp = nullptr;
-        if (SUCCEEDED(_pContext->QueryInterface(IID_ITfContextComposition,
+        if (SUCCEEDED(pContext_->QueryInterface(IID_ITfContextComposition,
                                                 (void**)&pContextComp))) {
           ITfComposition* pComp = nullptr;
           if (SUCCEEDED(
-                  pContextComp->StartComposition(ec, pRange, _pTIP, &pComp)) &&
+                  pContextComp->StartComposition(ec, pRange, pTIP_, &pComp)) &&
               pComp) {
-            _pTIP->SetComposition(pComp);
+            pTIP_->SetComposition(pComp);
           }
           pContextComp->Release();
         }
       }
     } else {
-      _pTIP->GetComposition()->GetRange(&pRange);
+      pTIP_->GetComposition()->GetRange(&pRange);
     }
 
-    if (pRange && _pTIP->GetComposition()) {
+    if (pRange && pTIP_->GetComposition()) {
       pRange->SetText(ec, 0, compStr.c_str(), (LONG)compStr.length());
 
       // Apply Display Attributes
@@ -283,14 +283,14 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         pCategoryMgr->RegisterGUID(c_guidDisplayAttributeMarked, &gaMarked);
 
         // Apply input attribute to the entire composing string first
-        SetDisplayAttribute(ec, _pContext, pRange, gaInput);
+        SetDisplayAttribute(ec, pContext_, pRange, gaInput);
 
-        if (_state.markStart >= 0 && _state.markEnd >= 0) {
+        if (state_.markStart >= 0 && state_.markEnd >= 0) {
           // Apply marking attribute to the marked portion
           size_t startOffset = McBopomofo::Utf8OffsetToUtf16Offset(
-              _state.composingBuffer, _state.markStart);
+              state_.composingBuffer, state_.markStart);
           size_t endOffset = McBopomofo::Utf8OffsetToUtf16Offset(
-              _state.composingBuffer, _state.markEnd);
+              state_.composingBuffer, state_.markEnd);
           size_t markLength =
               endOffset >= startOffset ? endOffset - startOffset : 0;
 
@@ -301,7 +301,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             pMarkRange->Collapse(ec, TF_ANCHOR_START);
             pMarkRange->ShiftStart(ec, (LONG)startOffset, &cch, nullptr);
             pMarkRange->ShiftEnd(ec, (LONG)markLength, &cch, nullptr);
-            SetDisplayAttribute(ec, _pContext, pMarkRange, gaMarked);
+            SetDisplayAttribute(ec, pContext_, pMarkRange, gaMarked);
             pMarkRange->Release();
           }
         }
@@ -314,7 +314,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       if (SUCCEEDED(pRange->Clone(&pCursorRange))) {
         LONG cch = 0;
         size_t utf16CursorIndex = McBopomofo::Utf8OffsetToUtf16Offset(
-            _state.composingBuffer, _state.cursorIndex);
+            state_.composingBuffer, state_.cursorIndex);
         pCursorRange->Collapse(ec, TF_ANCHOR_START);
         pCursorRange->ShiftEnd(ec, (LONG)utf16CursorIndex, &cch, nullptr);
         pCursorRange->Collapse(ec, TF_ANCHOR_END);
@@ -323,73 +323,74 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         sel.range = pCursorRange;
         sel.style.ase = TF_AE_NONE;
         sel.style.fInterimChar = FALSE;
-        _pContext->SetSelection(ec, 1, &sel);
+        pContext_->SetSelection(ec, 1, &sel);
 
         // Update UI content first so windows have correct sizes
-        if (!_state.tooltip.empty()) {
-          _pTIP->GetTooltipWindow()->UpdateUI(_state.tooltip);
+        if (!state_.tooltip.empty()) {
+          pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
         } else {
-          _pTIP->GetTooltipWindow()->Hide();
+          pTIP_->GetTooltipWindow()->Hide();
         }
 
-        if (!_state.candidates.empty()) {
-          _pTIP->GetCandidateWindow()->UpdateUI(
-              _state.candidates, _state.candidateIndex, _state.forceVertical,
-              _state.useShiftKeySelection, _state.hint);
+        if (!state_.candidates.empty()) {
+          pTIP_->GetCandidateWindow()->UpdateUI(
+              state_.candidates, state_.candidateIndex, state_.forceVertical,
+              state_.useShiftKeySelection, state_.hint);
         } else {
-          _pTIP->GetCandidateWindow()->Hide();
+          pTIP_->GetCandidateWindow()->Hide();
         }
 
         // Now move the auxiliary windows
         if (!directCommitWithoutComposition &&
-            (!_state.candidates.empty() || !_state.tooltip.empty())) {
-          MoveAuxiliaryWindows(ec, _pContext, pCursorRange, _pTIP);
+            (!state_.candidates.empty() || !state_.tooltip.empty())) {
+          MoveAuxiliaryWindows(ec, pContext_, pCursorRange, pTIP_);
         }
         pCursorRange->Release();
       }
     }
     if (pRange) pRange->Release();
 
-  } else if (commitStr.empty() && _pTIP->GetComposition()) {
+  } else if (commitStr.empty() && pTIP_->GetComposition()) {
     // 3. Handle clearing the composition (e.g., user backspaced the last
     // character)
     ITfRange* pRange = nullptr;
-    if (SUCCEEDED(_pTIP->GetComposition()->GetRange(&pRange))) {
+    if (SUCCEEDED(pTIP_->GetComposition()->GetRange(&pRange))) {
       pRange->SetText(ec, 0, L"", 0);
 
       ITfProperty* pProp = nullptr;
-      if (SUCCEEDED(_pContext->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
+      if (SUCCEEDED(pContext_->GetProperty(GUID_PROP_ATTRIBUTE, &pProp))) {
         pProp->Clear(ec, pRange);
         pProp->Release();
       }
 
-      _pTIP->GetComposition()->EndComposition(ec);
-      _pTIP->GetComposition()->Release();
-      _pTIP->SetComposition(nullptr);
+      pTIP_->GetComposition()->EndComposition(ec);
+      pTIP_->GetComposition()->Release();
+      pTIP_->SetComposition(nullptr);
       pRange->Release();
     }
   }
 
   // Handle case where we have candidates or tooltip but no active composition
   // (e.g. from ChoosingPunctuationList triggered from Empty state)
-  if (!directCommitWithoutComposition && _pTIP->GetComposition() == nullptr &&
-      (!_state.candidates.empty() || !_state.tooltip.empty())) {
-    if (!_state.tooltip.empty()) {
-      _pTIP->GetTooltipWindow()->UpdateUI(_state.tooltip);
+  if (!directCommitWithoutComposition && pTIP_->GetComposition() == nullptr &&
+      (!state_.candidates.empty() || !state_.tooltip.empty())) {
+    if (!state_.tooltip.empty()) {
+      pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
     } else {
-      _pTIP->GetTooltipWindow()->Hide();
+      pTIP_->GetTooltipWindow()->Hide();
     }
 
-    if (!_state.candidates.empty()) {
-      _pTIP->GetCandidateWindow()->UpdateUI(
-          _state.candidates, _state.candidateIndex, _state.forceVertical,
-          _state.useShiftKeySelection, _state.hint);
+    if (!state_.candidates.empty()) {
+      pTIP_->GetCandidateWindow()->UpdateUI(
+          state_.candidates, state_.candidateIndex, state_.forceVertical,
+          state_.useShiftKeySelection, state_.hint);
     } else {
-      _pTIP->GetCandidateWindow()->Hide();
+      pTIP_->GetCandidateWindow()->Hide();
     }
 
-    MoveAuxiliaryWindows(ec, _pContext, nullptr, _pTIP);
+    MoveAuxiliaryWindows(ec, pContext_, nullptr, pTIP_);
   }
 
   return S_OK;
 }
+

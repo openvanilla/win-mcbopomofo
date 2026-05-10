@@ -39,8 +39,8 @@ class CEditSessionBase : public ITfEditSession {
   virtual STDMETHODIMP DoEditSession(TfEditCookie ec) = 0;
 
  protected:
-  ITfContext* _pContext;
+  ITfContext* pContext_;
 
  private:
-  LONG _cRef;
+  LONG cRef_;
 };

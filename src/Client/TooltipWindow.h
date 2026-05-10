@@ -40,35 +40,35 @@ class TooltipWindow {
   void Move(int x, int y);
   void Hide();
 
-  bool IsVisible() const { return _hwnd && IsWindowVisible(_hwnd); }
+  bool IsVisible() const { return hwnd_ && IsWindowVisible(hwnd_); }
   int GetHeight() const {
-    if (!_hwnd) return 0;
+    if (!hwnd_) return 0;
     RECT rc;
-    GetWindowRect(_hwnd, &rc);
+    GetWindowRect(hwnd_, &rc);
     return rc.bottom - rc.top;
   }
 
  private:
-  static LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
-                                  LPARAM lParam);
-  LRESULT OnPaint(HWND hwnd);
+  static LRESULT CALLBACK wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
+                                   LPARAM lParam);
+  LRESULT onPaint_(HWND hwnd);
 
-  void CreateDeviceIndependentResources();
-  void CreateDeviceResources();
-  void DiscardDeviceResources();
-  float GetDpiScale();
+  void createDeviceIndependentResources_();
+  void createDeviceResources_();
+  void discardDeviceResources_();
+  float getDpiScale_();
 
-  HWND _hwnd;
-  float _dpiScale;
-  std::wstring _displayString;
+  HWND hwnd_;
+  float dpiScale_;
+  std::wstring displayString_;
 
-  ID2D1Factory* _pD2DFactory;
-  ID2D1HwndRenderTarget* _pRenderTarget;
-  IDWriteFactory* _pDWriteFactory;
-  IDWriteTextFormat* _pTextFormat;
-  IDWriteTextLayout* _pTextLayout;
+  ID2D1Factory* pD2DFactory_;
+  ID2D1HwndRenderTarget* pRenderTarget_;
+  IDWriteFactory* pDWriteFactory_;
+  IDWriteTextFormat* pTextFormat_;
+  IDWriteTextLayout* pTextLayout_;
 
-  ID2D1SolidColorBrush* _pTextBrush;
-  ID2D1SolidColorBrush* _pBgBrush;
-  ID2D1SolidColorBrush* _pBorderBrush;
+  ID2D1SolidColorBrush* pTextBrush_;
+  ID2D1SolidColorBrush* pBgBrush_;
+  ID2D1SolidColorBrush* pBorderBrush_;
 };

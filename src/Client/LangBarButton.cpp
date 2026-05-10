@@ -207,21 +207,21 @@ HRESULT AppendTfMenuItems(ITfMenu* menu, const std::vector<MenuItem>& items) {
 }
 }  // namespace
 
-std::atomic<DWORD> CLangBarButton::_nextCookie = 1;
+std::atomic<DWORD> CLangBarButton::nextCookie_ = 1;
 
 CLangBarButton::CLangBarButton(McBopomofoTIP* pTIP, const GUID& guid, Kind kind)
-    : _refCount(1), _pTIP(pTIP), _guid(guid), _kind(kind) {
-  if (_pTIP) _pTIP->AddRef();
+    : refCount_(1), pTIP_(pTIP), guid_(guid), kind_(kind) {
+  if (pTIP_) pTIP_->AddRef();
 }
 
 CLangBarButton::~CLangBarButton() {
-  for (auto& sink : _sinks) {
+  for (auto& sink : sinks_) {
     if (sink.second) {
       sink.second->Release();
       sink.second = nullptr;
     }
   }
-  if (_pTIP) _pTIP->Release();
+  if (pTIP_) pTIP_->Release();
 }
 
 STDMETHODIMP CLangBarButton::QueryInterface(REFIID riid, void** ppvObj) {
@@ -243,11 +243,11 @@ STDMETHODIMP CLangBarButton::QueryInterface(REFIID riid, void** ppvObj) {
 }
 
 STDMETHODIMP_(ULONG) CLangBarButton::AddRef() {
-  return InterlockedIncrement(&_refCount);
+  return InterlockedIncrement(&refCount_);
 }
 
 STDMETHODIMP_(ULONG) CLangBarButton::Release() {
-  ULONG ref = InterlockedDecrement(&_refCount);
+  ULONG ref = InterlockedDecrement(&refCount_);
   if (ref == 0) delete this;
   return ref;
 }
@@ -255,9 +255,9 @@ STDMETHODIMP_(ULONG) CLangBarButton::Release() {
 STDMETHODIMP CLangBarButton::GetInfo(TF_LANGBARITEMINFO* pInfo) {
   if (!pInfo) return E_INVALIDARG;
   pInfo->clsidService = c_clsidMcBopomofoTIP;
-  pInfo->guidItem = _guid;
+  pInfo->guidItem = guid_;
 
-  if (_kind == Kind::ModeIcon || _kind == Kind::SwitchLanguageToggle) {
+  if (kind_ == Kind::ModeIcon || kind_ == Kind::SwitchLanguageToggle) {
     pInfo->dwStyle = TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_SHOWNINTRAY;
   } else {
     pInfo->dwStyle = TF_LBI_STYLE_BTN_MENU;
@@ -290,21 +290,21 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
                                      const RECT* prcArea) {
   UNREFERENCED_PARAMETER(prcArea);
 
-  if (_kind == Kind::SwitchLanguageToggle) {
-    _pTIP->ToggleOpenClose();
+  if (kind_ == Kind::SwitchLanguageToggle) {
+    pTIP_->ToggleOpenClose();
     return S_OK;
   }
 
-  if (_kind == Kind::SettingsMenu) {
+  if (kind_ == Kind::SettingsMenu) {
     return S_OK;
   }
 
   if (click == TF_LBI_CLK_LEFT) {
-    _pTIP->ToggleOpenClose();
+    pTIP_->ToggleOpenClose();
   } else if (click == TF_LBI_CLK_RIGHT) {
     HMENU menu = CreatePopupMenu();
     if (menu) {
-      AppendPopupMenuItems(menu, BuildLangBarMenuItems(_pTIP, true));
+      AppendPopupMenuItems(menu, BuildLangBarMenuItems(pTIP_, true));
 
       HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0,
                                   HWND_DESKTOP, nullptr, g_hInst, nullptr);
@@ -329,35 +329,35 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
 
 STDMETHODIMP CLangBarButton::InitMenu(ITfMenu* pMenu) {
   if (!pMenu) return E_INVALIDARG;
-  bool includeModeToggle = (_kind == Kind::ModeIcon);
+  bool includeModeToggle = (kind_ == Kind::ModeIcon);
   return AppendTfMenuItems(pMenu,
-                           BuildLangBarMenuItems(_pTIP, includeModeToggle));
+                           BuildLangBarMenuItems(pTIP_, includeModeToggle));
 }
 
 STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
   switch (wID) {
     case MENU_TOGGLE_OPEN_CLOSE:
-      _pTIP->ToggleOpenClose();
+      pTIP_->ToggleOpenClose();
       break;
     case MENU_TOGGLE_ASSOCIATED_PHRASES: {
       bool enabled = !ReadBoolSetting(L"AssociatedPhrasesEnabled", false);
       WriteBoolSetting(L"AssociatedPhrasesEnabled", enabled);
       NotifySettingsChanged();
-      _pTIP->RefreshLangBar();
+      pTIP_->RefreshLangBar();
       break;
     }
     case MENU_TOGGLE_HALF_WIDTH_PUNCTUATION: {
       bool enabled = !ReadBoolSetting(L"HalfWidthPunctuationEnabled", false);
       WriteBoolSetting(L"HalfWidthPunctuationEnabled", enabled);
       NotifySettingsChanged();
-      _pTIP->RefreshLangBar();
+      pTIP_->RefreshLangBar();
       break;
     }
     case MENU_TOGGLE_CHINESE_CONVERSION: {
       bool enabled = !ReadBoolSetting(L"ChineseConversionEnabled", false);
       WriteBoolSetting(L"ChineseConversionEnabled", enabled);
       NotifySettingsChanged();
-      _pTIP->RefreshLangBar();
+      pTIP_->RefreshLangBar();
       break;
     }
     case MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION: {
@@ -365,7 +365,7 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
           !ReadBoolSetting(L"BopomofoFontAnnotationSupportEnabled", false);
       WriteBoolSetting(L"BopomofoFontAnnotationSupportEnabled", enabled);
       NotifySettingsChanged();
-      _pTIP->RefreshLangBar();
+      pTIP_->RefreshLangBar();
       break;
     }
     case MENU_OPEN_SETTINGS: {
@@ -405,8 +405,9 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON* phIcon) {
   if (!phIcon) return E_INVALIDARG;
   *phIcon = nullptr;
 
-  const wchar_t* label = CurrentModeLabel(_pTIP);
+  const wchar_t* label = CurrentModeLabel(pTIP_);
   LogMessage("CLangBarButton::GetIcon called with label: %ls", label);
+
 
   HDC hdc = GetDC(NULL);
   HDC hMemDC = CreateCompatibleDC(hdc);
@@ -450,7 +451,7 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON* phIcon) {
 
 STDMETHODIMP CLangBarButton::GetText(BSTR* pbstrText) {
   if (!pbstrText) return E_INVALIDARG;
-  *pbstrText = SysAllocString(CurrentModeLabel(_pTIP));
+  *pbstrText = SysAllocString(CurrentModeLabel(pTIP_));
   return S_OK;
 }
 
@@ -464,31 +465,31 @@ STDMETHODIMP CLangBarButton::AdviseSink(REFIID riid, IUnknown* punk,
   if (FAILED(punk->QueryInterface(IID_ITfLangBarItemSink, (void**)&pSink)))
     return E_NOINTERFACE;
 
-  *pdwCookie = _nextCookie++;
-  _sinks.emplace_back(*pdwCookie, pSink);
+  *pdwCookie = nextCookie_++;
+  sinks_.emplace_back(*pdwCookie, pSink);
   return S_OK;
 }
 
 STDMETHODIMP CLangBarButton::UnadviseSink(DWORD dwCookie) {
   auto it = std::find_if(
-      _sinks.begin(), _sinks.end(),
+      sinks_.begin(), sinks_.end(),
       [dwCookie](const auto& item) { return item.first == dwCookie; });
-  if (it == _sinks.end()) {
+  if (it == sinks_.end()) {
     return E_INVALIDARG;
   }
 
   if (it->second) {
     it->second->Release();
   }
-  _sinks.erase(it);
+  sinks_.erase(it);
   return S_OK;
 }
 
 void CLangBarButton::Update() {
-  LogMessage("CLangBarButton::Update called, sink count: %zu", _sinks.size());
+  LogMessage("CLangBarButton::Update called, sink count: %zu", sinks_.size());
 
   // Notify all registered sinks
-  for (const auto& sink : _sinks) {
+  for (const auto& sink : sinks_) {
     if (sink.second) {
       HRESULT hr =
           sink.second->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);

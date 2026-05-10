@@ -41,7 +41,7 @@ const GUID c_guidDisplayAttributeMarked = {
 CDisplayAttributeInfo::CDisplayAttributeInfo(REFGUID guid,
                                              TF_DISPLAYATTRIBUTE da,
                                              const WCHAR* desc)
-    : _cRef(1), _guid(guid), _da(da), _daDefault(da), _desc(desc) {}
+    : cRef_(1), guid_(guid), da_(da), daDefault_(da), desc_(desc) {}
 
 CDisplayAttributeInfo::~CDisplayAttributeInfo() {}
 
@@ -60,48 +60,48 @@ STDAPI CDisplayAttributeInfo::QueryInterface(REFIID riid, void** ppvObj) {
 }
 
 STDAPI_(ULONG) CDisplayAttributeInfo::AddRef(void) {
-  return InterlockedIncrement(&_cRef);
+  return InterlockedIncrement(&cRef_);
 }
 
 STDAPI_(ULONG) CDisplayAttributeInfo::Release(void) {
-  LONG cr = InterlockedDecrement(&_cRef);
+  LONG cr = InterlockedDecrement(&cRef_);
   if (cr == 0) delete this;
   return cr;
 }
 
 STDAPI CDisplayAttributeInfo::GetGUID(GUID* pguid) {
   if (pguid == nullptr) return E_INVALIDARG;
-  *pguid = _guid;
+  *pguid = guid_;
   return S_OK;
 }
 
 STDAPI CDisplayAttributeInfo::GetDescription(BSTR* pbstrDesc) {
   if (pbstrDesc == nullptr) return E_INVALIDARG;
-  *pbstrDesc = SysAllocString(_desc);
+  *pbstrDesc = SysAllocString(desc_);
   return (*pbstrDesc != nullptr) ? S_OK : E_OUTOFMEMORY;
 }
 
 STDAPI CDisplayAttributeInfo::GetAttributeInfo(TF_DISPLAYATTRIBUTE* pda) {
   if (pda == nullptr) return E_INVALIDARG;
-  *pda = _da;
+  *pda = da_;
   return S_OK;
 }
 
 STDAPI CDisplayAttributeInfo::SetAttributeInfo(const TF_DISPLAYATTRIBUTE* pda) {
   if (pda == nullptr) return E_INVALIDARG;
-  _da = *pda;
+  da_ = *pda;
   return S_OK;
 }
 
 STDAPI CDisplayAttributeInfo::Reset() {
-  _da = _daDefault;
+  da_ = daDefault_;
   return S_OK;
 }
 
 // ----------------------------------------------------------------------------
 // CEnumDisplayAttributeInfo
 // ----------------------------------------------------------------------------
-CEnumDisplayAttributeInfo::CEnumDisplayAttributeInfo() : _cRef(1), _index(0) {}
+CEnumDisplayAttributeInfo::CEnumDisplayAttributeInfo() : cRef_(1), index_(0) {}
 CEnumDisplayAttributeInfo::~CEnumDisplayAttributeInfo() {}
 
 STDAPI CEnumDisplayAttributeInfo::QueryInterface(REFIID riid, void** ppvObj) {
@@ -119,11 +119,11 @@ STDAPI CEnumDisplayAttributeInfo::QueryInterface(REFIID riid, void** ppvObj) {
 }
 
 STDAPI_(ULONG) CEnumDisplayAttributeInfo::AddRef(void) {
-  return InterlockedIncrement(&_cRef);
+  return InterlockedIncrement(&cRef_);
 }
 
 STDAPI_(ULONG) CEnumDisplayAttributeInfo::Release(void) {
-  LONG cr = InterlockedDecrement(&_cRef);
+  LONG cr = InterlockedDecrement(&cRef_);
   if (cr == 0) delete this;
   return cr;
 }
@@ -132,7 +132,7 @@ STDAPI CEnumDisplayAttributeInfo::Clone(IEnumTfDisplayAttributeInfo** ppEnum) {
   if (ppEnum == nullptr) return E_INVALIDARG;
   *ppEnum = new CEnumDisplayAttributeInfo();
   if (*ppEnum == nullptr) return E_OUTOFMEMORY;
-  ((CEnumDisplayAttributeInfo*)*ppEnum)->_index = _index;
+  ((CEnumDisplayAttributeInfo*)*ppEnum)->index_ = index_;
   return S_OK;
 }
 
@@ -143,8 +143,8 @@ STDAPI CEnumDisplayAttributeInfo::Next(ULONG ulCount,
   if (ulCount == 0 || rgInfo == nullptr) return E_INVALIDARG;
 
   ULONG fetched = 0;
-  while (fetched < ulCount && _index < 2) {
-    if (_index == 0) {
+  while (fetched < ulCount && index_ < 2) {
+    if (index_ == 0) {
       TF_DISPLAYATTRIBUTE da;
       ZeroMemory(&da, sizeof(da));
       da.lsStyle = TF_LS_SQUIGGLE;
@@ -152,7 +152,7 @@ STDAPI CEnumDisplayAttributeInfo::Next(ULONG ulCount,
       da.crLine.nIndex = COLOR_WINDOWTEXT;
       rgInfo[fetched] = new CDisplayAttributeInfo(c_guidDisplayAttributeInput,
                                                   da, L"Win-McBopomofo Input");
-    } else if (_index == 1) {
+    } else if (index_ == 1) {
       TF_DISPLAYATTRIBUTE da;
       ZeroMemory(&da, sizeof(da));
       da.lsStyle = TF_LS_NONE;
@@ -164,7 +164,7 @@ STDAPI CEnumDisplayAttributeInfo::Next(ULONG ulCount,
                                                   da, L"Win-McBopomofo Marked");
     }
     if (rgInfo[fetched] == nullptr) return E_OUTOFMEMORY;
-    _index++;
+    index_++;
     fetched++;
   }
 
@@ -173,12 +173,12 @@ STDAPI CEnumDisplayAttributeInfo::Next(ULONG ulCount,
 }
 
 STDAPI CEnumDisplayAttributeInfo::Reset() {
-  _index = 0;
+  index_ = 0;
   return S_OK;
 }
 
 STDAPI CEnumDisplayAttributeInfo::Skip(ULONG ulCount) {
-  _index += ulCount;
-  if (_index > 2) _index = 2;
+  index_ += ulCount;
+  if (index_ > 2) index_ = 2;
   return S_OK;
 }

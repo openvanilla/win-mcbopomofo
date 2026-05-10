@@ -35,6 +35,6 @@ class CStateEditSession : public CEditSessionBase {
   STDMETHODIMP DoEditSession(TfEditCookie ec) override;
 
  private:
-  McBopomofoTIP* _pTIP;
-  McBopomofo::IPC::StateUpdatePayload _state;
+  McBopomofoTIP* pTIP_;
+  McBopomofo::IPC::StateUpdatePayload state_;
 };

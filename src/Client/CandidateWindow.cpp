@@ -36,149 +36,150 @@
 const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
 CandidateWindow::CandidateWindow()
-    : _hwnd(nullptr),
-      _dpiScale(1.0f),
-      _cursorIndex(0),
-      _candidateKeys(L"123456789"),
-      _candidateKeysCount(9),
-      _isVertical(false),
-      _forceVertical(false),
-      _useShiftKeySelection(false),
-      _isDarkMode(false),
-      _pD2DFactory(nullptr),
-      _pRenderTarget(nullptr),
-      _pDWriteFactory(nullptr),
-      _pTextFormat(nullptr),
-      _pHintFormat(nullptr),
-      _pTextLayout(nullptr),
-      _pHintLayout(nullptr),
-      _pTextBrush(nullptr),
-      _pBgBrush(nullptr),
-      _pBorderBrush(nullptr),
-      _pHighlightBgBrush(nullptr),
-      _pHighlightTextBrush(nullptr) {
-  UpdateTheme();
-  CreateDeviceIndependentResources();
+    : hwnd_(nullptr),
+      dpiScale_(1.0f),
+      cursorIndex_(0),
+      candidateKeys_(L"123456789"),
+      candidateKeysCount_(9),
+      isVertical_(false),
+      forceVertical_(false),
+      useShiftKeySelection_(false),
+      isDarkMode_(false),
+      pD2DFactory_(nullptr),
+      pRenderTarget_(nullptr),
+      pDWriteFactory_(nullptr),
+      pTextFormat_(nullptr),
+      pHintFormat_(nullptr),
+      pTextLayout_(nullptr),
+      pHintLayout_(nullptr),
+      pTextBrush_(nullptr),
+      pBgBrush_(nullptr),
+      pBorderBrush_(nullptr),
+      pHighlightBgBrush_(nullptr),
+      pHighlightTextBrush_(nullptr) {
+  updateTheme_();
+  createDeviceIndependentResources_();
 }
+
 
 CandidateWindow::~CandidateWindow() {
   Destroy();
-  DiscardDeviceResources();
-  if (_pHintLayout) {
-    _pHintLayout->Release();
+  discardDeviceResources_();
+  if (pHintLayout_) {
+    pHintLayout_->Release();
   }
-  if (_pTextLayout) {
-    _pTextLayout->Release();
+  if (pTextLayout_) {
+    pTextLayout_->Release();
   }
-  if (_pHintFormat) {
-    _pHintFormat->Release();
+  if (pHintFormat_) {
+    pHintFormat_->Release();
   }
-  if (_pTextFormat) {
-    _pTextFormat->Release();
+  if (pTextFormat_) {
+    pTextFormat_->Release();
   }
-  if (_pDWriteFactory) {
-    _pDWriteFactory->Release();
+  if (pDWriteFactory_) {
+    pDWriteFactory_->Release();
   }
-  if (_pD2DFactory) {
-    _pD2DFactory->Release();
+  if (pD2DFactory_) {
+    pD2DFactory_->Release();
   }
 }
 
-float CandidateWindow::GetDpiScale() {
-  if (!_hwnd) return 1.0f;
+float CandidateWindow::getDpiScale_() {
+  if (!hwnd_) return 1.0f;
   UINT dpi = 96;
   HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
   auto pGetDpiForWindow =
       (UINT(WINAPI*)(HWND))GetProcAddress(hUser32, "GetDpiForWindow");
   if (pGetDpiForWindow) {
-    dpi = pGetDpiForWindow(_hwnd);
+    dpi = pGetDpiForWindow(hwnd_);
   } else {
-    HDC hdc = GetDC(_hwnd);
+    HDC hdc = GetDC(hwnd_);
     if (hdc) {
       dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-      ReleaseDC(_hwnd, hdc);
+      ReleaseDC(hwnd_, hdc);
     }
   }
   return (float)dpi / 96.0f;
 }
 
-void CandidateWindow::CreateDeviceIndependentResources() {
-  if (!_pD2DFactory) {
-    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &_pD2DFactory);
+void CandidateWindow::createDeviceIndependentResources_() {
+  if (!pD2DFactory_) {
+    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory_);
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
-                        reinterpret_cast<IUnknown**>(&_pDWriteFactory));
+                        reinterpret_cast<IUnknown**>(&pDWriteFactory_));
 
-    _pDWriteFactory->CreateTextFormat(
+    pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI",  // Good UI font for Traditional Chinese with
                                    // Emoji support
         NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"zh-TW", &_pTextFormat);
+        DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"zh-TW", &pTextFormat_);
 
-    _pDWriteFactory->CreateTextFormat(
+    pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI", NULL, DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 10.0f, L"zh-TW",
-        &_pHintFormat);
+        &pHintFormat_);
   }
 }
 
-void CandidateWindow::CreateDeviceResources() {
-  if (!_pRenderTarget && _hwnd) {
+void CandidateWindow::createDeviceResources_() {
+  if (!pRenderTarget_ && hwnd_) {
     RECT rc;
-    GetClientRect(_hwnd, &rc);
+    GetClientRect(hwnd_, &rc);
     D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
 
-    _pD2DFactory->CreateHwndRenderTarget(
+    pD2DFactory_->CreateHwndRenderTarget(
         D2D1::RenderTargetProperties(),
-        D2D1::HwndRenderTargetProperties(_hwnd, size), &_pRenderTarget);
+        D2D1::HwndRenderTargetProperties(hwnd_, size), &pRenderTarget_);
 
-    if (_pRenderTarget) {
-      _pRenderTarget->CreateSolidColorBrush(
-          _isDarkMode ? D2D1::ColorF(0xF0F0F0) : D2D1::ColorF(0x101010),
-          &_pTextBrush);
-      _pRenderTarget->CreateSolidColorBrush(
-          _isDarkMode ? D2D1::ColorF(0x202020) : D2D1::ColorF(0xFFFFFF),
-          &_pBgBrush);
-      _pRenderTarget->CreateSolidColorBrush(
-          _isDarkMode ? D2D1::ColorF(0x404040) : D2D1::ColorF(0xCCCCCC),
-          &_pBorderBrush);
-      _pRenderTarget->CreateSolidColorBrush(
+    if (pRenderTarget_) {
+      pRenderTarget_->CreateSolidColorBrush(
+          isDarkMode_ ? D2D1::ColorF(0xF0F0F0) : D2D1::ColorF(0x101010),
+          &pTextBrush_);
+      pRenderTarget_->CreateSolidColorBrush(
+          isDarkMode_ ? D2D1::ColorF(0x202020) : D2D1::ColorF(0xFFFFFF),
+          &pBgBrush_);
+      pRenderTarget_->CreateSolidColorBrush(
+          isDarkMode_ ? D2D1::ColorF(0x404040) : D2D1::ColorF(0xCCCCCC),
+          &pBorderBrush_);
+      pRenderTarget_->CreateSolidColorBrush(
           D2D1::ColorF(0x0078D7),  // Windows Blue
-          &_pHighlightBgBrush);
-      _pRenderTarget->CreateSolidColorBrush(
+          &pHighlightBgBrush_);
+      pRenderTarget_->CreateSolidColorBrush(
           D2D1::ColorF(0xFFFFFF),  // White text on highlight
-          &_pHighlightTextBrush);
+          &pHighlightTextBrush_);
     }
   }
 }
 
-void CandidateWindow::DiscardDeviceResources() {
-  if (_pRenderTarget) {
-    _pRenderTarget->Release();
-    _pRenderTarget = nullptr;
+void CandidateWindow::discardDeviceResources_() {
+  if (pRenderTarget_) {
+    pRenderTarget_->Release();
+    pRenderTarget_ = nullptr;
   }
-  if (_pTextBrush) {
-    _pTextBrush->Release();
-    _pTextBrush = nullptr;
+  if (pTextBrush_) {
+    pTextBrush_->Release();
+    pTextBrush_ = nullptr;
   }
-  if (_pBgBrush) {
-    _pBgBrush->Release();
-    _pBgBrush = nullptr;
+  if (pBgBrush_) {
+    pBgBrush_->Release();
+    pBgBrush_ = nullptr;
   }
-  if (_pBorderBrush) {
-    _pBorderBrush->Release();
-    _pBorderBrush = nullptr;
+  if (pBorderBrush_) {
+    pBorderBrush_->Release();
+    pBorderBrush_ = nullptr;
   }
-  if (_pHighlightBgBrush) {
-    _pHighlightBgBrush->Release();
-    _pHighlightBgBrush = nullptr;
+  if (pHighlightBgBrush_) {
+    pHighlightBgBrush_->Release();
+    pHighlightBgBrush_ = nullptr;
   }
-  if (_pHighlightTextBrush) {
-    _pHighlightTextBrush->Release();
-    _pHighlightTextBrush = nullptr;
+  if (pHighlightTextBrush_) {
+    pHighlightTextBrush_->Release();
+    pHighlightTextBrush_ = nullptr;
   }
 }
 
-void CandidateWindow::UpdateTheme() {
+void CandidateWindow::updateTheme_() {
   DWORD useLightTheme = 1;
   DWORD size = sizeof(useLightTheme);
   HKEY hKey;
@@ -190,43 +191,43 @@ void CandidateWindow::UpdateTheme() {
                      (LPBYTE)&useLightTheme, &size);
     RegCloseKey(hKey);
   }
-  _isDarkMode = (useLightTheme == 0);
+  isDarkMode_ = (useLightTheme == 0);
 
-  if (_pRenderTarget) {
-    DiscardDeviceResources();  // Force recreate brushes
-    InvalidateRect(_hwnd, nullptr, FALSE);
+  if (pRenderTarget_) {
+    discardDeviceResources_();  // Force recreate brushes
+    InvalidateRect(hwnd_, nullptr, FALSE);
   }
 }
 
-void CandidateWindow::OnSettingChange() {
-  UpdateTheme();
+void CandidateWindow::onSettingChange_() {
+  updateTheme_();
   // Re-trigger layout read
   std::string dir = McBopomofo::fcitx5_compat::userDirectory();
   std::wstring iniPath = McBopomofo::Utf8ToUtf16(dir) + L"\\mcbopomofo.ini";
-  _isVertical = GetPrivateProfileIntW(L"UI", L"CandidateWindowVertical", 0,
+  isVertical_ = GetPrivateProfileIntW(L"UI", L"CandidateWindowVertical", 0,
                                       iniPath.c_str()) != 0;
   wchar_t keys[32] = {};
   GetPrivateProfileStringW(L"General", L"CandidateKeys", L"123456789", keys, 32,
                            iniPath.c_str());
-  _candidateKeys = keys;
-  if (_candidateKeys != L"123456789" && _candidateKeys != L"asdfghjkl" &&
-      _candidateKeys != L"asdfzxcvb") {
-    _candidateKeys = L"123456789";
+  candidateKeys_ = keys;
+  if (candidateKeys_ != L"123456789" && candidateKeys_ != L"asdfghjkl" &&
+      candidateKeys_ != L"asdfzxcvb") {
+    candidateKeys_ = L"123456789";
   }
-  _candidateKeysCount = GetPrivateProfileIntW(L"General", L"CandidateKeysCount",
+  candidateKeysCount_ = GetPrivateProfileIntW(L"General", L"CandidateKeysCount",
                                               9, iniPath.c_str());
-  if (_candidateKeysCount < 4 || _candidateKeysCount > 9) {
-    _candidateKeysCount = 9;
+  if (candidateKeysCount_ < 4 || candidateKeysCount_ > 9) {
+    candidateKeysCount_ = 9;
   }
 }
 
 bool CandidateWindow::Create(HINSTANCE hInstance) {
-  if (_hwnd) return true;
+  if (hwnd_) return true;
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
   wcex.style = CS_DROPSHADOW | CS_IME;
-  wcex.lpfnWndProc = WndProc;
+  wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
   wcex.hbrBackground = NULL;  // Handled by D2D
@@ -235,21 +236,22 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
   RegisterClassExW(
       &wcex);  // Ignore failure as it might be registered by another instance
 
-  _hwnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+  hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
                           CANDIDATE_WINDOW_CLASS, L"",
                           WS_POPUP,       // D2D will draw the border
                           0, 0, 100, 30,  // Initial dummy size
                           nullptr, nullptr, hInstance, this);
 
-  OnSettingChange();  // Load initial settings
+  onSettingChange_();  // Load initial settings
 
-  return _hwnd != nullptr;
+  return hwnd_ != nullptr;
 }
 
+
 void CandidateWindow::Destroy() {
-  if (_hwnd) {
-    DestroyWindow(_hwnd);
-    _hwnd = nullptr;
+  if (hwnd_) {
+    DestroyWindow(hwnd_);
+    hwnd_ = nullptr;
   }
 }
 
@@ -257,72 +259,72 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
                                int cursorIndex, bool forceVertical,
                                bool useShiftKeySelection,
                                const std::string& hint) {
-  if (!_hwnd) return;
+  if (!hwnd_) return;
 
-  _dpiScale = GetDpiScale();
+  dpiScale_ = getDpiScale_();
 
-  _candidates.clear();
+  candidates_.clear();
   for (const auto& c : candidates) {
-    _candidates.push_back(McBopomofo::Utf8ToUtf16(c));
+    candidates_.push_back(McBopomofo::Utf8ToUtf16(c));
   }
-  _cursorIndex = cursorIndex;
-  _hint = McBopomofo::Utf8ToUtf16(hint);
+  cursorIndex_ = cursorIndex;
+  hint_ = McBopomofo::Utf8ToUtf16(hint);
 
-  if (_candidates.empty()) {
+  if (candidates_.empty()) {
     Hide();
     return;
   }
 
   // Be defensive about stale or invalid cursor indexes from IPC/state
   // transitions.
-  if (_cursorIndex < 0 ||
-      _cursorIndex >= static_cast<int>(_candidates.size())) {
-    _cursorIndex = 0;
+  if (cursorIndex_ < 0 ||
+      cursorIndex_ >= static_cast<int>(candidates_.size())) {
+    cursorIndex_ = 0;
   }
 
-  bool drawVertical = _isVertical || forceVertical;
-  _forceVertical = forceVertical;
-  _useShiftKeySelection = useShiftKeySelection;
+  bool drawVertical = isVertical_ || forceVertical;
+  forceVertical_ = forceVertical;
+  useShiftKeySelection_ = useShiftKeySelection;
 
-  const int pageSize = _candidateKeysCount;
-  int pageIndex = _cursorIndex / pageSize;
+  const int pageSize = candidateKeysCount_;
+  int pageIndex = cursorIndex_ / pageSize;
   int startIndex = pageIndex * pageSize;
-  int endIndex = std::min((int)_candidates.size(), startIndex + pageSize);
+  int endIndex = std::min((int)candidates_.size(), startIndex + pageSize);
 
   std::wstringstream ss;
-  _keyRanges.clear();
-  _selectedRange = {0, 0};
+  keyRanges_.clear();
+  selectedRange_ = {0, 0};
   UINT32 currentPos = 0;
 
   for (int i = startIndex; i < endIndex; ++i) {
     int displayIndex = i - startIndex;
     std::wstring keyStr;
-    if (_useShiftKeySelection) {
+    if (useShiftKeySelection_) {
       keyStr = L"\u21e7";
       keyStr += static_cast<wchar_t>(L'1' + displayIndex);
       keyStr += L". ";
     } else {
-      wchar_t key = displayIndex < static_cast<int>(_candidateKeys.length())
-                        ? _candidateKeys[displayIndex]
+      wchar_t key = displayIndex < static_cast<int>(candidateKeys_.length())
+                        ? candidateKeys_[displayIndex]
                         : L'?';
       keyStr.assign(1, key);
       keyStr += L". ";
     }
-    std::wstring candStr = _candidates[i];
+    std::wstring candStr = candidates_[i];
 
-    if (i == _cursorIndex) {
-      _selectedRange.start = currentPos;
+    if (i == cursorIndex_) {
+      selectedRange_.start = currentPos;
     }
 
-    _keyRanges.push_back({currentPos, (UINT32)keyStr.length()});
+    keyRanges_.push_back({currentPos, (UINT32)keyStr.length()});
     ss << keyStr;
     currentPos += (UINT32)keyStr.length();
 
     ss << candStr;
     currentPos += (UINT32)candStr.length();
 
-    if (i == _cursorIndex) {
-      _selectedRange.length = currentPos - _selectedRange.start;
+    if (i == cursorIndex_) {
+      selectedRange_.length = currentPos - selectedRange_.start;
     }
 
     if (i < endIndex - 1) {
@@ -333,102 +335,102 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
   }
 
   // Add page indicator if there are multiple pages
-  if (static_cast<int>(_candidates.size()) > pageSize) {
+  if (static_cast<int>(candidates_.size()) > pageSize) {
     int totalPages =
-        (static_cast<int>(_candidates.size()) + pageSize - 1) / pageSize;
+        (static_cast<int>(candidates_.size()) + pageSize - 1) / pageSize;
     std::wstring indStr = (drawVertical ? L"\n(" : L"  (");
     indStr += std::to_wstring(pageIndex + 1) + L"/" +
               std::to_wstring(totalPages) + L")";
 
-    _keyRanges.push_back({currentPos, (UINT32)indStr.length()});
+    keyRanges_.push_back({currentPos, (UINT32)indStr.length()});
     ss << indStr;
     currentPos += (UINT32)indStr.length();
   }
 
-  _displayString = ss.str();
+  displayString_ = ss.str();
 
-  if (_pTextLayout) {
-    _pTextLayout->Release();
-    _pTextLayout = nullptr;
+  if (pTextLayout_) {
+    pTextLayout_->Release();
+    pTextLayout_ = nullptr;
   }
-  if (_pHintLayout) {
-    _pHintLayout->Release();
-    _pHintLayout = nullptr;
+  if (pHintLayout_) {
+    pHintLayout_->Release();
+    pHintLayout_ = nullptr;
   }
 
-  if (_pDWriteFactory && _pTextFormat) {
-    _pDWriteFactory->CreateTextLayout(
-        _displayString.c_str(), (UINT32)_displayString.length(), _pTextFormat,
-        10000.0f, 10000.0f, &_pTextLayout);
+  if (pDWriteFactory_ && pTextFormat_) {
+    pDWriteFactory_->CreateTextLayout(
+        displayString_.c_str(), (UINT32)displayString_.length(), pTextFormat_,
+        10000.0f, 10000.0f, &pTextLayout_);
 
-    if (_pTextLayout) {
-      for (const auto& range : _keyRanges) {
+    if (pTextLayout_) {
+      for (const auto& range : keyRanges_) {
         DWRITE_TEXT_RANGE dwriteRange = {range.start, range.length};
-        _pTextLayout->SetFontFamilyName(L"Segoe UI", dwriteRange);
-        _pTextLayout->SetFontSize(15.0f, dwriteRange);
+        pTextLayout_->SetFontFamilyName(L"Segoe UI", dwriteRange);
+        pTextLayout_->SetFontSize(15.0f, dwriteRange);
       }
     }
   }
 
-  if (_pDWriteFactory && _pHintFormat && !_hint.empty()) {
-    _pDWriteFactory->CreateTextLayout(_hint.c_str(), (UINT32)_hint.length(),
-                                      _pHintFormat, 10000.0f, 10000.0f,
-                                      &_pHintLayout);
+  if (pDWriteFactory_ && pHintFormat_ && !hint_.empty()) {
+    pDWriteFactory_->CreateTextLayout(hint_.c_str(), (UINT32)hint_.length(),
+                                      pHintFormat_, 10000.0f, 10000.0f,
+                                      &pHintLayout_);
   }
 
   float textWidth = 0, textHeight = 0;
-  if (_pTextLayout) {
+  if (pTextLayout_) {
     DWRITE_TEXT_METRICS metrics;
-    _pTextLayout->GetMetrics(&metrics);
+    pTextLayout_->GetMetrics(&metrics);
     textWidth = metrics.width;
     textHeight = metrics.height;
   }
 
   float hintWidth = 0, hintHeight = 0;
-  if (_pHintLayout) {
+  if (pHintLayout_) {
     DWRITE_TEXT_METRICS metrics;
-    _pHintLayout->GetMetrics(&metrics);
+    pHintLayout_->GetMetrics(&metrics);
     hintWidth = metrics.width;
     hintHeight = metrics.height;
   }
 
-  int width = (int)std::ceil(std::max(textWidth, hintWidth) * _dpiScale) +
-              (int)(24 * _dpiScale);
-  int height = (int)std::ceil((textHeight + hintHeight) * _dpiScale) +
-               (int)(16 * _dpiScale);
+  int width = (int)std::ceil(std::max(textWidth, hintWidth) * dpiScale_) +
+              (int)(24 * dpiScale_);
+  int height = (int)std::ceil((textHeight + hintHeight) * dpiScale_) +
+               (int)(16 * dpiScale_);
 
-  if (_pHintLayout) {
-    height += (int)(4 * _dpiScale);  // Gap between hint and candidates
+  if (pHintLayout_) {
+    height += (int)(4 * dpiScale_);  // Gap between hint and candidates
   }
 
   // Enforce a minimum size to prevent the window from collapsing or being
   // rejected by the OS
-  width = std::max(width, (int)(50 * _dpiScale));
-  height = std::max(height, (int)(24 * _dpiScale));
+  width = std::max(width, (int)(50 * dpiScale_));
+  height = std::max(height, (int)(24 * dpiScale_));
 
-  SetWindowPos(_hwnd, HWND_TOPMOST, 0, 0, width, height,
+  SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOACTIVATE);
-  if (_pRenderTarget) {
-    _pRenderTarget->Resize(D2D1::SizeU(width, height));
+  if (pRenderTarget_) {
+    pRenderTarget_->Resize(D2D1::SizeU(width, height));
   }
-  ShowWindow(_hwnd, SW_SHOWNOACTIVATE);
-  InvalidateRect(_hwnd, nullptr, FALSE);
+  ShowWindow(hwnd_, SW_SHOWNOACTIVATE);
+  InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
 void CandidateWindow::Move(int x, int y) {
-  if (_hwnd) {
-    SetWindowPos(_hwnd, HWND_TOPMOST, x, y, 0, 0,
+  if (hwnd_) {
+    SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
   }
 }
 
 void CandidateWindow::Hide() {
-  if (_hwnd) {
-    ShowWindow(_hwnd, SW_HIDE);
+  if (hwnd_) {
+    ShowWindow(hwnd_, SW_HIDE);
   }
 }
 
-LRESULT CALLBACK CandidateWindow::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
+LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
                                           LPARAM lParam) {
   CandidateWindow* pThis = nullptr;
 
@@ -442,11 +444,11 @@ LRESULT CALLBACK CandidateWindow::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
 
   if (pThis) {
     if (uMsg == WM_PAINT) {
-      return pThis->OnPaint(hwnd);
+      return pThis->onPaint_(hwnd);
     } else if (uMsg == WM_SETTINGCHANGE) {
-      pThis->OnSettingChange();
+      pThis->onSettingChange_();
     } else if (uMsg == WM_DPICHANGED) {
-      pThis->_dpiScale = (float)LOWORD(wParam) / 96.0f;
+      pThis->dpiScale_ = (float)LOWORD(wParam) / 96.0f;
       RECT* prcNewWindow = (RECT*)lParam;
       SetWindowPos(hwnd, NULL, prcNewWindow->left, prcNewWindow->top,
                    prcNewWindow->right - prcNewWindow->left,
@@ -462,48 +464,49 @@ LRESULT CALLBACK CandidateWindow::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
   return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
-LRESULT CandidateWindow::OnPaint(HWND hwnd) {
+LRESULT CandidateWindow::onPaint_(HWND hwnd) {
   PAINTSTRUCT ps;
   BeginPaint(hwnd, &ps);
 
-  CreateDeviceResources();
-  if (_pRenderTarget) {
-    _pRenderTarget->BeginDraw();
-    _pRenderTarget->SetTransform(D2D1::Matrix3x2F::Scale(_dpiScale, _dpiScale));
-    _pRenderTarget->Clear(_pBgBrush->GetColor());
 
-    if (_pTextBrush) {
+  createDeviceResources_();
+  if (pRenderTarget_) {
+    pRenderTarget_->BeginDraw();
+    pRenderTarget_->SetTransform(D2D1::Matrix3x2F::Scale(dpiScale_, dpiScale_));
+    pRenderTarget_->Clear(pBgBrush_->GetColor());
+
+    if (pTextBrush_) {
       float currentY = 8.0f;
 
-      if (_pHintLayout) {
-        _pRenderTarget->DrawTextLayout(D2D1::Point2F(12.0f, currentY),
-                                       _pHintLayout, _pTextBrush);
+      if (pHintLayout_) {
+        pRenderTarget_->DrawTextLayout(D2D1::Point2F(12.0f, currentY),
+                                       pHintLayout_, pTextBrush_);
 
         DWRITE_TEXT_METRICS hintMetrics;
-        _pHintLayout->GetMetrics(&hintMetrics);
+        pHintLayout_->GetMetrics(&hintMetrics);
         currentY += hintMetrics.height + 4.0f;
       }
 
-      if (_pTextLayout) {
+      if (pTextLayout_) {
         // Draw highlight background if we have a selected range
-        if (_selectedRange.length > 0 && _pHighlightBgBrush) {
+        if (selectedRange_.length > 0 && pHighlightBgBrush_) {
           UINT32 actualHitTestCount = 0;
-          _pTextLayout->HitTestTextRange(_selectedRange.start,
-                                         _selectedRange.length, 0, 0, nullptr, 0,
+          pTextLayout_->HitTestTextRange(selectedRange_.start,
+                                         selectedRange_.length, 0, 0, nullptr, 0,
                                          &actualHitTestCount);
 
           if (actualHitTestCount > 0) {
             std::vector<DWRITE_HIT_TEST_METRICS> hitTestMetrics(
                 actualHitTestCount);
-            _pTextLayout->HitTestTextRange(
-                _selectedRange.start, _selectedRange.length, 12.0f, currentY,
+            pTextLayout_->HitTestTextRange(
+                selectedRange_.start, selectedRange_.length, 12.0f, currentY,
                 hitTestMetrics.data(), actualHitTestCount, &actualHitTestCount);
 
             float layoutWidth = 0;
-            bool isVerticalLayout = _isVertical || _forceVertical;
+            bool isVerticalLayout = isVertical_ || forceVertical_;
             if (isVerticalLayout) {
               DWRITE_TEXT_METRICS textMetrics;
-              _pTextLayout->GetMetrics(&textMetrics);
+              pTextLayout_->GetMetrics(&textMetrics);
               layoutWidth = textMetrics.width;
             }
 
@@ -516,41 +519,41 @@ LRESULT CandidateWindow::OnPaint(HWND hwnd) {
               D2D1_RECT_F rect = D2D1::RectF(
                   metrics.left - 4.0f, metrics.top - 2.0f, right + 4.0f,
                   metrics.top + metrics.height + 2.0f);
-              _pRenderTarget->FillRectangle(rect, _pHighlightBgBrush);
+              pRenderTarget_->FillRectangle(rect, pHighlightBgBrush_);
             }
           }
 
           // Apply highlight text color effect
-          DWRITE_TEXT_RANGE dwriteRange = {_selectedRange.start,
-                                           _selectedRange.length};
-          _pTextLayout->SetDrawingEffect(_pHighlightTextBrush, dwriteRange);
+          DWRITE_TEXT_RANGE dwriteRange = {selectedRange_.start,
+                                           selectedRange_.length};
+          pTextLayout_->SetDrawingEffect(pHighlightTextBrush_, dwriteRange);
         }
 
-        _pRenderTarget->DrawTextLayout(
-            D2D1::Point2F(12.0f, currentY), _pTextLayout, _pTextBrush,
+        pRenderTarget_->DrawTextLayout(
+            D2D1::Point2F(12.0f, currentY), pTextLayout_, pTextBrush_,
             D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
         // Revert drawing effect
-        if (_selectedRange.length > 0) {
-          DWRITE_TEXT_RANGE dwriteRange = {_selectedRange.start,
-                                           _selectedRange.length};
-          _pTextLayout->SetDrawingEffect(nullptr, dwriteRange);
+        if (selectedRange_.length > 0) {
+          DWRITE_TEXT_RANGE dwriteRange = {selectedRange_.start,
+                                           selectedRange_.length};
+          pTextLayout_->SetDrawingEffect(nullptr, dwriteRange);
         }
       }
     }
 
     // Draw border
-    D2D1_SIZE_F size = _pRenderTarget->GetSize();
+    D2D1_SIZE_F size = pRenderTarget_->GetSize();
     // border should be in pixels, but SetTransform is active.
     // We should probably draw the border without transform or compensate.
-    _pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
-    _pRenderTarget->DrawRectangle(
+    pRenderTarget_->SetTransform(D2D1::Matrix3x2F::Identity());
+    pRenderTarget_->DrawRectangle(
         D2D1::RectF(0.5f, 0.5f, size.width - 0.5f, size.height - 0.5f),
-        _pBorderBrush, 1.0f);
+        pBorderBrush_, 1.0f);
 
-    HRESULT hr = _pRenderTarget->EndDraw();
+    HRESULT hr = pRenderTarget_->EndDraw();
     if (hr == D2DERR_RECREATE_TARGET) {
-      DiscardDeviceResources();
+      discardDeviceResources_();
     }
   }
 

@@ -45,7 +45,7 @@ void DllRelease() { InterlockedDecrement(&g_cRefDll); }
 
 class CClassFactory : public IClassFactory {
  public:
-  CClassFactory() : _cRef(1) {}
+  CClassFactory() : cRef_(1) {}
   ~CClassFactory() {}
 
   // IUnknown
@@ -63,11 +63,11 @@ class CClassFactory : public IClassFactory {
   }
 
   STDMETHODIMP_(ULONG) AddRef() override {
-    return InterlockedIncrement(&_cRef);
+    return InterlockedIncrement(&cRef_);
   }
 
   STDMETHODIMP_(ULONG) Release() override {
-    LONG cr = InterlockedDecrement(&_cRef);
+    LONG cr = InterlockedDecrement(&cRef_);
     if (cr == 0) delete this;
     return cr;
   }
@@ -98,7 +98,7 @@ class CClassFactory : public IClassFactory {
   }
 
  private:
-  LONG _cRef;
+  LONG cRef_;
 };
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call,

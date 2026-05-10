@@ -34,119 +34,119 @@
 const wchar_t* const TOOLTIP_WINDOW_CLASS = L"WinMcBopomofoTooltipWindow";
 
 TooltipWindow::TooltipWindow()
-    : _hwnd(nullptr),
-      _dpiScale(1.0f),
-      _pD2DFactory(nullptr),
-      _pRenderTarget(nullptr),
-      _pDWriteFactory(nullptr),
-      _pTextFormat(nullptr),
-      _pTextLayout(nullptr),
-      _pTextBrush(nullptr),
-      _pBgBrush(nullptr),
-      _pBorderBrush(nullptr) {
-  CreateDeviceIndependentResources();
+    : hwnd_(nullptr),
+      dpiScale_(1.0f),
+      pD2DFactory_(nullptr),
+      pRenderTarget_(nullptr),
+      pDWriteFactory_(nullptr),
+      pTextFormat_(nullptr),
+      pTextLayout_(nullptr),
+      pTextBrush_(nullptr),
+      pBgBrush_(nullptr),
+      pBorderBrush_(nullptr) {
+  createDeviceIndependentResources_();
 }
 
 TooltipWindow::~TooltipWindow() {
   Destroy();
-  DiscardDeviceResources();
-  if (_pTextLayout) {
-    _pTextLayout->Release();
+  discardDeviceResources_();
+  if (pTextLayout_) {
+    pTextLayout_->Release();
   }
-  if (_pTextFormat) {
-    _pTextFormat->Release();
+  if (pTextFormat_) {
+    pTextFormat_->Release();
   }
-  if (_pDWriteFactory) {
-    _pDWriteFactory->Release();
+  if (pDWriteFactory_) {
+    pDWriteFactory_->Release();
   }
-  if (_pD2DFactory) {
-    _pD2DFactory->Release();
+  if (pD2DFactory_) {
+    pD2DFactory_->Release();
   }
 }
 
-float TooltipWindow::GetDpiScale() {
-  if (!_hwnd) return 1.0f;
+float TooltipWindow::getDpiScale_() {
+  if (!hwnd_) return 1.0f;
   UINT dpi = 96;
   HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
   auto pGetDpiForWindow =
       (UINT(WINAPI*)(HWND))GetProcAddress(hUser32, "GetDpiForWindow");
   if (pGetDpiForWindow) {
-    dpi = pGetDpiForWindow(_hwnd);
+    dpi = pGetDpiForWindow(hwnd_);
   } else {
-    HDC hdc = GetDC(_hwnd);
+    HDC hdc = GetDC(hwnd_);
     if (hdc) {
       dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-      ReleaseDC(_hwnd, hdc);
+      ReleaseDC(hwnd_, hdc);
     }
   }
   return (float)dpi / 96.0f;
 }
 
-void TooltipWindow::CreateDeviceIndependentResources() {
-  if (!_pD2DFactory) {
-    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &_pD2DFactory);
+void TooltipWindow::createDeviceIndependentResources_() {
+  if (!pD2DFactory_) {
+    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory_);
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
-                        reinterpret_cast<IUnknown**>(&_pDWriteFactory));
+                        reinterpret_cast<IUnknown**>(&pDWriteFactory_));
 
-    _pDWriteFactory->CreateTextFormat(
+    pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI",  // Good UI font for Traditional Chinese
         NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
         15.0f,  // Slightly smaller than candidate window
-        L"zh-TW", &_pTextFormat);
+        L"zh-TW", &pTextFormat_);
   }
 }
 
-void TooltipWindow::CreateDeviceResources() {
-  if (!_pRenderTarget && _hwnd) {
+void TooltipWindow::createDeviceResources_() {
+  if (!pRenderTarget_ && hwnd_) {
     RECT rc;
-    GetClientRect(_hwnd, &rc);
+    GetClientRect(hwnd_, &rc);
     D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
 
-    _pD2DFactory->CreateHwndRenderTarget(
+    pD2DFactory_->CreateHwndRenderTarget(
         D2D1::RenderTargetProperties(),
-        D2D1::HwndRenderTargetProperties(_hwnd, size), &_pRenderTarget);
+        D2D1::HwndRenderTargetProperties(hwnd_, size), &pRenderTarget_);
 
-    if (_pRenderTarget) {
-      _pRenderTarget->CreateSolidColorBrush(
+    if (pRenderTarget_) {
+      pRenderTarget_->CreateSolidColorBrush(
           D2D1::ColorF(0x000000),  // Black text
-          &_pTextBrush);
-      _pRenderTarget->CreateSolidColorBrush(
+          &pTextBrush_);
+      pRenderTarget_->CreateSolidColorBrush(
           D2D1::ColorF(0xFFFFFFE0),  // Light yellow background
-          &_pBgBrush);
-      _pRenderTarget->CreateSolidColorBrush(
+          &pBgBrush_);
+      pRenderTarget_->CreateSolidColorBrush(
           D2D1::ColorF(0x000000),  // Black border
-          &_pBorderBrush);
+          &pBorderBrush_);
     }
   }
 }
 
-void TooltipWindow::DiscardDeviceResources() {
-  if (_pRenderTarget) {
-    _pRenderTarget->Release();
-    _pRenderTarget = nullptr;
+void TooltipWindow::discardDeviceResources_() {
+  if (pRenderTarget_) {
+    pRenderTarget_->Release();
+    pRenderTarget_ = nullptr;
   }
-  if (_pTextBrush) {
-    _pTextBrush->Release();
-    _pTextBrush = nullptr;
+  if (pTextBrush_) {
+    pTextBrush_->Release();
+    pTextBrush_ = nullptr;
   }
-  if (_pBgBrush) {
-    _pBgBrush->Release();
-    _pBgBrush = nullptr;
+  if (pBgBrush_) {
+    pBgBrush_->Release();
+    pBgBrush_ = nullptr;
   }
-  if (_pBorderBrush) {
-    _pBorderBrush->Release();
-    _pBorderBrush = nullptr;
+  if (pBorderBrush_) {
+    pBorderBrush_->Release();
+    pBorderBrush_ = nullptr;
   }
 }
 
 bool TooltipWindow::Create(HINSTANCE hInstance) {
-  if (_hwnd) return true;
+  if (hwnd_) return true;
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
   wcex.style = CS_DROPSHADOW | CS_IME;
-  wcex.lpfnWndProc = WndProc;
+  wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
   wcex.hbrBackground = NULL;  // Handled by D2D
@@ -155,82 +155,82 @@ bool TooltipWindow::Create(HINSTANCE hInstance) {
   RegisterClassExW(
       &wcex);  // Ignore failure as it might be registered by another instance
 
-  _hwnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+  hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
                           TOOLTIP_WINDOW_CLASS, L"",
                           WS_POPUP,       // D2D will draw the border
                           0, 0, 100, 30,  // Initial dummy size
                           nullptr, nullptr, hInstance, this);
 
-  return _hwnd != nullptr;
+  return hwnd_ != nullptr;
 }
 
 void TooltipWindow::Destroy() {
-  if (_hwnd) {
-    DestroyWindow(_hwnd);
-    _hwnd = nullptr;
+  if (hwnd_) {
+    DestroyWindow(hwnd_);
+    hwnd_ = nullptr;
   }
 }
 
 void TooltipWindow::UpdateUI(const std::string& tooltipText) {
-  if (!_hwnd) return;
+  if (!hwnd_) return;
 
   if (tooltipText.empty()) {
     Hide();
     return;
   }
 
-  _dpiScale = GetDpiScale();
-  _displayString = McBopomofo::Utf8ToUtf16(tooltipText);
+  dpiScale_ = getDpiScale_();
+  displayString_ = McBopomofo::Utf8ToUtf16(tooltipText);
 
-  if (_pTextLayout) {
-    _pTextLayout->Release();
-    _pTextLayout = nullptr;
+  if (pTextLayout_) {
+    pTextLayout_->Release();
+    pTextLayout_ = nullptr;
   }
 
-  if (_pDWriteFactory && _pTextFormat) {
-    _pDWriteFactory->CreateTextLayout(
-        _displayString.c_str(), (UINT32)_displayString.length(), _pTextFormat,
-        10000.0f, 10000.0f, &_pTextLayout);
+  if (pDWriteFactory_ && pTextFormat_) {
+    pDWriteFactory_->CreateTextLayout(
+        displayString_.c_str(), (UINT32)displayString_.length(), pTextFormat_,
+        10000.0f, 10000.0f, &pTextLayout_);
   }
 
   float textWidth = 0, textHeight = 0;
-  if (_pTextLayout) {
+  if (pTextLayout_) {
     DWRITE_TEXT_METRICS metrics;
-    _pTextLayout->GetMetrics(&metrics);
+    pTextLayout_->GetMetrics(&metrics);
     textWidth = metrics.width;
     textHeight = metrics.height;
   }
 
-  int width = (int)std::ceil(textWidth * _dpiScale) + (int)(16 * _dpiScale);
-  int height = (int)std::ceil(textHeight * _dpiScale) + (int)(8 * _dpiScale);
+  int width = (int)std::ceil(textWidth * dpiScale_) + (int)(16 * dpiScale_);
+  int height = (int)std::ceil(textHeight * dpiScale_) + (int)(8 * dpiScale_);
 
   // Enforce a minimum size
-  width = std::max(width, (int)(20 * _dpiScale));
-  height = std::max(height, (int)(20 * _dpiScale));
+  width = std::max(width, (int)(20 * dpiScale_));
+  height = std::max(height, (int)(20 * dpiScale_));
 
-  SetWindowPos(_hwnd, HWND_TOPMOST, 0, 0, width, height,
+  SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOACTIVATE);
-  if (_pRenderTarget) {
-    _pRenderTarget->Resize(D2D1::SizeU(width, height));
+  if (pRenderTarget_) {
+    pRenderTarget_->Resize(D2D1::SizeU(width, height));
   }
-  ShowWindow(_hwnd, SW_SHOWNOACTIVATE);
-  InvalidateRect(_hwnd, nullptr, FALSE);
+  ShowWindow(hwnd_, SW_SHOWNOACTIVATE);
+  InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
 void TooltipWindow::Move(int x, int y) {
-  if (_hwnd) {
-    SetWindowPos(_hwnd, HWND_TOPMOST, x, y, 0, 0,
+  if (hwnd_) {
+    SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
   }
 }
 
 void TooltipWindow::Hide() {
-  if (_hwnd) {
-    ShowWindow(_hwnd, SW_HIDE);
+  if (hwnd_) {
+    ShowWindow(hwnd_, SW_HIDE);
   }
 }
 
-LRESULT CALLBACK TooltipWindow::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
+LRESULT CALLBACK TooltipWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
                                         LPARAM lParam) {
   TooltipWindow* pThis = nullptr;
 
@@ -244,9 +244,9 @@ LRESULT CALLBACK TooltipWindow::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
 
   if (pThis) {
     if (uMsg == WM_PAINT) {
-      return pThis->OnPaint(hwnd);
+      return pThis->onPaint_(hwnd);
     } else if (uMsg == WM_DPICHANGED) {
-      pThis->_dpiScale = (float)LOWORD(wParam) / 96.0f;
+      pThis->dpiScale_ = (float)LOWORD(wParam) / 96.0f;
       RECT* prcNewWindow = (RECT*)lParam;
       SetWindowPos(hwnd, NULL, prcNewWindow->left, prcNewWindow->top,
                    prcNewWindow->right - prcNewWindow->left,
@@ -262,32 +262,32 @@ LRESULT CALLBACK TooltipWindow::WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
   return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
-LRESULT TooltipWindow::OnPaint(HWND hwnd) {
+LRESULT TooltipWindow::onPaint_(HWND hwnd) {
   PAINTSTRUCT ps;
   BeginPaint(hwnd, &ps);
 
-  CreateDeviceResources();
-  if (_pRenderTarget) {
-    _pRenderTarget->BeginDraw();
-    _pRenderTarget->SetTransform(D2D1::Matrix3x2F::Scale(_dpiScale, _dpiScale));
-    _pRenderTarget->Clear(_pBgBrush->GetColor());
+  createDeviceResources_();
+  if (pRenderTarget_) {
+    pRenderTarget_->BeginDraw();
+    pRenderTarget_->SetTransform(D2D1::Matrix3x2F::Scale(dpiScale_, dpiScale_));
+    pRenderTarget_->Clear(pBgBrush_->GetColor());
 
-    if (_pTextLayout && _pTextBrush) {
-      _pRenderTarget->DrawTextLayout(D2D1::Point2F(8.0f, 4.0f), _pTextLayout,
-                                     _pTextBrush,
+    if (pTextLayout_ && pTextBrush_) {
+      pRenderTarget_->DrawTextLayout(D2D1::Point2F(8.0f, 4.0f), pTextLayout_,
+                                     pTextBrush_,
                                      D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
     }
 
     // Draw border
-    D2D1_SIZE_F size = _pRenderTarget->GetSize();
-    _pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
-    _pRenderTarget->DrawRectangle(
+    D2D1_SIZE_F size = pRenderTarget_->GetSize();
+    pRenderTarget_->SetTransform(D2D1::Matrix3x2F::Identity());
+    pRenderTarget_->DrawRectangle(
         D2D1::RectF(0.5f, 0.5f, size.width - 0.5f, size.height - 0.5f),
-        _pBorderBrush, 1.0f);
+        pBorderBrush_, 1.0f);
 
-    HRESULT hr = _pRenderTarget->EndDraw();
+    HRESULT hr = pRenderTarget_->EndDraw();
     if (hr == D2DERR_RECREATE_TARGET) {
-      DiscardDeviceResources();
+      discardDeviceResources_();
     }
   }
 

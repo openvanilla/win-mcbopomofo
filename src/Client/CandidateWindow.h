@@ -43,62 +43,62 @@ class CandidateWindow {
   void Move(int x, int y);
   void Hide();
 
-  bool IsVisible() const { return _hwnd && IsWindowVisible(_hwnd); }
+  bool IsVisible() const { return hwnd_ && IsWindowVisible(hwnd_); }
   int GetHeight() const {
-    if (!_hwnd) return 0;
+    if (!hwnd_) return 0;
     RECT rc;
-    GetWindowRect(_hwnd, &rc);
+    GetWindowRect(hwnd_, &rc);
     return rc.bottom - rc.top;
   }
 
   // For testing purposes
-  std::wstring GetDisplayString() const { return _displayString; }
-  void SetVertical(bool vertical) { _isVertical = vertical; }
+  std::wstring GetDisplayString() const { return displayString_; }
+  void SetVertical(bool vertical) { isVertical_ = vertical; }
 
  private:
-  static LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
-                                  LPARAM lParam);
-  LRESULT OnPaint(HWND hwnd);
-  void OnSettingChange();
+  static LRESULT CALLBACK wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
+                                   LPARAM lParam);
+  LRESULT onPaint_(HWND hwnd);
+  void onSettingChange_();
 
-  void CreateDeviceIndependentResources();
-  void CreateDeviceResources();
-  void DiscardDeviceResources();
-  void UpdateTheme();
-  float GetDpiScale();
+  void createDeviceIndependentResources_();
+  void createDeviceResources_();
+  void discardDeviceResources_();
+  void updateTheme_();
+  float getDpiScale_();
 
   struct TextRange {
     UINT32 start;
     UINT32 length;
   };
 
-  HWND _hwnd;
-  float _dpiScale;
-  std::vector<std::wstring> _candidates;
-  int _cursorIndex;
-  std::wstring _displayString;
-  std::wstring _hint;
-  std::wstring _candidateKeys;
-  int _candidateKeysCount;
-  bool _isVertical;
-  bool _forceVertical;
-  bool _useShiftKeySelection;
-  bool _isDarkMode;
+  HWND hwnd_;
+  float dpiScale_;
+  std::vector<std::wstring> candidates_;
+  int cursorIndex_;
+  std::wstring displayString_;
+  std::wstring hint_;
+  std::wstring candidateKeys_;
+  int candidateKeysCount_;
+  bool isVertical_;
+  bool forceVertical_;
+  bool useShiftKeySelection_;
+  bool isDarkMode_;
 
-  TextRange _selectedRange;
-  std::vector<TextRange> _keyRanges;
+  TextRange selectedRange_;
+  std::vector<TextRange> keyRanges_;
 
-  ID2D1Factory* _pD2DFactory;
-  ID2D1HwndRenderTarget* _pRenderTarget;
-  IDWriteFactory* _pDWriteFactory;
-  IDWriteTextFormat* _pTextFormat;
-  IDWriteTextFormat* _pHintFormat;
-  IDWriteTextLayout* _pTextLayout;
-  IDWriteTextLayout* _pHintLayout;
+  ID2D1Factory* pD2DFactory_;
+  ID2D1HwndRenderTarget* pRenderTarget_;
+  IDWriteFactory* pDWriteFactory_;
+  IDWriteTextFormat* pTextFormat_;
+  IDWriteTextFormat* pHintFormat_;
+  IDWriteTextLayout* pTextLayout_;
+  IDWriteTextLayout* pHintLayout_;
 
-  ID2D1SolidColorBrush* _pTextBrush;
-  ID2D1SolidColorBrush* _pBgBrush;
-  ID2D1SolidColorBrush* _pBorderBrush;
-  ID2D1SolidColorBrush* _pHighlightBgBrush;
-  ID2D1SolidColorBrush* _pHighlightTextBrush;
+  ID2D1SolidColorBrush* pTextBrush_;
+  ID2D1SolidColorBrush* pBgBrush_;
+  ID2D1SolidColorBrush* pBorderBrush_;
+  ID2D1SolidColorBrush* pHighlightBgBrush_;
+  ID2D1SolidColorBrush* pHighlightTextBrush_;
 };

@@ -23,16 +23,16 @@
 
 #include "EditSession.h"
 
-CEditSessionBase::CEditSessionBase(ITfContext* pContext) : _cRef(1) {
-  _pContext = pContext;
-  if (_pContext) {
-    _pContext->AddRef();
+CEditSessionBase::CEditSessionBase(ITfContext* pContext) : cRef_(1) {
+  pContext_ = pContext;
+  if (pContext_) {
+    pContext_->AddRef();
   }
 }
 
 CEditSessionBase::~CEditSessionBase() {
-  if (_pContext) {
-    _pContext->Release();
+  if (pContext_) {
+    pContext_->Release();
   }
 }
 
@@ -53,13 +53,14 @@ STDAPI CEditSessionBase::QueryInterface(REFIID riid, void** ppvObj) {
 }
 
 STDAPI_(ULONG) CEditSessionBase::AddRef() {
-  return InterlockedIncrement(&_cRef);
+  return InterlockedIncrement(&cRef_);
 }
 
 STDAPI_(ULONG) CEditSessionBase::Release() {
-  LONG cr = InterlockedDecrement(&_cRef);
+  LONG cr = InterlockedDecrement(&cRef_);
   if (cr == 0) {
     delete this;
   }
   return cr;
 }
+
