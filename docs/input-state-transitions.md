@@ -90,6 +90,9 @@ stateDiagram-v2
     Marking --> SelectingDictionary : Dictionary feature
     Marking --> Inputting : Cancel Marking
     
+    SelectingDictionary --> ShowingCharInfo : Select Character Info
+    ShowingCharInfo --> SelectingDictionary : Back
+    
     AssociatedPhrases --> Committing : Select Phrase
     AssociatedPhrases --> Inputting : Cancel
     
@@ -166,14 +169,20 @@ Common path:
 3. `IrohaCandidate` or `EmptyIgnoringPrevious`
 4. `StateSequence(Committing -> Iroha)` or `Empty`
 
-### 3.7 User Phrases and Marking
+### 3.7 User Phrases, Marking and Character Info
 
 Common path:
 
 1. `Inputting`
 2. `Marking`
 3. `Inputting` or remains in `Marking`
-4. Extended states such as `SelectingDictionary` / `ShowingCharInfo`
+4. `SelectingDictionary`
+5. `ShowingCharInfo`
+
+Explanation:
+
+- `ShowingCharInfo` is a state that displays detailed metadata about a specific character (Unicode code points, encoding info, etc.). 
+- It is typically entered from the dictionary selection menu (`SelectingDictionary`) when the user chooses "Character Information".
 
 ### 3.8 Associated Phrases
 

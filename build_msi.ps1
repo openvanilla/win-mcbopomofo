@@ -133,7 +133,7 @@ function Invoke-WixBuild([string]$WixExe, [string]$OutDir, [string]$OutputName, 
     # We use zh-TW as the primary culture for the installer UI.
     # We still provide both .wxl files to the build process.
     & $WixExe build -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext `
-        .\installer.wxs .\zh-TW.wxl .\en-US.wxl `
+        installer\installer.wxs installer\zh-TW.wxl installer\en-US.wxl `
         -culture zh-TW -o $MsiPath `
         -b "X64BinDir=$X64BinDir" -b "X86BinDir=$X86BinDir" -b "Arm64BinDir=$Arm64BinDir" -b "OpenCCDir=$OpenCCDir"
     

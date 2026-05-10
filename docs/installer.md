@@ -6,7 +6,7 @@ This document describes what the Win-McBopomofo MSI installer does when run on a
 
 **Note: Running the MSI installer requires elevated (Administrator) privileges.** This is because it writes to protected system directories (`Program Files`) and performs system-wide COM registration.
 
-The installer is authored using the WiX Toolset v4/v7 (`installer.wxs`) and performs the following actions during installation:
+The installer is authored using the WiX Toolset v4/v7 (`installer/installer.wxs`) and performs the following actions during installation:
 
 ### A. Pre-requisite Checks and Cleanup
 
@@ -72,7 +72,7 @@ Open a PowerShell terminal at the project root and run:
 1. **Compiles all architectures:** It calls `cmake` and `cmake --build` sequentially for `x64`, `x86`, and `ARM64`. This ensures all `_x64`, `_x86`, and `_arm64` binaries are available.
 2. **Generates OpenCC dictionaries:** Triggers the OpenCC dictionary build target.
 3. **Converts the License:** Generates an RTF version of `LICENSE.txt` to embed in the MSI wizard UI.
-4. **Executes WiX:** Invokes `wix build` with the `installer.wxs` file, passing the build output paths (e.g., `X64BinDir=build_x64\bin\Release`) as bind variables.
+4. **Executes WiX:** Invokes `wix build` with the `installer/installer.wxs` file, passing the build output paths (e.g., `X64BinDir=build_x64\bin\Release`) as bind variables.
 
 ### Customizing the Build
 

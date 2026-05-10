@@ -137,7 +137,24 @@ The cost is:
 - Must define a stable payload format.
 - Need to clearly define the mapping between server states and client behaviors.
 
-## 6. Current Major Limitations
+## 6. Internationalization (i18n)
+
+The project implements a native Windows i18n architecture to support multi-lingual environments (primarily Traditional Chinese and English).
+
+- **Encapsulated Encoding**: The core engine and server logic use UTF-8 (`std::string`). Interactions with Windows APIs use UTF-16 (`std::wstring`). Conversions are strictly encapsulated in `src/Common/UTFHelper.h`.
+- **Resource Tables**: UI strings are moved into `.rc` resource files using `STRINGTABLE`. Multiple languages are defined using `LANGUAGE` blocks.
+- **Dynamic Loading**: Components load strings at runtime using `LoadStringW` (wrapped in `LoadLocalizedStringW`). This allows the IME UI to automatically switch languages based on the user's Windows display language without requiring separate builds.
+
+## 7. User Interface (UI) Layer
+
+The UI layer is responsible for rendering the Candidate Window and Tooltip Window using modern Windows graphics APIs.
+
+- **Rendering Engine**: Uses **Direct2D** and **DirectWrite** for high-quality, hardware-accelerated text rendering.
+- **High DPI Support**: All UI coordinates and dimensions are calculated based on the system DPI scale to ensure crisp visuals on 4K or high-density displays.
+- **Dark Mode Support**: The system automatically detects the Windows "App Mode" (Light/Dark) by querying the registry (`Personalize\AppsUseLightTheme`). UI colors, brushes, and backgrounds are dynamically adjusted to match the system theme.
+- **Layered Stacking**: Auxiliary windows (Tooltip and Candidate) are aware of each other's visibility and height, automatically stacking vertically to avoid overlap.
+
+## 8. Current Major Limitations
 
 Currently, the Server only maintains a single `InputController` instance, rather than splitting sessions "per input focus / per application context". This means the system architecture still leans toward a single interaction context, rather than comprehensive multi-session state management.
 

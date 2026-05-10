@@ -9,9 +9,13 @@
 * **Test-Driven Development (TDD)**: Always follow Kent Beck's TDD flow.
     * Write tests before adding any feature.
     * Implement the feature.
-    * Fix until the test passes.
-    * Clean up warnings.
-    * Make sure the project compiles.
+    *   Fix until the test passes.
+    *   Clean up warnings.
+    *   Make sure the project compiles.
+    *   **Commit Convention**: Use **Conventional Commits** for all changes.
+    *   Format: `<type>(<scope>): <description>`
+    *   Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+    *   Example: `feat(server): add support for character info service`
 
 ## Development Environment & Toolchain
 

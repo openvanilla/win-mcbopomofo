@@ -61,6 +61,7 @@ enum class Command : int {
     CMD_KEY_EVENT = 1,          // Keyboard event
     CMD_SELECT_CANDIDATE = 2,   // Select candidate
     CMD_RELOAD_SETTINGS = 3,    // Reload settings
+    CMD_OPEN_SETTINGS = 4,      // Open configuration app
 };
 ```
 
@@ -309,6 +310,31 @@ Response:
 
 ---
 
+### 5. CMD_OPEN_SETTINGS (4) - Open Settings
+
+**Purpose**: Requests the Server to launch the configuration utility (`McBopomofoConfig.exe`).
+
+**Trigger Scenarios**:
+
+- User selects "Settings" from the Language Bar menu (Client DLL).
+
+**Request Format**:
+
+```
+4
+```
+
+**Response Format**:
+See [StateUpdate Format](#stateupdate-format)
+
+**Server Behavior**:
+
+1. Locates the settings executable relative to the Server's path.
+2. Launches the process.
+3. Returns current state.
+
+---
+
 ## Response: StateUpdate Format
 
 All commands return a **StateUpdate**, describing the current input state.
@@ -328,6 +354,8 @@ All commands return a **StateUpdate**, describing the current input state.
 <COMPOSING_BUFFER>
 <TOOLTIP_SIZE>
 <TOOLTIP>
+<HINT_SIZE>
+<HINT>
 <CANDIDATES_COUNT>
 <CANDIDATE_1_SIZE>
 <CANDIDATE_1>
@@ -349,6 +377,7 @@ All commands return a **StateUpdate**, describing the current input state.
 | COMMIT_STRING | string | Text to commit to the application |
 | COMPOSING_BUFFER | string | The text currently being edited (Bopomofo or candidates) |
 | TOOLTIP | string | Tooltip text (e.g., "Press Space to select") |
+| HINT | string | Hint text displayed at the top of the candidate window (e.g., the prefix character for associated phrases) |
 | CANDIDATES_COUNT | int | Number of candidates |
 | CANDIDATE_N | string | The N-th candidate |
 
