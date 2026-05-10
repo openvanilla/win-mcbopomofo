@@ -18,6 +18,10 @@
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <WixVariable Id="WixUILicenseRtf" Value="build_msi_generated\LICENSE.rtf" />
 
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="SearchInstallDir" Root="HKLM" Key="SOFTWARE\McBopomofo" Name="InstallDir" Type="raw" />
+    </Property>
+
     <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="!(loc.DowngradeError)" />
 
@@ -58,6 +62,11 @@
     </StandardDirectory>
 
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <!-- Persistence for Install Path -->
+      <Component Id="cmp_SaveInstallDir" Guid="1d3c5e7f-8b2a-4a1d-8c7b-3e5f4d2c1b0a">
+        <RegistryValue Root="HKLM" Key="SOFTWARE\McBopomofo" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+      </Component>
+
       <!-- Core Executables and DLLs -->
       <Component Id="cmp_ServerExeX64" Guid="96a40a8a-e9fa-48b4-aeb2-e64fc5a9d8c0">
         <File Id="file_ServerExeX64" Name="McBopomofoServer_x64.exe" Source="!(bindpath.X64BinDir)\McBopomofoServer.exe" KeyPath="yes" />
