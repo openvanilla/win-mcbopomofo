@@ -40,5 +40,5 @@ jobs:
           name: Win-McBopomofo-Release
           path: |
             dist/Win-McBopomofo-Installer.msi
-            build/bin/Release/*.exe
-            build/bin/Release/*.dll
+            # build/bin/Release/*.exe
+            # build/bin/Release/*.dll
