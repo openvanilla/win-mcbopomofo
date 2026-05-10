@@ -11,32 +11,40 @@
            InstallerVersion="200"
            Compressed="yes">
 
+    <util:QueryNativeMachine />
+
     <!-- Use a simple UI -->
     <ui:WixUI Id="WixUI_InstallDir" />
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
 
-    <Launch Condition="Installed OR VersionNT >= 1000"
-            Message="Win-McBopomofo requires Windows 10 or later." />
-
     <!-- Ensure cab files are embedded in the MSI -->
     <MediaTemplate EmbedCab="yes" />
 
     <!-- Detect and close applications to prevent file locks during installation/uninstallation -->
-    <util:CloseApplication Id="CloseServerApp" Target="McBopomofoServer.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseConfigApp" Target="McBopomofoConfig.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseServerAppLegacy" Target="McBopomofoServer.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseConfigAppLegacy" Target="McBopomofoConfig.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseServerAppX86" Target="McBopomofoServer_x86.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseServerAppX64" Target="McBopomofoServer_x64.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseServerAppArm64" Target="McBopomofoServer_arm64.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseConfigAppX86" Target="McBopomofoConfig_x86.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseConfigAppX64" Target="McBopomofoConfig_x64.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseConfigAppArm64" Target="McBopomofoConfig_arm64.exe" CloseMessage="yes" RebootPrompt="no" />
+
+    <!-- Check and close applications that have loaded McBopomofoTIP DLL -->
+    <CustomAction Id="CheckAndCloseAppsWithTIP" 
+                  Script="vbscript"
+                  ScriptSourceFile="scripts\CheckAndCloseAppsWithTIP.vbs"
+                  Execute="immediate"
+                  Impersonate="yes"
+                  Return="check" />
 
     <!-- Define the directory structure -->
     <StandardDirectory Id="AppDataFolder">
       <Directory Id="INSTALLFOLDER" Name="WinMcBopomofo">
         <Directory Id="DataFolder" Name="data">
           <Directory Id="OpenCCFolder" Name="opencc" />
-          <Directory Id="AppsFolder_16" Name="16x16" />
-          <Directory Id="AppsFolder_22" Name="22x22" />
-          <Directory Id="AppsFolder_24" Name="24x24" />
-          <Directory Id="AppsFolder_32" Name="32x32" />
-          <Directory Id="AppsFolder_64" Name="64x64" />
         </Directory>
       </Directory>
     </StandardDirectory>
@@ -47,26 +55,73 @@
 
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <!-- Core Executables and DLLs -->
-      <Component Id="cmp_ServerExe" Guid="96a40a8a-e9fa-48b4-aeb2-e64fc5a9d8c0">
-        <File Id="file_ServerExe" Source="!(bindpath.BinDir)\McBopomofoServer.exe" KeyPath="yes" />
-        <!-- Automatically run the server on startup -->
-        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExe]&quot;" />
+      <Component Id="cmp_ServerExeX64" Guid="96a40a8a-e9fa-48b4-aeb2-e64fc5a9d8c0">
+        <File Id="file_ServerExeX64" Name="McBopomofoServer_x64.exe" Source="!(bindpath.X64BinDir)\McBopomofoServer.exe" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_ConfigExe" Guid="316f73db-24da-44a6-9bd6-239634e9e4f3">
-        <File Id="file_ConfigExe" Source="!(bindpath.BinDir)\McBopomofoConfig.exe" KeyPath="yes" />
+      <Component Id="cmp_ServerExeX86" Guid="e1de728f-9307-4d98-99b1-1d2b64c5cf0d">
+        <File Id="file_ServerExeX86" Name="McBopomofoServer_x86.exe" Source="!(bindpath.X86BinDir)\McBopomofoServer.exe" KeyPath="yes" />
       </Component>
-      <Component Id="cmp_TipDll" Guid="0de249ed-cc13-41a4-927b-2e915f0ebfc6">
-        <File Id="file_TipDll" Source="!(bindpath.BinDir)\McBopomofoTIP_v2.dll" KeyPath="yes" />
+      <Component Id="cmp_ServerExeArm64" Guid="6a0cdd1f-a606-40ce-b4f9-5e0ffef0cebf">
+        <File Id="file_ServerExeArm64" Name="McBopomofoServer_arm64.exe" Source="!(bindpath.Arm64BinDir)\McBopomofoServer.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ConfigExeX64" Guid="316f73db-24da-44a6-9bd6-239634e9e4f3">
+        <File Id="file_ConfigExeX64" Name="McBopomofoConfig_x64.exe" Source="!(bindpath.X64BinDir)\McBopomofoConfig.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ConfigExeX86" Guid="3e958604-4f7e-4ba9-a860-3af4128b5c0c">
+        <File Id="file_ConfigExeX86" Name="McBopomofoConfig_x86.exe" Source="!(bindpath.X86BinDir)\McBopomofoConfig.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ConfigExeArm64" Guid="851f8540-00ab-4e36-b2dc-dcc291e49d7d">
+        <File Id="file_ConfigExeArm64" Name="McBopomofoConfig_arm64.exe" Source="!(bindpath.Arm64BinDir)\McBopomofoConfig.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_TipDllX64" Guid="0de249ed-cc13-41a4-927b-2e915f0ebfc6">
+        <File Id="file_TipDllX64" Name="McBopomofoTIP_x64.dll" Source="!(bindpath.X64BinDir)\McBopomofoTIP_v2.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_TipDllX86" Guid="9f523632-4e8d-49e3-bf94-0556cffcfb0b">
+        <File Id="file_TipDllX86" Name="McBopomofoTIP_x86.dll" Source="!(bindpath.X86BinDir)\McBopomofoTIP_v2.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_TipDllArm64" Guid="03c2ad61-549b-434f-9d17-c6844a7bd958">
+        <File Id="file_TipDllArm64" Name="McBopomofoTIP_arm64.dll" Source="!(bindpath.Arm64BinDir)\McBopomofoTIP_v2.dll" KeyPath="yes" />
       </Component>
       
+      <Component Id="cmp_ServerAutorunX86" Guid="0b1113ae-d6c5-4278-a1b4-5b778cd7fae5" Condition="NOT VersionNT64">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExeX86]&quot;" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ServerAutorunX64" Guid="53611b78-347a-4d8c-9188-d1e08c48d1b0" Condition="VersionNT64 AND WIX_NATIVE_MACHINE = 34404">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExeX64]&quot;" KeyPath="yes" />
+      </Component>
+      <Component Id="cmp_ServerAutorunArm64" Guid="6d84bf6f-c5a2-42cd-8ce2-610f6bd26e17" Condition="WIX_NATIVE_MACHINE = 43620">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Win-McBopomofo-Server" Type="string" Value="&quot;[#file_ServerExeArm64]&quot;" KeyPath="yes" />
+      </Component>
+
       <!-- Start Menu Shortcut -->
-      <Component Id="ApplicationShortcut" Guid="7ab59b8a-b853-4702-abaa-281ceeb7357c">
+      <Component Id="ApplicationShortcutX86" Guid="7ab59b8a-b853-4702-abaa-281ceeb7357c" Condition="NOT VersionNT64">
         <Shortcut Id="ApplicationStartMenuShortcut" 
                   Name="McBopomofo Configuration" 
                   Description="Configure Win-McBopomofo Settings"
-                  Target="[INSTALLFOLDER]McBopomofoConfig.exe"
+                  Target="[INSTALLFOLDER]McBopomofoConfig_x86.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Directory="ApplicationProgramsFolder" />
+        <RegistryValue Root="HKCU" Key="Software\McBopomofo\Installer" Name="shortcut_x86" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="ApplicationShortcutX64" Guid="4fd147f5-cfd2-4960-b145-77a08ee2a6f0" Condition="VersionNT64 AND WIX_NATIVE_MACHINE = 34404">
+        <Shortcut Id="ApplicationStartMenuShortcutX64" 
+                  Name="McBopomofo Configuration" 
+                  Description="Configure Win-McBopomofo Settings"
+                  Target="[INSTALLFOLDER]McBopomofoConfig_x64.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Directory="ApplicationProgramsFolder" />
+        <RegistryValue Root="HKCU" Key="Software\McBopomofo\Installer" Name="shortcut_x64" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="ApplicationShortcutArm64" Guid="99ca3024-dfe5-4352-b89b-1fc98a251dd0" Condition="WIX_NATIVE_MACHINE = 43620">
+        <Shortcut Id="ApplicationStartMenuShortcutArm64" 
+                  Name="McBopomofo Configuration" 
+                  Description="Configure Win-McBopomofo Settings"
+                  Target="[INSTALLFOLDER]McBopomofoConfig_arm64.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Directory="ApplicationProgramsFolder" />
+        <RegistryValue Root="HKCU" Key="Software\McBopomofo\Installer" Name="shortcut_arm64" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="ApplicationShortcutCleanup" Guid="1fa519f0-d685-4f78-bf52-0ccdc768db33">
         <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
         <RegistryValue Root="HKCU" Key="Software\McBopomofo\Installer" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
@@ -93,23 +148,6 @@
         <File Id="file_Pua" Source="data\bpmfvs-pua.txt" KeyPath="yes" />
       </Component>
 
-      <!-- Icons -->
-      <Component Id="cmp_Icon16" Guid="*" Directory="AppsFolder_16">
-        <File Id="file_Icon16" Source="data\16x16\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
-      </Component>
-      <Component Id="cmp_Icon22" Guid="*" Directory="AppsFolder_22">
-        <File Id="file_Icon22" Source="data\22x22\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
-      </Component>
-      <Component Id="cmp_Icon24" Guid="*" Directory="AppsFolder_24">
-        <File Id="file_Icon24" Source="data\24x24\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
-      </Component>
-      <Component Id="cmp_Icon32" Guid="*" Directory="AppsFolder_32">
-        <File Id="file_Icon32" Source="data\32x32\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
-      </Component>
-      <Component Id="cmp_Icon64" Guid="*" Directory="AppsFolder_64">
-        <File Id="file_Icon64" Source="data\64x64\apps\fcitx_mcbopomofo.png" KeyPath="yes" />
-      </Component>
-      
       <!-- OpenCC Data -->
       <Component Id="cmp_OpenCC_Config_tw2s" Guid="*" Directory="OpenCCFolder">
         <File Id="file_OpenCC_Config_tw2s" Source="third_party\OpenCC\data\config\tw2s.json" KeyPath="yes" />
@@ -129,31 +167,80 @@
     </ComponentGroup>
 
     <!-- Custom Actions to register/unregister the TSF DLL and manage Server process -->
-    <CustomAction Id="RegisterTIP" 
+    <CustomAction Id="RegisterTIP_X64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="regsvr32.exe /s &quot;[#file_TipDll]&quot;" 
+                  ExeCommand="regsvr32.exe /s &quot;[#file_TipDllX64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
                   Return="ignore" />
 
-    <CustomAction Id="UnregisterTIP" 
+    <CustomAction Id="UnregisterTIP_X64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="regsvr32.exe /u /s &quot;[#file_TipDll]&quot;" 
+                  ExeCommand="regsvr32.exe /u /s &quot;[#file_TipDllX64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
                   Return="ignore" />
 
-    <CustomAction Id="StartServer" 
+    <CustomAction Id="RegisterTIP_X86" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="cmd.exe /c start &quot;&quot; &quot;[#file_ServerExe]&quot;" 
-                  Execute="commit" 
+                  ExeCommand="[SystemFolder]regsvr32.exe /s &quot;[#file_TipDllX86]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="ignore" />
+
+    <CustomAction Id="UnregisterTIP_X86" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="[SystemFolder]regsvr32.exe /u /s &quot;[#file_TipDllX86]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="ignore" />
+
+    <CustomAction Id="RegisterTIP_ARM64" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="regsvr32.exe /s &quot;[#file_TipDllArm64]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="ignore" />
+
+    <CustomAction Id="UnregisterTIP_ARM64" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="regsvr32.exe /u /s &quot;[#file_TipDllArm64]&quot;" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="ignore" />
+
+    <CustomAction Id="StartServer_X86" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="cmd.exe /c start &quot;&quot; &quot;[#file_ServerExeX86]&quot;" 
+                  Execute="immediate" 
+                  Impersonate="yes" 
+                  Return="asyncNoWait" />
+    <CustomAction Id="StartServer_X64" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="cmd.exe /c start &quot;&quot; &quot;[#file_ServerExeX64]&quot;" 
+                  Execute="immediate" 
+                  Impersonate="yes" 
+                  Return="asyncNoWait" />
+    <CustomAction Id="StartServer_ARM64" 
+                  Directory="INSTALLFOLDER" 
+                  ExeCommand="cmd.exe /c start &quot;&quot; &quot;[#file_ServerExeArm64]&quot;" 
+                  Execute="immediate" 
                   Impersonate="yes" 
                   Return="asyncNoWait" />
 
     <InstallExecuteSequence>
-      <Custom Action="UnregisterTIP" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot;" />
-      <Custom Action="RegisterTIP" After="InstallFiles" Condition="NOT REMOVE=&quot;ALL&quot;" />
-      <Custom Action="StartServer" After="InstallFinalize" Condition="NOT REMOVE=&quot;ALL&quot;" />
+      <!-- Check for and close applications with loaded TIP DLL before installation starts -->
+      <Custom Action="CheckAndCloseAppsWithTIP" Before="InstallInitialize" Condition="NOT REMOVE=&quot;ALL&quot;" />
+      
+      <Custom Action="UnregisterTIP_X86" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT VersionNT64" />
+      <Custom Action="UnregisterTIP_X64" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND VersionNT64 AND WIX_NATIVE_MACHINE = 34404" />
+      <Custom Action="UnregisterTIP_ARM64" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND WIX_NATIVE_MACHINE = 43620" />
+      <Custom Action="RegisterTIP_X86" After="InstallFiles" Condition="NOT REMOVE=&quot;ALL&quot; AND NOT VersionNT64" />
+      <Custom Action="RegisterTIP_X64" After="InstallFiles" Condition="NOT REMOVE=&quot;ALL&quot; AND VersionNT64 AND WIX_NATIVE_MACHINE = 34404" />
+      <Custom Action="RegisterTIP_ARM64" After="InstallFiles" Condition="NOT REMOVE=&quot;ALL&quot; AND WIX_NATIVE_MACHINE = 43620" />
+      <Custom Action="StartServer_X86" After="InstallFinalize" Condition="NOT REMOVE=&quot;ALL&quot; AND NOT VersionNT64" />
+      <Custom Action="StartServer_X64" After="InstallFinalize" Condition="NOT REMOVE=&quot;ALL&quot; AND VersionNT64 AND WIX_NATIVE_MACHINE = 34404" />
+      <Custom Action="StartServer_ARM64" After="InstallFinalize" Condition="NOT REMOVE=&quot;ALL&quot; AND WIX_NATIVE_MACHINE = 43620" />
     </InstallExecuteSequence>
 
     <Feature Id="MainFeature" Title="Win-McBopomofo Core" Level="1">

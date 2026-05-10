@@ -2,40 +2,40 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
-    - name: Configure CMake
-      run: cmake -B build -S . -A x64
+      - name: Configure CMake
+        run: cmake -B build -S . -A x64
 
-    - name: Build
-      run: cmake --build build --config Release
+      - name: Build
+        run: cmake --build build --config Release
 
-    - name: Run Tests
-      run: ctest --test-dir build -C Release --output-on-failure
+      - name: Run Tests
+        run: ctest --test-dir build -C Release --output-on-failure
 
-    - name: Install WiX Toolset
-      run: dotnet tool install --global wix --version 4.0.5
+      - name: Install WiX Toolset
+        run: dotnet tool install --global wix --version 4.0.5
 
-    - name: Build MSI Installer
-      run: .\build_msi.ps1
+      - name: Build MSI Installer
+        run: .\build_msi.ps1
 
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: Win-McBopomofo-Release
-        path: |
-          dist/Win-McBopomofo-Installer.msi
-          build/bin/Release/*.exe
-          build/bin/Release/*.dll
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Win-McBopomofo-Release
+          path: |
+            dist/Win-McBopomofo-Installer.msi
+            build/bin/Release/*.exe
+            build/bin/Release/*.dll

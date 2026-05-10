@@ -45,3 +45,11 @@ Important outputs are usually placed under:
 - Practical compatibility note:
   The core code mostly relies on Win32, TSF, Direct2D, and DirectWrite APIs that can exist on older systems such as Windows 7 SP1.
   However, older Windows versions are not part of the supported matrix, are not covered by installer support, and may have runtime issues in UI behavior, theming, DPI handling, or TSF host compatibility.
+
+## Misc
+
+- Command to get installed path:
+
+```powershell
+reg query "HKCR\CLSID\{8C9D652A-9B99-4B77-BA9A-3B0F76923B7B}\InProcServer32" /ve
+```

@@ -27,6 +27,10 @@ set(USE_SYSTEM_MARISA OFF CACHE BOOL "Use bundled marisa" FORCE)
 set(USE_SYSTEM_TINYXML2 OFF CACHE BOOL "Use bundled tinyxml2" FORCE)
 set(BUILD_DOCUMENTATION OFF CACHE BOOL "Do not build OpenCC docs" FORCE)
 set(ENABLE_GTEST ON CACHE BOOL "Enable GTest" FORCE)
+
+# Skip OpenCC dictionary building for cross-compilation
+option(SKIP_OPENCC_DICT "Skip OpenCC dictionary building (useful for cross-compilation)" OFF)
+
 add_subdirectory(third_party/OpenCC EXCLUDE_FROM_ALL)
 
 add_subdirectory(src)

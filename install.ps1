@@ -25,7 +25,8 @@ Start-Sleep -Seconds 1
 
 Write-Host "2. Building x64 (64-bit)..."
 cmake -S . -B build_x64 -A x64
-cmake --build build_x64 --config $BuildType --target Dictionaries McBopomofoTIP McBopomofoServer McBopomofoConfig
+cmake --build build_x64 --config $BuildType --target third_party/OpenCC/data/Dictionaries
+cmake --build build_x64 --config $BuildType --target McBopomofoTIP McBopomofoServer McBopomofoConfig
 
 Write-Host "3. Building Win32 (32-bit)..."
 cmake -S . -B build_x86 -A Win32
