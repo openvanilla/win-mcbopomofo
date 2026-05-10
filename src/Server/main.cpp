@@ -115,17 +115,17 @@ class ServerUI : public UIInterface {
 public:
     IPC::StateUpdatePayload currentState;
 
-    void Reset() override {
+    void reset() override {
         std::string savedCommit = currentState.commitString;
         currentState = IPC::StateUpdatePayload();
         currentState.commitString = savedCommit;
     }
 
-    void CommitString(const std::string& text) override {
+    void commitString(const std::string& text) override {
         currentState.commitString += text;
     }
 
-    void Update(const IPC::StateUpdatePayload& state) override {
+    void update(const IPC::StateUpdatePayload& state) override {
         currentState = state;
     }
 };
@@ -325,7 +325,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             GetCursorPos(&pt);
             HMENU hMenu = CreatePopupMenu();
             
-            bool isConversionEnabled = g_Controller && g_Controller->IsChineseConversionEnabled();
+            bool isConversionEnabled = g_Controller && g_Controller->isChineseConversionEnabled();
             LPCWSTR conversionText = isConversionEnabled ? L"輸出：簡體中文" : L"輸出：繁體中文";
             UINT loggingFlags = MF_BYPOSITION | MF_STRING;
             if (ServerLoggingEnabled()) {
@@ -357,7 +357,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             OpenSettingsApp();
         } else if (LOWORD(wParam) == IDM_TOGGLE_CONVERSION) {
             if (g_Controller) {
-                g_Controller->ToggleChineseConversion();
+                g_Controller->toggleChineseConversion();
             }
         } else if (LOWORD(wParam) == IDM_OPEN_USER_PHRASES) {
             std::string path = fcitx5_compat::userDirectory() + "/user.txt";
@@ -470,17 +470,17 @@ int main(int argc, char* argv[]) {
     InputController controller(keyHandler, &ui);
     g_Controller = &controller;
 
-    controller.SetDataDirectory(exeDir / "data");
+    controller.setDataDirectory(exeDir / "data");
 
     Settings settings;
-    settings.ApplyTo(controller);
+    settings.applyTo(controller);
     std::mutex reloadMutex;
 
     auto reloadSettings = [&]() {
         FCITX_MCBOPOMOFO_INFO() << "Reloading settings from: "
                                 << (std::filesystem::path(userDir) / "mcbopomofo.ini").string();
-        settings.Load();
-        settings.ApplyTo(controller);
+        settings.load();
+        settings.applyTo(controller);
     };
 
     auto reloadUserPhrases = [&]() {
@@ -518,7 +518,7 @@ int main(int argc, char* argv[]) {
             if (IsCtrlSpace(keyReq)) {
                 FCITX_MCBOPOMOFO_INFO() << "IPC Ctrl+Space: Chinese/English mode toggle handled before input controller.";
             } else {
-                consumed = controller.HandleKey(MapIPCKey(keyReq));
+                consumed = controller.handleKey(mapIpcKey(keyReq));
             }
             ui.currentState.consumed = consumed;
             return IPC::SerializeStateUpdate(ui.currentState);
@@ -527,7 +527,7 @@ int main(int argc, char* argv[]) {
         IPC::SelectCandidatePayload selReq;
         if (IPC::DeserializeSelectCandidate(req, selReq)) {
             FCITX_MCBOPOMOFO_INFO() << "IPC Recv: SELECT_CANDIDATE Index=" << selReq.index;
-            controller.SelectCandidate(selReq.index);
+            controller.selectCandidate(selReq.index);
             ui.currentState.consumed = true;
             return IPC::SerializeStateUpdate(ui.currentState);
         }
@@ -541,7 +541,7 @@ int main(int argc, char* argv[]) {
 
         if (IPC::IsResetCommand(req)) {
             FCITX_MCBOPOMOFO_INFO() << "IPC Recv: RESET";
-            controller.Reset();
+            controller.reset();
             ui.currentState.consumed = true;
             return IPC::SerializeStateUpdate(ui.currentState);
         }

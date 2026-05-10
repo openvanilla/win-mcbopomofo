@@ -13,59 +13,60 @@ public:
     ~InputController() = default;
 
     // Handles a key press and returns true if the key was consumed by the IME.
-    bool HandleKey(const Key& key);
+    bool handleKey(const Key& key);
 
     // Forces the current composing string to be committed and resets the state.
-    void Reset();
+    void reset();
 
     // Selects a candidate by its index in the current candidate list.
-    void SelectCandidate(int index);
+    void selectCandidate(int index);
 
     // Settings passthrough
-    void SetInputMode(InputMode mode);
-    void SetKeyboardLayout(const Formosa::Mandarin::BopomofoKeyboardLayout* layout);
-    void SetSelectPhraseAfterCursorAsCandidate(bool flag);
-    void SetMoveCursorAfterSelection(bool flag);
-    void SetPutLowercaseLettersToComposingBuffer(bool flag);
-    void SetEscKeyClearsEntireComposingBuffer(bool flag);
-    void SetShiftEnterEnabled(bool flag);
-    void SetCtrlEnterKeyBehavior(KeyHandlerCtrlEnter behavior);
-    void SetAssociatedPhrasesEnabled(bool enabled);
-    void SetHalfWidthPunctuationEnabled(bool enabled);
-    void SetBopomofoFontAnnotationSupportEnabled(bool enabled);
-    void SetRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
-    void SetChooseCandidateUsingSpace(bool enabled);
-    void SetCandidateKeys(const std::string& keys);
-    void SetCandidateKeysCount(int count);
-    void SetCandidateWindowVertical(bool vertical);
-    void SetChineseConversionEnabled(bool enabled);
+    void setInputMode(InputMode mode);
+    void setKeyboardLayout(const Formosa::Mandarin::BopomofoKeyboardLayout* layout);
+    void setSelectPhraseAfterCursorAsCandidate(bool flag);
+    void setMoveCursorAfterSelection(bool flag);
+    void setPutLowercaseLettersToComposingBuffer(bool flag);
+    void setEscKeyClearsEntireComposingBuffer(bool flag);
+    void setShiftEnterEnabled(bool flag);
+    void setCtrlEnterKeyBehavior(KeyHandlerCtrlEnter behavior);
+    void setAssociatedPhrasesEnabled(bool enabled);
+    void setHalfWidthPunctuationEnabled(bool enabled);
+    void setBopomofoFontAnnotationSupportEnabled(bool enabled);
+    void setRepeatedPunctuationToSelectCandidateEnabled(bool enabled);
+    void setChooseCandidateUsingSpace(bool enabled);
+    void setCandidateKeys(const std::string& keys);
+    void setCandidateKeysCount(int count);
+    void setCandidateWindowVertical(bool vertical);
+    void setChineseConversionEnabled(bool enabled);
 
-    void SetDataDirectory(const std::filesystem::path& dataDir);
-    void ToggleChineseConversion();
-    bool IsChineseConversionEnabled() const;
+    void setDataDirectory(const std::filesystem::path& dataDir);
+    void toggleChineseConversion();
+    bool isChineseConversionEnabled() const;
 
-    int GetCandidateIndex() const { return candidateIndex_; }
-    InputState* GetCurrentState() const { return currentState_.get(); }
-    void SetStateForTesting(std::unique_ptr<InputState> state,
+    int candidateIndex() const { return candidateIndex_; }
+    InputState* currentState() const { return currentState_.get(); }
+    void setStateForTesting(std::unique_ptr<InputState> state,
                             int candidateIndex = -1) {
         currentState_ = std::move(state);
         candidateIndex_ = candidateIndex;
     }
 
 private:
-    void ChangeState(std::unique_ptr<InputState> previousState,
-                     std::unique_ptr<InputState> newState);
-    void NotifyUI();
-    IPC::StateUpdatePayload BuildStateUpdatePayload() const;
-    bool HandleCandidateKey(const Key& key);
-    bool HandleCandidateNavigation(const Key& key);
-    void MoveCandidateCursor(bool forward);
-    void MoveCandidatePage(bool forward);
-    void MoveReadingCursorInCandidatePanel(bool forward);
-    void CancelCandidatePanel();
-    void BuildAssociatedPhrasesForCurrentCandidate(InputStates::ChoosingCandidate& choosing);
-    void EnterDictionaryState(InputStates::ChoosingCandidate& choosing);
-    void EnterPhraseActionMenu(InputStates::ChoosingCandidate& choosing, bool boost);
+    void changeState_(std::unique_ptr<InputState> previousState,
+                      std::unique_ptr<InputState> newState);
+    void notifyUI_();
+    IPC::StateUpdatePayload buildStateUpdatePayload_() const;
+    bool handleCandidateKey_(const Key& key);
+    bool handleCandidateNavigation_(const Key& key);
+    void moveCandidateCursor_(bool forward);
+    void moveCandidatePage_(bool forward);
+    void moveReadingCursorInCandidatePanel_(bool forward);
+    void cancelCandidatePanel_();
+    void buildAssociatedPhrasesForCurrentCandidate_(
+        InputStates::ChoosingCandidate& choosing);
+    void enterDictionaryState_(InputStates::ChoosingCandidate& choosing);
+    void enterPhraseActionMenu_(InputStates::ChoosingCandidate& choosing, bool boost);
 
     std::shared_ptr<KeyHandler> keyHandler_;
     UIInterface* ui_;

@@ -6,7 +6,7 @@ using namespace McBopomofo;
 
 TEST(LunarCalendarConverterTest, SolarToLunarMatchesReferenceExample) {
     LunarDate lunar{};
-    ASSERT_TRUE(TryConvertSolarToLunar(2015, 1, 15, &lunar));
+    ASSERT_TRUE(tryConvertSolarToLunar(2015, 1, 15, &lunar));
     EXPECT_EQ(lunar.year, 2014);
     EXPECT_EQ(lunar.month, 11);
     EXPECT_EQ(lunar.day, 25);
@@ -23,7 +23,7 @@ TEST(LunarCalendarConverterTest, LunarToSolarMatchesReferenceExample) {
     int year = 0;
     int month = 0;
     int day = 0;
-    ASSERT_TRUE(TryConvertLunarToSolar(lunar, &year, &month, &day));
+    ASSERT_TRUE(tryConvertLunarToSolar(lunar, &year, &month, &day));
     EXPECT_EQ(year, 2015);
     EXPECT_EQ(month, 1);
     EXPECT_EQ(day, 15);
@@ -36,7 +36,7 @@ TEST(LunarCalendarConverterTest, FormatLunarDateUsesChineseStyle) {
         .day = 1,
         .isLeapMonth = false,
     };
-    EXPECT_EQ(FormatLunarDate(lunar), "農曆正月初一");
+    EXPECT_EQ(formatLunarDate(lunar), "2024年正月初一");
 }
 
 TEST(LunarCalendarConverterTest, FormatLunarDateIncludesLeapMonth) {
@@ -46,5 +46,5 @@ TEST(LunarCalendarConverterTest, FormatLunarDateIncludesLeapMonth) {
         .day = 3,
         .isLeapMonth = true,
     };
-    EXPECT_EQ(FormatLunarDate(lunar), "農曆閏二月初三");
+    EXPECT_EQ(formatLunarDate(lunar), "2023年閏二月初三");
 }

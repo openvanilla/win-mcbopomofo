@@ -8,96 +8,96 @@
 namespace McBopomofo {
 
 Settings::Settings() {
-    Load();
+    load();
 }
 
-std::wstring Settings::GetIniFilePath() const {
+std::wstring Settings::iniFilePath_() const {
     std::string dir = fcitx5_compat::userDirectory();
     std::filesystem::path p(dir);
     p /= "mcbopomofo.ini";
     return p.wstring();
 }
 
-std::wstring Settings::ReadString(const wchar_t* section, const wchar_t* key, const wchar_t* defaultVal) {
-    std::wstring path = GetIniFilePath();
+std::wstring Settings::readString_(const wchar_t* section, const wchar_t* key, const wchar_t* defaultVal) {
+    std::wstring path = iniFilePath_();
     wchar_t buffer[256];
     GetPrivateProfileStringW(section, key, defaultVal, buffer, 256, path.c_str());
     return std::wstring(buffer);
 }
 
-void Settings::WriteString(const wchar_t* section, const wchar_t* key, const std::wstring& val) {
-    std::wstring path = GetIniFilePath();
+void Settings::writeString_(const wchar_t* section, const wchar_t* key, const std::wstring& val) {
+    std::wstring path = iniFilePath_();
     WritePrivateProfileStringW(section, key, val.c_str(), path.c_str());
 }
 
-int Settings::ReadInt(const wchar_t* section, const wchar_t* key, int defaultVal) {
-    std::wstring path = GetIniFilePath();
+int Settings::readInt_(const wchar_t* section, const wchar_t* key, int defaultVal) {
+    std::wstring path = iniFilePath_();
     return GetPrivateProfileIntW(section, key, defaultVal, path.c_str());
 }
 
-void Settings::WriteInt(const wchar_t* section, const wchar_t* key, int val) {
-    WriteString(section, key, std::to_wstring(val));
+void Settings::writeInt_(const wchar_t* section, const wchar_t* key, int val) {
+    writeString_(section, key, std::to_wstring(val));
 }
 
-bool Settings::ReadBool(const wchar_t* section, const wchar_t* key, bool defaultVal) {
-    return ReadInt(section, key, defaultVal ? 1 : 0) != 0;
+bool Settings::readBool_(const wchar_t* section, const wchar_t* key, bool defaultVal) {
+    return readInt_(section, key, defaultVal ? 1 : 0) != 0;
 }
 
-void Settings::WriteBool(const wchar_t* section, const wchar_t* key, bool val) {
-    WriteInt(section, key, val ? 1 : 0);
+void Settings::writeBool_(const wchar_t* section, const wchar_t* key, bool val) {
+    writeInt_(section, key, val ? 1 : 0);
 }
 
-void Settings::Load() {
-    inputMode_ = (InputMode)ReadInt(L"General", L"InputMode", (int)InputMode::McBopomofo);
+void Settings::load() {
+    inputMode_ = (InputMode)readInt_(L"General", L"InputMode", (int)InputMode::McBopomofo);
     
-    std::wstring layoutW = ReadString(L"General", L"KeyboardLayout", L"Standard");
+    std::wstring layoutW = readString_(L"General", L"KeyboardLayout", L"Standard");
     keyboardLayout_ = Utf16ToUtf8(layoutW);
 
-    selectPhraseAfterCursorAsCandidate_ = ReadBool(L"General", L"SelectPhraseAfterCursorAsCandidate", false);
-    moveCursorAfterSelection_ = ReadBool(L"General", L"MoveCursorAfterSelection", false);
-    putLowercaseLettersToComposingBuffer_ = ReadBool(L"General", L"PutLowercaseLettersToComposingBuffer", false);
-    escKeyClearsEntireComposingBuffer_ = ReadBool(L"General", L"EscKeyClearsEntireComposingBuffer", false);
-    shiftEnterEnabled_ = ReadBool(L"General", L"ShiftEnterEnabled", true);
-    ctrlEnterKeyBehavior_ = (KeyHandlerCtrlEnter)ReadInt(L"General", L"CtrlEnterKeyBehavior", (int)KeyHandlerCtrlEnter::Disabled);
-    associatedPhrasesEnabled_ = ReadBool(L"General", L"AssociatedPhrasesEnabled", false);
-    halfWidthPunctuationEnabled_ = ReadBool(L"General", L"HalfWidthPunctuationEnabled", false);
-    chineseConversionEnabled_ = ReadBool(L"General", L"ChineseConversionEnabled", false);
-    bopomofoFontAnnotationSupportEnabled_ = ReadBool(L"General", L"BopomofoFontAnnotationSupportEnabled", false);
-    repeatedPunctuationToSelectCandidateEnabled_ = ReadBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", false);
-    chooseCandidateUsingSpace_ = ReadBool(L"General", L"ChooseCandidateUsingSpace", true);
-    candidateKeys_ = Utf16ToUtf8(ReadString(L"General", L"CandidateKeys", L"123456789"));
+    selectPhraseAfterCursorAsCandidate_ = readBool_(L"General", L"SelectPhraseAfterCursorAsCandidate", false);
+    moveCursorAfterSelection_ = readBool_(L"General", L"MoveCursorAfterSelection", false);
+    putLowercaseLettersToComposingBuffer_ = readBool_(L"General", L"PutLowercaseLettersToComposingBuffer", false);
+    escKeyClearsEntireComposingBuffer_ = readBool_(L"General", L"EscKeyClearsEntireComposingBuffer", false);
+    shiftEnterEnabled_ = readBool_(L"General", L"ShiftEnterEnabled", true);
+    ctrlEnterKeyBehavior_ = (KeyHandlerCtrlEnter)readInt_(L"General", L"CtrlEnterKeyBehavior", (int)KeyHandlerCtrlEnter::Disabled);
+    associatedPhrasesEnabled_ = readBool_(L"General", L"AssociatedPhrasesEnabled", false);
+    halfWidthPunctuationEnabled_ = readBool_(L"General", L"HalfWidthPunctuationEnabled", false);
+    chineseConversionEnabled_ = readBool_(L"General", L"ChineseConversionEnabled", false);
+    bopomofoFontAnnotationSupportEnabled_ = readBool_(L"General", L"BopomofoFontAnnotationSupportEnabled", false);
+    repeatedPunctuationToSelectCandidateEnabled_ = readBool_(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", false);
+    chooseCandidateUsingSpace_ = readBool_(L"General", L"ChooseCandidateUsingSpace", true);
+    candidateKeys_ = Utf16ToUtf8(readString_(L"General", L"CandidateKeys", L"123456789"));
     if (candidateKeys_ != "123456789" && candidateKeys_ != "asdfghjkl" && candidateKeys_ != "asdfzxcvb") {
         candidateKeys_ = "123456789";
     }
-    candidateKeysCount_ = ReadInt(L"General", L"CandidateKeysCount", 9);
+    candidateKeysCount_ = readInt_(L"General", L"CandidateKeysCount", 9);
     if (candidateKeysCount_ < 4 || candidateKeysCount_ > 9) {
         candidateKeysCount_ = 9;
     }
-    candidateWindowVertical_ = ReadBool(L"UI", L"CandidateWindowVertical", false);
+    candidateWindowVertical_ = readBool_(L"UI", L"CandidateWindowVertical", false);
 }
 
-void Settings::Save() {
-    WriteInt(L"General", L"InputMode", (int)inputMode_);
-    WriteString(L"General", L"KeyboardLayout", Utf8ToUtf16(keyboardLayout_));
-    WriteBool(L"General", L"SelectPhraseAfterCursorAsCandidate", selectPhraseAfterCursorAsCandidate_);
-    WriteBool(L"General", L"MoveCursorAfterSelection", moveCursorAfterSelection_);
-    WriteBool(L"General", L"PutLowercaseLettersToComposingBuffer", putLowercaseLettersToComposingBuffer_);
-    WriteBool(L"General", L"EscKeyClearsEntireComposingBuffer", escKeyClearsEntireComposingBuffer_);
-    WriteBool(L"General", L"ShiftEnterEnabled", shiftEnterEnabled_);
-    WriteInt(L"General", L"CtrlEnterKeyBehavior", (int)ctrlEnterKeyBehavior_);
-    WriteBool(L"General", L"AssociatedPhrasesEnabled", associatedPhrasesEnabled_);
-    WriteBool(L"General", L"HalfWidthPunctuationEnabled", halfWidthPunctuationEnabled_);
-    WriteBool(L"General", L"ChineseConversionEnabled", chineseConversionEnabled_);
-    WriteBool(L"General", L"BopomofoFontAnnotationSupportEnabled", bopomofoFontAnnotationSupportEnabled_);
-    WriteBool(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", repeatedPunctuationToSelectCandidateEnabled_);
-    WriteBool(L"General", L"ChooseCandidateUsingSpace", chooseCandidateUsingSpace_);
-    WriteString(L"General", L"CandidateKeys", Utf8ToUtf16(candidateKeys_));
-    WriteInt(L"General", L"CandidateKeysCount", candidateKeysCount_);
-    WriteBool(L"UI", L"CandidateWindowVertical", candidateWindowVertical_);
+void Settings::save() {
+    writeInt_(L"General", L"InputMode", (int)inputMode_);
+    writeString_(L"General", L"KeyboardLayout", Utf8ToUtf16(keyboardLayout_));
+    writeBool_(L"General", L"SelectPhraseAfterCursorAsCandidate", selectPhraseAfterCursorAsCandidate_);
+    writeBool_(L"General", L"MoveCursorAfterSelection", moveCursorAfterSelection_);
+    writeBool_(L"General", L"PutLowercaseLettersToComposingBuffer", putLowercaseLettersToComposingBuffer_);
+    writeBool_(L"General", L"EscKeyClearsEntireComposingBuffer", escKeyClearsEntireComposingBuffer_);
+    writeBool_(L"General", L"ShiftEnterEnabled", shiftEnterEnabled_);
+    writeInt_(L"General", L"CtrlEnterKeyBehavior", (int)ctrlEnterKeyBehavior_);
+    writeBool_(L"General", L"AssociatedPhrasesEnabled", associatedPhrasesEnabled_);
+    writeBool_(L"General", L"HalfWidthPunctuationEnabled", halfWidthPunctuationEnabled_);
+    writeBool_(L"General", L"ChineseConversionEnabled", chineseConversionEnabled_);
+    writeBool_(L"General", L"BopomofoFontAnnotationSupportEnabled", bopomofoFontAnnotationSupportEnabled_);
+    writeBool_(L"General", L"RepeatedPunctuationToSelectCandidateEnabled", repeatedPunctuationToSelectCandidateEnabled_);
+    writeBool_(L"General", L"ChooseCandidateUsingSpace", chooseCandidateUsingSpace_);
+    writeString_(L"General", L"CandidateKeys", Utf8ToUtf16(candidateKeys_));
+    writeInt_(L"General", L"CandidateKeysCount", candidateKeysCount_);
+    writeBool_(L"UI", L"CandidateWindowVertical", candidateWindowVertical_);
 }
 
-void Settings::ApplyTo(InputController& controller) {
-    controller.SetInputMode(inputMode_);
+void Settings::applyTo(InputController& controller) {
+    controller.setInputMode(inputMode_);
     
     const Formosa::Mandarin::BopomofoKeyboardLayout* layout = Formosa::Mandarin::BopomofoKeyboardLayout::StandardLayout();
     if (keyboardLayout_ == "ETen") layout = Formosa::Mandarin::BopomofoKeyboardLayout::ETenLayout();
@@ -106,23 +106,23 @@ void Settings::ApplyTo(InputController& controller) {
     else if (keyboardLayout_ == "HanyuPinyin") layout = Formosa::Mandarin::BopomofoKeyboardLayout::HanyuPinyinLayout();
     else if (keyboardLayout_ == "IBM") layout = Formosa::Mandarin::BopomofoKeyboardLayout::IBMLayout();
     
-    controller.SetKeyboardLayout(layout);
+    controller.setKeyboardLayout(layout);
     
-    controller.SetSelectPhraseAfterCursorAsCandidate(selectPhraseAfterCursorAsCandidate_);
-    controller.SetMoveCursorAfterSelection(moveCursorAfterSelection_);
-    controller.SetPutLowercaseLettersToComposingBuffer(putLowercaseLettersToComposingBuffer_);
-    controller.SetEscKeyClearsEntireComposingBuffer(escKeyClearsEntireComposingBuffer_);
-    controller.SetShiftEnterEnabled(shiftEnterEnabled_);
-    controller.SetCtrlEnterKeyBehavior(ctrlEnterKeyBehavior_);
-    controller.SetAssociatedPhrasesEnabled(associatedPhrasesEnabled_);
-    controller.SetHalfWidthPunctuationEnabled(halfWidthPunctuationEnabled_);
-    controller.SetChineseConversionEnabled(chineseConversionEnabled_);
-    controller.SetBopomofoFontAnnotationSupportEnabled(bopomofoFontAnnotationSupportEnabled_);
-    controller.SetRepeatedPunctuationToSelectCandidateEnabled(repeatedPunctuationToSelectCandidateEnabled_);
-    controller.SetChooseCandidateUsingSpace(chooseCandidateUsingSpace_);
-    controller.SetCandidateKeys(candidateKeys_);
-    controller.SetCandidateKeysCount(candidateKeysCount_);
-    controller.SetCandidateWindowVertical(candidateWindowVertical_);
+    controller.setSelectPhraseAfterCursorAsCandidate(selectPhraseAfterCursorAsCandidate_);
+    controller.setMoveCursorAfterSelection(moveCursorAfterSelection_);
+    controller.setPutLowercaseLettersToComposingBuffer(putLowercaseLettersToComposingBuffer_);
+    controller.setEscKeyClearsEntireComposingBuffer(escKeyClearsEntireComposingBuffer_);
+    controller.setShiftEnterEnabled(shiftEnterEnabled_);
+    controller.setCtrlEnterKeyBehavior(ctrlEnterKeyBehavior_);
+    controller.setAssociatedPhrasesEnabled(associatedPhrasesEnabled_);
+    controller.setHalfWidthPunctuationEnabled(halfWidthPunctuationEnabled_);
+    controller.setChineseConversionEnabled(chineseConversionEnabled_);
+    controller.setBopomofoFontAnnotationSupportEnabled(bopomofoFontAnnotationSupportEnabled_);
+    controller.setRepeatedPunctuationToSelectCandidateEnabled(repeatedPunctuationToSelectCandidateEnabled_);
+    controller.setChooseCandidateUsingSpace(chooseCandidateUsingSpace_);
+    controller.setCandidateKeys(candidateKeys_);
+    controller.setCandidateKeysCount(candidateKeysCount_);
+    controller.setCandidateWindowVertical(candidateWindowVertical_);
     FCITX_MCBOPOMOFO_INFO() << "Settings applied: ChineseConversionEnabled="
                             << chineseConversionEnabled_;
 }

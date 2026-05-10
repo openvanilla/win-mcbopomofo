@@ -2,7 +2,7 @@
 
 namespace McBopomofo {
 
-char MapCtrlPunctuationAscii(unsigned int vk) {
+char mapCtrlPunctuationAscii_(unsigned int vk) {
     switch (vk) {
     case VK_OEM_COMMA: return ',';
     case VK_OEM_PERIOD: return '.';
@@ -15,13 +15,13 @@ char MapCtrlPunctuationAscii(unsigned int vk) {
     }
 }
 
-Key MapIPCKey(const IPC::KeyEventPayload& payload) {
+Key mapIpcKey(const IPC::KeyEventPayload& payload) {
     char ascii = (char)payload.ascii;
     Key::KeyName name = Key::KeyName::UNKNOWN;
     bool isFromNumberPad = false;
 
     if (payload.ctrl) {
-        char ctrlPunctuationAscii = MapCtrlPunctuationAscii(payload.vk);
+        char ctrlPunctuationAscii = mapCtrlPunctuationAscii_(payload.vk);
         if (ctrlPunctuationAscii != '\0') {
             ascii = ctrlPunctuationAscii;
         }

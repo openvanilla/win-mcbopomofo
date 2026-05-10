@@ -8,6 +8,6 @@
 namespace McBopomofo {
 
 // Utility to convert IPC Key Payload to McBopomofo::Key
-Key MapIPCKey(const IPC::KeyEventPayload& payload);
+Key mapIpcKey(const IPC::KeyEventPayload& payload);
 
 } // namespace McBopomofo

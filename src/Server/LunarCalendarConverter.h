@@ -11,12 +11,12 @@ struct LunarDate {
   bool isLeapMonth;
 };
 
-[[nodiscard]] bool TryConvertSolarToLunar(int year, int month, int day,
+[[nodiscard]] bool tryConvertSolarToLunar(int year, int month, int day,
                                           LunarDate* output);
 
-[[nodiscard]] bool TryConvertLunarToSolar(const LunarDate& lunar, int* year,
+[[nodiscard]] bool tryConvertLunarToSolar(const LunarDate& lunar, int* year,
                                           int* month, int* day);
 
-[[nodiscard]] std::string FormatLunarDate(const LunarDate& lunar);
+[[nodiscard]] std::string formatLunarDate(const LunarDate& lunar);
 
 }  // namespace McBopomofo

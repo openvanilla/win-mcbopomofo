@@ -13,7 +13,7 @@ namespace {
 constexpr int kMinSupportedYear = 1900;
 constexpr int kMaxSupportedYear = 2100;
 
-std::string FormatLunarMonth(int month) {
+std::string formatLunarMonth_(int month) {
   static const std::array<const char*, 12> kMonths = {
       "正", "二", "三", "四", "五", "六",
       "七", "八", "九", "十", "冬", "臘"};
@@ -23,7 +23,7 @@ std::string FormatLunarMonth(int month) {
   return kMonths[static_cast<size_t>(month - 1)];
 }
 
-std::string FormatLunarDay(int day) {
+std::string formatLunarDay_(int day) {
   static const std::array<const char*, 10> kDigits = {
       "", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
   if (day <= 0 || day > 30) {
@@ -59,18 +59,18 @@ std::string FormatLunarDay(int day) {
   return std::string(prefix) + kDigits[static_cast<size_t>(ones)];
 }
 
-bool IsSupportedSolarYear(int year) {
+bool isSupportedSolarYear_(int year) {
   return year >= kMinSupportedYear && year <= kMaxSupportedYear;
 }
 
-bool IsSupportedLunarYear(int year) {
+bool isSupportedLunarYear_(int year) {
   return year >= kMinSupportedYear && year <= kMaxSupportedYear;
 }
 
 }  // namespace
 
-bool TryConvertSolarToLunar(int year, int month, int day, LunarDate* output) {
-  if (output == nullptr || !IsSupportedSolarYear(year)) {
+bool tryConvertSolarToLunar(int year, int month, int day, LunarDate* output) {
+  if (output == nullptr || !isSupportedSolarYear_(year)) {
     return false;
   }
 
@@ -87,10 +87,10 @@ bool TryConvertSolarToLunar(int year, int month, int day, LunarDate* output) {
   return true;
 }
 
-bool TryConvertLunarToSolar(const LunarDate& lunar, int* year, int* month,
+bool tryConvertLunarToSolar(const LunarDate& lunar, int* year, int* month,
                             int* day) {
   if (year == nullptr || month == nullptr || day == nullptr ||
-      !IsSupportedLunarYear(lunar.year)) {
+      !isSupportedLunarYear_(lunar.year)) {
     return false;
   }
 
@@ -107,12 +107,12 @@ bool TryConvertLunarToSolar(const LunarDate& lunar, int* year, int* month,
   return true;
 }
 
-std::string FormatLunarDate(const LunarDate& lunar) {
+std::string formatLunarDate(const LunarDate& lunar) {
   return std::to_string(lunar.year) + "年" +
          (lunar.isLeapMonth ? "閏" : "") +
-         FormatLunarMonth(lunar.month) +
+         formatLunarMonth_(lunar.month) +
          "月" +
-         FormatLunarDay(lunar.day);
+         formatLunarDay_(lunar.day);
 }
 
 }  // namespace McBopomofo

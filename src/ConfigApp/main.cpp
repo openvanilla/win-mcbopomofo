@@ -397,7 +397,7 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
 }
 
 void SetLayoutSelection() {
-    auto layout = settings.GetKeyboardLayout();
+    auto layout = settings.keyboardLayout();
     auto it = std::find_if(kLayoutOptions.begin(), kLayoutOptions.end(), [&](const ComboOption& option) {
         return layout == option.value;
     });
@@ -406,7 +406,7 @@ void SetLayoutSelection() {
 }
 
 void SetCtrlEnterSelection() {
-    auto behavior = settings.GetCtrlEnterKeyBehavior();
+    auto behavior = settings.ctrlEnterKeyBehavior();
     auto it = std::find_if(kCtrlEnterOptions.begin(), kCtrlEnterOptions.end(), [&](const CtrlEnterOption& option) {
         return behavior == option.value;
     });
@@ -415,7 +415,7 @@ void SetCtrlEnterSelection() {
 }
 
 void SetCandidateKeysSelection() {
-    auto keys = settings.GetCandidateKeys();
+    auto keys = settings.candidateKeys();
     auto it = std::find_if(kCandidateKeyOptions.begin(), kCandidateKeyOptions.end(), [&](const ComboOption& option) {
         return keys == option.value;
     });
@@ -424,37 +424,37 @@ void SetCandidateKeysSelection() {
 }
 
 void SetCandidateKeysCountSelection() {
-    int count = settings.GetCandidateKeysCount();
+    int count = settings.candidateKeysCount();
     SendMessageW(hCandidateKeysCountCombo, CB_SETCURSEL, count >= 4 && count <= 9 ? count - 4 : 5, 0);
 }
 
 void UpdateUI() {
-    settings.Load();
+    settings.load();
 
     SetLayoutSelection();
-    int inputMode = static_cast<int>(settings.GetInputMode());
+    int inputMode = static_cast<int>(settings.inputMode());
     SendMessageW(hModeCombo, CB_SETCURSEL, inputMode == 1 ? 1 : 0, 0);
 
-    bool candidateWindowVertical = settings.GetCandidateWindowVertical();
+    bool candidateWindowVertical = settings.candidateWindowVertical();
     SetChecked(hVerticalRadio, candidateWindowVertical);
     SetChecked(hHorizontalRadio, !candidateWindowVertical);
     SetCandidateKeysSelection();
     SetCandidateKeysCountSelection();
 
-    bool selectAfterCursor = settings.GetSelectPhraseAfterCursorAsCandidate();
+    bool selectAfterCursor = settings.selectPhraseAfterCursorAsCandidate();
     SetChecked(hSelectBeforeRadio, !selectAfterCursor);
     SetChecked(hSelectAfterRadio, selectAfterCursor);
-    SetChecked(hMoveCursorCheck, settings.GetMoveCursorAfterSelection());
+    SetChecked(hMoveCursorCheck, settings.moveCursorAfterSelection());
 
-    bool putLowercase = settings.GetPutLowercaseLettersToComposingBuffer();
+    bool putLowercase = settings.putLowercaseLettersToComposingBuffer();
     SetChecked(hUppercaseRadio, !putLowercase);
     SetChecked(hLowercaseRadio, putLowercase);
 
-    SetChecked(hEscClearCheck, settings.GetEscKeyClearsEntireComposingBuffer());
-    SetChecked(hShiftEnterCheck, settings.GetShiftEnterEnabled());
+    SetChecked(hEscClearCheck, settings.escKeyClearsEntireComposingBuffer());
+    SetChecked(hShiftEnterCheck, settings.shiftEnterEnabled());
     SetCtrlEnterSelection();
-    SetChecked(hRepeatedPunctuationCheck, settings.GetRepeatedPunctuationToSelectCandidateEnabled());
-    SetChecked(hChooseSpaceCheck, settings.GetChooseCandidateUsingSpace());
+    SetChecked(hRepeatedPunctuationCheck, settings.repeatedPunctuationToSelectCandidateEnabled());
+    SetChecked(hChooseSpaceCheck, settings.chooseCandidateUsingSpace());
 }
 
 void NotifyServer() {
@@ -466,29 +466,29 @@ void NotifyServer() {
 
 void SaveAndNotify() {
     int layoutIdx = ComboSelection(hLayoutCombo, 0);
-    settings.SetKeyboardLayout(kLayoutOptions[layoutIdx].value);
+    settings.setKeyboardLayout(kLayoutOptions[layoutIdx].value);
 
     int modeIdx = ComboSelection(hModeCombo, 0);
-    settings.SetInputMode(modeIdx == 1 ? InputMode::PlainBopomofo : InputMode::McBopomofo);
+    settings.setInputMode(modeIdx == 1 ? InputMode::PlainBopomofo : InputMode::McBopomofo);
 
-    settings.SetCandidateWindowVertical(IsChecked(hVerticalRadio));
+    settings.setCandidateWindowVertical(IsChecked(hVerticalRadio));
     int candidateKeysIdx = ComboSelection(hCandidateKeysCombo, 0);
-    settings.SetCandidateKeys(kCandidateKeyOptions[candidateKeysIdx].value);
-    settings.SetCandidateKeysCount(ComboSelection(hCandidateKeysCountCombo, 5) + 4);
+    settings.setCandidateKeys(kCandidateKeyOptions[candidateKeysIdx].value);
+    settings.setCandidateKeysCount(ComboSelection(hCandidateKeysCountCombo, 5) + 4);
 
-    settings.SetSelectPhraseAfterCursorAsCandidate(IsChecked(hSelectAfterRadio));
-    settings.SetMoveCursorAfterSelection(IsChecked(hMoveCursorCheck));
-    settings.SetPutLowercaseLettersToComposingBuffer(IsChecked(hLowercaseRadio));
-    settings.SetEscKeyClearsEntireComposingBuffer(IsChecked(hEscClearCheck));
-    settings.SetShiftEnterEnabled(IsChecked(hShiftEnterCheck));
+    settings.setSelectPhraseAfterCursorAsCandidate(IsChecked(hSelectAfterRadio));
+    settings.setMoveCursorAfterSelection(IsChecked(hMoveCursorCheck));
+    settings.setPutLowercaseLettersToComposingBuffer(IsChecked(hLowercaseRadio));
+    settings.setEscKeyClearsEntireComposingBuffer(IsChecked(hEscClearCheck));
+    settings.setShiftEnterEnabled(IsChecked(hShiftEnterCheck));
 
     int ctrlEnterIdx = ComboSelection(hCtrlEnterCombo, 0);
-    settings.SetCtrlEnterKeyBehavior(kCtrlEnterOptions[ctrlEnterIdx].value);
+    settings.setCtrlEnterKeyBehavior(kCtrlEnterOptions[ctrlEnterIdx].value);
 
-    settings.SetRepeatedPunctuationToSelectCandidateEnabled(IsChecked(hRepeatedPunctuationCheck));
-    settings.SetChooseCandidateUsingSpace(IsChecked(hChooseSpaceCheck));
+    settings.setRepeatedPunctuationToSelectCandidateEnabled(IsChecked(hRepeatedPunctuationCheck));
+    settings.setChooseCandidateUsingSpace(IsChecked(hChooseSpaceCheck));
 
-    settings.Save();
+    settings.save();
     NotifyServer();
 }
 

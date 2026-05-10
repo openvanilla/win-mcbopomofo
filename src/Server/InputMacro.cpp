@@ -113,11 +113,11 @@ std::string GetJapaneseDate(int dayOffset) {
 std::string GetLunarDate(int dayOffset) {
     std::tm tm = GetLocalTime(dayOffset);
     LunarDate lunarDate{};
-    if (!TryConvertSolarToLunar(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+    if (!tryConvertSolarToLunar(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
                                 &lunarDate)) {
         return FormatDate(dayOffset, "%Y/%m/%d");
     }
-    return FormatLunarDate(lunarDate);
+    return formatLunarDate(lunarDate);
 }
 
 std::string GetChineseWeekday(int dayOffset, bool shortFormat) {
