@@ -129,6 +129,10 @@ function Find-WixExecutable {
 function Invoke-WixBuild([string]$WixExe, [string]$OutDir, [string]$OutputName, [string]$X64BinDir, [string]$X86BinDir, [string]$Arm64BinDir, [string]$OpenCCDir) {
     $MsiPath = Join-Path $OutDir $OutputName
 
+    Write-Host "Installing required WiX extensions..." -ForegroundColor Cyan
+    & $WixExe extension add -g WixToolset.UI.wixext
+    & $WixExe extension add -g WixToolset.Util.wixext
+
     Write-Host "Building MSI installer (zh-TW)..." -ForegroundColor Cyan
     # We use zh-TW as the primary culture for the installer UI.
     # We still provide both .wxl files to the build process.
