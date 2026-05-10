@@ -2,7 +2,6 @@
 
 Windows port of McBopomofo built on TSF.
 
-
 ## Development Requirements
 
 To build this project, you need to install the following tools:
