@@ -23,6 +23,34 @@ Win-McBopomofo uses **Windows Named Pipes** for Inter-Process Communication (IPC
    Reset/Reload                            Candidates List
 ```
 
+### IPC Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant App as Application (e.g. Notepad)
+    participant Client as Client (TSF TIP)
+    participant Server as Server (Named Pipe)
+
+    App->>Client: User presses key (e.g. 'a')
+    Note over Client,Server: Pipe connection established
+    Client->>Server: CMD_KEY_EVENT (VK=65)
+    Note right of Server: Process Key<br/>Update State
+    Server-->>Client: StateUpdate (consumed=true, composing="ㄚ")
+    Client->>App: Consume key event & Draw composing text "ㄚ"
+
+    App->>Client: User presses 'Space'
+    Client->>Server: CMD_KEY_EVENT (VK=32)
+    Note right of Server: Generate Candidates
+    Server-->>Client: StateUpdate (candidates=["啊","阿"...])
+    Client->>App: Show Candidate Window
+
+    App->>Client: User presses '1'
+    Client->>Server: CMD_SELECT_CANDIDATE (index=0)
+    Note right of Server: Select Candidate
+    Server-->>Client: StateUpdate (commitString="啊")
+    Client->>App: Insert text "啊" & Clear UI
+```
+
 ## Command Types
 
 ### Command Enum

@@ -22,9 +22,17 @@ All project-specific tests are located in the `tests/` directory.
 
 Currently existing tests include:
 
-- `tests/BugReproTest.cpp`
-- `tests/IpcTest.cpp`
-- `tests/test_candidate_window.cpp`
+- `tests/BugReproTest.cpp` - Reproduces specific bugs and regressions.
+- `tests/InputMacroTest.cpp` - Tests input macros and text expansion.
+- `tests/IpcTest.cpp` - Tests IPC serialization and deserialization payloads.
+- `tests/LunarCalendarConverterTest.cpp` - Validates Chinese lunar calendar calculations.
+- `tests/PipeTest.cpp` - Validates named pipe connection and robust transfer logic.
+- `tests/RegisterCategories.cpp` - Tests COM registration paths.
+- `tests/test_candidate_window.cpp` - Tests the UI candidate window logic.
+- `tests/test_cocreate.cpp` - Validates COM object instantiation.
+- `tests/test_ipc_client.cpp` - Tests the IPC client mechanism.
+- `tests/test_pipe.cpp` - Low-level pipe wrapper tests.
+- `tests/test_server.cpp` - Server bootstrap tests.
 
 When adding a new test:
 
