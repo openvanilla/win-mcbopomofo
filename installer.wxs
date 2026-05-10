@@ -7,7 +7,7 @@
            Manufacturer="McBopomofo Authors"
            Version="1.0.0.0"
            UpgradeCode="4e4b52c0-cf52-47b1-9b7e-976c6dfcbb17"
-           Scope="perUser"
+           Scope="perMachine"
            InstallerVersion="200"
            Compressed="yes">
 
@@ -41,10 +41,12 @@
                   Return="check" />
 
     <!-- Define the directory structure -->
-    <StandardDirectory Id="AppDataFolder">
-      <Directory Id="INSTALLFOLDER" Name="WinMcBopomofo">
-        <Directory Id="DataFolder" Name="data">
-          <Directory Id="OpenCCFolder" Name="opencc" />
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="OpenVanillaFolder" Name="OpenVanilla">
+        <Directory Id="INSTALLFOLDER" Name="WinMcBopomofo">
+          <Directory Id="DataFolder" Name="data">
+            <Directory Id="OpenCCFolder" Name="opencc" />
+          </Directory>
         </Directory>
       </Directory>
     </StandardDirectory>
@@ -169,45 +171,45 @@
     <!-- Custom Actions to register/unregister the TSF DLL and manage Server process -->
     <CustomAction Id="RegisterTIP_X64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="regsvr32.exe /s &quot;[#file_TipDllX64]&quot;" 
+                  ExeCommand="[System64Folder]regsvr32.exe /s &quot;[#file_TipDllX64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
-                  Return="ignore" />
+                  Return="check" />
 
     <CustomAction Id="UnregisterTIP_X64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="regsvr32.exe /u /s &quot;[#file_TipDllX64]&quot;" 
+                  ExeCommand="[System64Folder]regsvr32.exe /u /s &quot;[#file_TipDllX64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
-                  Return="ignore" />
+                  Return="check" />
 
     <CustomAction Id="RegisterTIP_X86" 
                   Directory="INSTALLFOLDER" 
                   ExeCommand="[SystemFolder]regsvr32.exe /s &quot;[#file_TipDllX86]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
-                  Return="ignore" />
+                  Return="check" />
 
     <CustomAction Id="UnregisterTIP_X86" 
                   Directory="INSTALLFOLDER" 
                   ExeCommand="[SystemFolder]regsvr32.exe /u /s &quot;[#file_TipDllX86]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
-                  Return="ignore" />
+                  Return="check" />
 
     <CustomAction Id="RegisterTIP_ARM64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="regsvr32.exe /s &quot;[#file_TipDllArm64]&quot;" 
+                  ExeCommand="[System64Folder]regsvr32.exe /s &quot;[#file_TipDllArm64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
-                  Return="ignore" />
+                  Return="check" />
 
     <CustomAction Id="UnregisterTIP_ARM64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="regsvr32.exe /u /s &quot;[#file_TipDllArm64]&quot;" 
+                  ExeCommand="[System64Folder]regsvr32.exe /u /s &quot;[#file_TipDllArm64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
-                  Return="ignore" />
+                  Return="check" />
 
     <CustomAction Id="StartServer_X86" 
                   Directory="INSTALLFOLDER" 
