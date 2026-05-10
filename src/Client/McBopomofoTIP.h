@@ -129,9 +129,12 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   // (Input Indicator area in Windows 10/11).
   class CLangBarButton* pModeIconButton_;
 
-  // Standard menu button that appears in the legacy Windows Language Bar
-  // (floating or docked in the Taskbar on older Windows versions).
+  // Toggle button that appears in the legacy Windows Language Bar
+  // to switch between Chinese and English mode.
   class CLangBarButton* pSwitchLangButton_;
+
+  // Settings menu button that appears in the legacy Windows Language Bar.
+  class CLangBarButton* pSettingsButton_;
 
  public:
   void ToggleOpenClose();

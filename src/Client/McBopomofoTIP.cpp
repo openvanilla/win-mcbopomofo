@@ -406,12 +406,14 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     pModeIconButton_ = new CLangBarButton(this, GUID_LBI_INPUTMODE,
                                           CLangBarButton::Kind::ModeIcon);
     pSwitchLangButton_ = new CLangBarButton(
-        this, GUID_LBI_SWITCH_LANG, CLangBarButton::Kind::SwitchLanguageMenu);
+        this, GUID_LBI_SWITCH_LANG, CLangBarButton::Kind::SwitchLanguageToggle);
+    pSettingsButton_ = new CLangBarButton(this, GUID_LBI_SETTINGS,
+                                          CLangBarButton::Kind::SettingsMenu);
     pLangBarItemMgr->AddItem(pModeIconButton_);
     pLangBarItemMgr->AddItem(pSwitchLangButton_);
+    pLangBarItemMgr->AddItem(pSettingsButton_);
     pLangBarItemMgr->Release();
   }
-
   LogMessage("McBopomofoTIP::ActivateEx succeeded");
   return S_OK;
 }
@@ -419,7 +421,7 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
 STDAPI McBopomofoTIP::Deactivate() {
   LogMessage("McBopomofoTIP::Deactivate called");
 
-  if (pModeIconButton_ || pSwitchLangButton_) {
+  if (pModeIconButton_ || pSwitchLangButton_ || pSettingsButton_) {
     ITfLangBarItemMgr* pLangBarItemMgr = nullptr;
     if (SUCCEEDED(ptim_->QueryInterface(IID_ITfLangBarItemMgr,
                                         (void**)&pLangBarItemMgr))) {
@@ -428,6 +430,9 @@ STDAPI McBopomofoTIP::Deactivate() {
       }
       if (pSwitchLangButton_) {
         pLangBarItemMgr->RemoveItem(pSwitchLangButton_);
+      }
+      if (pSettingsButton_) {
+        pLangBarItemMgr->RemoveItem(pSettingsButton_);
       }
       pLangBarItemMgr->Release();
     }
@@ -438,6 +443,10 @@ STDAPI McBopomofoTIP::Deactivate() {
     if (pSwitchLangButton_) {
       pSwitchLangButton_->Release();
       pSwitchLangButton_ = nullptr;
+    }
+    if (pSettingsButton_) {
+      pSettingsButton_->Release();
+      pSettingsButton_ = nullptr;
     }
   }
 
@@ -799,6 +808,10 @@ void McBopomofoTIP::RefreshLangBar() {
   if (pSwitchLangButton_) {
     LogMessage("Refreshing switch lang button");
     pSwitchLangButton_->Update();
+  }
+  if (pSettingsButton_) {
+    LogMessage("Refreshing settings button");
+    pSettingsButton_->Update();
   }
 }
 

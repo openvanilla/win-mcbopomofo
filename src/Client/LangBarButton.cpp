@@ -49,6 +49,12 @@ extern const GUID GUID_LBI_SWITCH_LANG = {
     0x28C0,
     0x4D1F,
     {0xB3, 0xD5, 0x91, 0x6D, 0x57, 0xC9, 0x11, 0x7A}};
+// Settings menu button
+extern const GUID GUID_LBI_SETTINGS = {
+    0x6B3E921C,
+    0x1E4F,
+    0x4B3A,
+    {0x8D, 0x7E, 0x2C, 0x9A, 0x5F, 0x3B, 0x1D, 0x0E}};
 
 namespace {
 constexpr UINT MENU_TOGGLE_OPEN_CLOSE = 100;
@@ -99,7 +105,8 @@ void NotifySettingsChanged() {
                       100, nullptr);
 }
 
-std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip) {
+std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip,
+                                            bool includeModeToggle) {
   const bool isOpen = tip->IsOpen();
   const bool associatedPhrasesEnabled =
       ReadBoolSetting(L"AssociatedPhrasesEnabled", false);
@@ -135,28 +142,35 @@ std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip) {
   static std::wstring openUserData =
       McBopomofo::LoadLocalizedStringW(g_hInst, IDS_OPEN_USER_DATA_FOLDER);
 
-  return {
-      {MENU_TOGGLE_OPEN_CLOSE,
-       isOpen ? switchEnglish.c_str() : switchChinese.c_str(), false, false},
-      {0, nullptr, false, true},
-      {MENU_TOGGLE_CHINESE_CONVERSION,
-       chineseConversionEnabled ? outputSimplified.c_str()
-                                : outputTraditional.c_str(),
-       false, false},
-      {MENU_TOGGLE_HALF_WIDTH_PUNCTUATION,
-       halfWidthPunctuationEnabled ? punctuationHalf.c_str()
-                                   : punctuationFull.c_str(),
-       false, false},
-      {MENU_TOGGLE_ASSOCIATED_PHRASES, enableAssoc.c_str(),
-       associatedPhrasesEnabled, false},
-      {MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION, enableAnnot.c_str(),
-       bopomofoFontAnnotationEnabled, false},
-      {0, nullptr, false, true},
-      {MENU_OPEN_SETTINGS, settingsStr.c_str(), false, false},
-      {MENU_EDIT_USER_PHRASES, editUser.c_str(), false, false},
-      {MENU_EDIT_EXCLUDED_PHRASES, editExcluded.c_str(), false, false},
-      {MENU_OPEN_USER_DATA_FOLDER, openUserData.c_str(), false, false},
-  };
+  std::vector<MenuItem> items;
+  if (includeModeToggle) {
+    items.push_back({MENU_TOGGLE_OPEN_CLOSE,
+                     isOpen ? switchEnglish.c_str() : switchChinese.c_str(),
+                     false, false});
+    items.push_back({0, nullptr, false, true});
+  }
+
+  items.push_back({MENU_TOGGLE_CHINESE_CONVERSION,
+                   chineseConversionEnabled ? outputSimplified.c_str()
+                                            : outputTraditional.c_str(),
+                   false, false});
+  items.push_back({MENU_TOGGLE_HALF_WIDTH_PUNCTUATION,
+                   halfWidthPunctuationEnabled ? punctuationHalf.c_str()
+                                               : punctuationFull.c_str(),
+                   false, false});
+  items.push_back({MENU_TOGGLE_ASSOCIATED_PHRASES, enableAssoc.c_str(),
+                   associatedPhrasesEnabled, false});
+  items.push_back({MENU_TOGGLE_BOPOMOFO_FONT_ANNOTATION, enableAnnot.c_str(),
+                   bopomofoFontAnnotationEnabled, false});
+  items.push_back({0, nullptr, false, true});
+  items.push_back({MENU_OPEN_SETTINGS, settingsStr.c_str(), false, false});
+  items.push_back({MENU_EDIT_USER_PHRASES, editUser.c_str(), false, false});
+  items.push_back({MENU_EDIT_EXCLUDED_PHRASES, editExcluded.c_str(), false,
+                   false});
+  items.push_back({MENU_OPEN_USER_DATA_FOLDER, openUserData.c_str(), false,
+                   false});
+
+  return items;
 }
 
 void AppendPopupMenuItems(HMENU menu, const std::vector<MenuItem>& items) {
@@ -242,9 +256,13 @@ STDMETHODIMP CLangBarButton::GetInfo(TF_LANGBARITEMINFO* pInfo) {
   if (!pInfo) return E_INVALIDARG;
   pInfo->clsidService = c_clsidMcBopomofoTIP;
   pInfo->guidItem = _guid;
-  pInfo->dwStyle = (_kind == Kind::ModeIcon)
-                       ? (TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_SHOWNINTRAY)
-                       : TF_LBI_STYLE_BTN_MENU;
+
+  if (_kind == Kind::ModeIcon || _kind == Kind::SwitchLanguageToggle) {
+    pInfo->dwStyle = TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_SHOWNINTRAY;
+  } else {
+    pInfo->dwStyle = TF_LBI_STYLE_BTN_MENU;
+  }
+
   pInfo->ulSort = 0;
   wcscpy_s(pInfo->szDescription, L" ");
   return S_OK;
@@ -272,7 +290,12 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
                                      const RECT* prcArea) {
   UNREFERENCED_PARAMETER(prcArea);
 
-  if (_kind == Kind::SwitchLanguageMenu) {
+  if (_kind == Kind::SwitchLanguageToggle) {
+    _pTIP->ToggleOpenClose();
+    return S_OK;
+  }
+
+  if (_kind == Kind::SettingsMenu) {
     return S_OK;
   }
 
@@ -281,7 +304,7 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
   } else if (click == TF_LBI_CLK_RIGHT) {
     HMENU menu = CreatePopupMenu();
     if (menu) {
-      AppendPopupMenuItems(menu, BuildLangBarMenuItems(_pTIP));
+      AppendPopupMenuItems(menu, BuildLangBarMenuItems(_pTIP, true));
 
       HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0,
                                   HWND_DESKTOP, nullptr, g_hInst, nullptr);
@@ -306,7 +329,9 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
 
 STDMETHODIMP CLangBarButton::InitMenu(ITfMenu* pMenu) {
   if (!pMenu) return E_INVALIDARG;
-  return AppendTfMenuItems(pMenu, BuildLangBarMenuItems(_pTIP));
+  bool includeModeToggle = (_kind == Kind::ModeIcon);
+  return AppendTfMenuItems(pMenu,
+                           BuildLangBarMenuItems(_pTIP, includeModeToggle));
 }
 
 STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
