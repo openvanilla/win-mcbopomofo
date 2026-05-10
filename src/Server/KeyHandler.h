@@ -33,6 +33,7 @@
 #include "InputMode.h"
 #include "InputState.h"
 #include "Key.h"
+#include "LanguageModelLoader.h"
 #include "Mandarin/Mandarin.h"
 #include "UserOverrideModel.h"
 #include "gramambular2/language_model.h"
@@ -57,15 +58,6 @@ class LocalizedStrings {
   virtual std::string bopomofoFontAnnotationModeTooltip(
       bool hasUnicodeVariantSelectors, bool hasPUABlocks) = 0;
   virtual std::string markingNotAvailableInFontAnnotationMode() = 0;
-};
-
-class UserPhraseAdder {
- public:
-  virtual ~UserPhraseAdder() = default;
-  virtual void addUserPhrase(const std::string_view& reading,
-                             const std::string_view& phrase) = 0;
-  virtual void removeUserPhrase(const std::string_view& reading,
-                                const std::string_view& phrase) = 0;
 };
 
 enum class KeyHandlerCtrlEnter {

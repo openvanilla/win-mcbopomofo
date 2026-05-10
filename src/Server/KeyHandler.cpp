@@ -36,6 +36,7 @@
 #include "McBopomofoLM.h"
 #include "NumberInputHelper.h"
 #include "UTF8Helper.h"
+#include "UTFHelper.h"
 #include "VariantAnnotator.h"
 
 namespace McBopomofo {

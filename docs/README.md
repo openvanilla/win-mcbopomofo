@@ -12,6 +12,8 @@ This directory currently contains the following files:
   Describes the `InputState` types and major state transition paths.
 - `logging.md`
   Describes the logging mechanism, log file locations, and how to use the logging macros.
+- `encoding.md`
+  Explains the project-wide string encoding policy (UTF-8 internal, UTF-16 for Windows APIs).
 - `installer.md`
   Describes what the MSI installer does during installation and provides instructions on how developers can build it.
 - `server-client-state-mapping.md`

@@ -34,6 +34,7 @@
 #include "InputController.h"
 #include "InputMacro.h"
 #include "KeyHandler.h"
+#include "LanguageModelLoader.h"
 #include "Log.h"
 #include "McBopomofoLM.h"
 #include "NamedPipe.h"
@@ -215,13 +216,15 @@ class ServerUI : public UIInterface {
   }
 };
 
-class WinLocalizedStrings : public LocalizedStrings,
-                           public InputController::LocalizedStrings {
+class WinLocalizedStrings : public McBopomofo::LocalizedStrings,
+                            public McBopomofo::InputController::LocalizedStrings,
+                            public McBopomofo::LanguageModelLoader::LocalizedStrings {
  public:
-  std::string cursorIsBetweenSyllables(const std::string& prevReading,
-                                       const std::string& nextReading) override {
-    std::wstring fmt =
-        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_CURSOR_BETWEEN_SYLLABLES);
+  // KeyHandler::LocalizedStrings
+  std::string cursorIsBetweenSyllables(
+      const std::string& prevReading, const std::string& nextReading) override {
+    std::wstring fmt = LoadLocalizedStringW(GetModuleHandle(NULL),
+                                            IDS_CURSOR_BETWEEN_SYLLABLES);
     WCHAR buffer[256] = {};
     swprintf_s(buffer, fmt.c_str(), Utf8ToUtf16(prevReading).c_str(),
                Utf8ToUtf16(nextReading).c_str());
@@ -289,6 +292,16 @@ class WinLocalizedStrings : public LocalizedStrings,
   std::string excludePrompt() override {
     return Utf16ToUtf8(
         LoadLocalizedStringW(GetModuleHandle(NULL), IDS_EXCLUDE_PROMPT));
+  }
+
+  // LanguageModelLoader::LocalizedStrings
+  std::string userPhraseFileHeader() override {
+    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL),
+                                            IDS_USER_PHRASE_FILE_HEADER));
+  }
+  std::string excludedPhraseFileHeader() override {
+    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL),
+                                            IDS_EXCLUDED_PHRASE_FILE_HEADER));
   }
 };
 
@@ -421,12 +434,13 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
                   IDM_OPEN_USER_PHRASES,
                   LoadLocalizedStringW(hInst, IDS_EDIT_USER_PHRASES).c_str());
-      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
-                  IDM_OPEN_EXCLUDED_PHRASES,
-                  LoadLocalizedStringW(hInst, IDS_EDIT_EXCLUDED_PHRASES).c_str());
-      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
-                  IDM_OPEN_USER_DIR,
-                  LoadLocalizedStringW(hInst, IDS_OPEN_USER_DATA_FOLDER).c_str());
+      InsertMenuW(
+          hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
+          IDM_OPEN_EXCLUDED_PHRASES,
+          LoadLocalizedStringW(hInst, IDS_EDIT_EXCLUDED_PHRASES).c_str());
+      InsertMenuW(
+          hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_OPEN_USER_DIR,
+          LoadLocalizedStringW(hInst, IDS_OPEN_USER_DATA_FOLDER).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
                   IDM_OPEN_LOG_FOLDER,
@@ -454,13 +468,16 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
       }
     } else if (LOWORD(wParam) == IDM_OPEN_USER_PHRASES) {
       std::string path = fcitx5_compat::userDirectory() + "/user.txt";
-      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+      ShellExecuteW(NULL, L"open", Utf8ToUtf16(path).c_str(), NULL, NULL,
+                    SW_SHOW);
     } else if (LOWORD(wParam) == IDM_OPEN_EXCLUDED_PHRASES) {
       std::string path = fcitx5_compat::userDirectory() + "/exclude.txt";
-      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+      ShellExecuteW(NULL, L"open", Utf8ToUtf16(path).c_str(), NULL, NULL,
+                    SW_SHOW);
     } else if (LOWORD(wParam) == IDM_OPEN_USER_DIR) {
       std::string path = fcitx5_compat::userDirectory();
-      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+      ShellExecuteW(NULL, L"open", Utf8ToUtf16(path).c_str(), NULL, NULL,
+                    SW_SHOW);
     } else if (LOWORD(wParam) == IDM_OPEN_LOG_FOLDER) {
       OpenLogFolder();
     } else if (LOWORD(wParam) == IDM_TOGGLE_LOGGING) {
@@ -483,7 +500,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   }
 
   HINSTANCE hInst = GetModuleHandle(NULL);
-  FCITX_MCBOPOMOFO_INFO() << Utf16ToUtf8(LoadLocalizedStringW(hInst, IDS_DAEMON_STARTING));
+  FCITX_MCBOPOMOFO_INFO() << Utf16ToUtf8(
+      LoadLocalizedStringW(hInst, IDS_DAEMON_STARTING));
 
   WCHAR szExePath[MAX_PATH];
   GetModuleFileNameW(NULL, szExePath, MAX_PATH);
@@ -568,10 +586,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                           << dictionaryServiceJsonPath;
 
   ServerUI ui;
-  InputController controller(
-      keyHandler, &ui,
-      std::unique_ptr<InputController::LocalizedStrings>(
-          new WinLocalizedStrings()));
+  InputController controller(keyHandler, &ui,
+                             std::unique_ptr<InputController::LocalizedStrings>(
+                                 new WinLocalizedStrings()));
   g_Controller = &controller;
 
   controller.setDataDirectory(exeDir / "data");
@@ -686,8 +703,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
 
   Shell_NotifyIconW(NIM_ADD, &nid);
 
-  FCITX_MCBOPOMOFO_INFO()
-      << Utf16ToUtf8(LoadLocalizedStringW(hInst, IDS_SERVER_RUNNING));
+  FCITX_MCBOPOMOFO_INFO() << Utf16ToUtf8(
+      LoadLocalizedStringW(hInst, IDS_SERVER_RUNNING));
 
   // Standard message loop to keep the process alive and poll file changes.
   MSG msg;

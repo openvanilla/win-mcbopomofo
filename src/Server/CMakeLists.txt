@@ -38,6 +38,7 @@ target_include_directories(McBopomofoEngine PUBLIC
     ${ENGINE_DIR}
     ${ENGINE_DIR}/gramambular2
     ${ENGINE_DIR}/Mandarin
+    ${CMAKE_SOURCE_DIR}/src/Common
     ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src
     ${CMAKE_SOURCE_DIR}/third_party/Lunar-Solar-Calendar-Converter/C_C++
 )

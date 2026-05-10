@@ -23,11 +23,14 @@
 
 #include "DictionaryService.h"
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <shellapi.h>
 
 #include <fstream>
 
 #include "UTF8Helper.h"
+#include "UTFHelper.h"
 
 namespace McBopomofo {
 
@@ -99,7 +102,7 @@ class SimpleDictionaryService : public DictionaryService {
     if (url.empty()) {
       return;
     }
-    ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOW);
+    ShellExecuteW(NULL, L"open", Utf8ToUtf16(url).c_str(), NULL, NULL, SW_SHOW);
   }
 
   std::string textForMenu(std::string selectedString) const override {

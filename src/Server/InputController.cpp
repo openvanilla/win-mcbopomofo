@@ -33,6 +33,7 @@
 #include "Log.h"
 #include "McBopomofoLM.h"
 #include "UTF8Helper.h"
+#include "UTFHelper.h"
 
 namespace McBopomofo {
 
@@ -290,9 +291,9 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   return payload;
 }
 
-InputController::InputController(std::shared_ptr<KeyHandler> keyHandler,
-                                 UIInterface* ui,
-                                 std::unique_ptr<LocalizedStrings> localizedStrings)
+InputController::InputController(
+    std::shared_ptr<KeyHandler> keyHandler, UIInterface* ui,
+    std::unique_ptr<LocalizedStrings> localizedStrings)
     : keyHandler_(std::move(keyHandler)),
       ui_(ui),
       currentState_(std::make_unique<InputStates::Empty>()),

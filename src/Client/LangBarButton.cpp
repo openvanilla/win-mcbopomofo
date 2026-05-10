@@ -352,18 +352,21 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
     case MENU_EDIT_USER_PHRASES: {
       std::string path =
           McBopomofo::fcitx5_compat::userDirectory() + "/user.txt";
-      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+      ShellExecuteW(NULL, L"open", McBopomofo::Utf8ToUtf16(path).c_str(), NULL,
+                    NULL, SW_SHOW);
       break;
     }
     case MENU_EDIT_EXCLUDED_PHRASES: {
       std::string path =
           McBopomofo::fcitx5_compat::userDirectory() + "/exclude.txt";
-      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+      ShellExecuteW(NULL, L"open", McBopomofo::Utf8ToUtf16(path).c_str(), NULL,
+                    NULL, SW_SHOW);
       break;
     }
     case MENU_OPEN_USER_DATA_FOLDER: {
       std::string path = McBopomofo::fcitx5_compat::userDirectory();
-      ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
+      ShellExecuteW(NULL, L"open", McBopomofo::Utf8ToUtf16(path).c_str(), NULL,
+                    NULL, SW_SHOW);
       break;
     }
   }
