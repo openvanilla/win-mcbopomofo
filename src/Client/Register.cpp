@@ -133,7 +133,7 @@ void UnregisterProfiles() {
 
   LANGID langid = MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL);
   pProfileMgr->UnregisterProfile(c_clsidMcBopomofoTIP, langid,
-                                 c_guidMcBopomofoProfile, 0);
+                                 c_guidMcBopomofoProfile, TF_URP_ALLPROFILES);
   pProfileMgr->Release();
 }
 
@@ -186,6 +186,24 @@ void UnregisterCategories() {
       c_clsidMcBopomofoTIP, GUID_TFCAT_TIP_KEYBOARD, c_clsidMcBopomofoTIP);
   pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
                                    GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
+                                   c_clsidMcBopomofoTIP);
+  pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
+                                   GUID_TFCAT_TIPCAP_SECUREMODE,
+                                   c_clsidMcBopomofoTIP);
+  pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
+                                   GUID_TFCAT_TIPCAP_UIELEMENTENABLED,
+                                   c_clsidMcBopomofoTIP);
+  pCategoryMgr->UnregisterCategory(
+      c_clsidMcBopomofoTIP, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT,
+      c_clsidMcBopomofoTIP);
+  pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
+                                   GUID_TFCAT_TIPCAP_COMLESS,
+                                   c_clsidMcBopomofoTIP);
+  pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
+                                   GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT,
+                                   c_clsidMcBopomofoTIP);
+  pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
+                                   GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,
                                    c_clsidMcBopomofoTIP);
 
   pCategoryMgr->Release();

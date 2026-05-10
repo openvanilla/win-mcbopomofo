@@ -59,5 +59,6 @@ add_executable(McBopomofoServer
     WindowsKeyBridge.cpp
     Settings.cpp
 )
+set_target_properties(McBopomofoServer PROPERTIES WIN32_EXECUTABLE TRUE)
 target_include_directories(McBopomofoServer PRIVATE ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src)
 target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common libopencc)

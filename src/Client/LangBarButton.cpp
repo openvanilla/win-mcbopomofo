@@ -34,6 +34,7 @@
 #include "NamedPipe.h"
 #include "PathCompat.h"
 #include "Register.h"
+#include "SettingsApp.h"
 
 // GUID of the IME mode icon in Windows 8/10
 extern const GUID GUID_LBI_INPUTMODE = {
@@ -95,30 +96,6 @@ void NotifySettingsChanged() {
   client.Call(McBopomofo::IPC::SerializeReloadSettings(), response);
   SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, 0, SMTO_ABORTIFHUNG,
                       100, nullptr);
-}
-
-bool ShellOpenPath(const std::filesystem::path& path) {
-  HINSTANCE result = ShellExecuteW(nullptr, L"open", path.c_str(), nullptr,
-                                   nullptr, SW_SHOWNORMAL);
-  return reinterpret_cast<INT_PTR>(result) > 32;
-}
-
-bool OpenSettingsAppFromModule(HMODULE module) {
-  WCHAR path[MAX_PATH] = {};
-  if (!module || GetModuleFileNameW(module, path, MAX_PATH) == 0) {
-    return false;
-  }
-
-  std::filesystem::path configPath(path);
-  configPath.replace_filename(L"McBopomofoConfig.exe");
-  return ShellOpenPath(configPath);
-}
-
-void OpenSettingsApp() {
-  if (OpenSettingsAppFromModule(g_hInst)) {
-    return;
-  }
-  OpenSettingsAppFromModule(GetModuleHandleW(L"McBopomofoTIP_v2.dll"));
 }
 
 std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip) {
@@ -338,7 +315,7 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
       break;
     }
     case MENU_OPEN_SETTINGS: {
-      OpenSettingsApp();
+      McBopomofo::OpenSettingsApp();
       break;
     }
     case MENU_EDIT_USER_PHRASES: {

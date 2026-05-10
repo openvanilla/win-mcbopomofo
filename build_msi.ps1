@@ -24,6 +24,9 @@ $X64BinDir = "$X64BuildRoot\bin\$Configuration"
 $X86BinDir = "$X86BuildRoot\bin\$Configuration"
 $Arm64BinDir = "$Arm64BuildRoot\bin\$Configuration"
 $OpenCCDir = "$X64BuildRoot\third_party\OpenCC\data"
+$GeneratedDir = "build_msi_generated"
+$LicenseTxtPath = "LICENSE.txt"
+$LicenseRtfPath = Join-Path $GeneratedDir "LICENSE.rtf"
 
 # Detect current platform
 function Get-CurrentPlatform {
@@ -150,10 +153,9 @@ function Build-Architecture([string]$Architecture, [string]$BuildRoot, [string]$
             if ($LASTEXITCODE -ne 0) {
                 throw "CMake dictionary build failed for $Architecture"
             }
-            cmake --build . --config $Configuration --target McBopomofoTIP McBopomofoServer McBopomofoConfig
-        } else {
-            cmake --build . --config $Configuration --target McBopomofoTIP
         }
+
+        cmake --build . --config $Configuration --target McBopomofoTIP McBopomofoServer McBopomofoConfig
         
         if ($LASTEXITCODE -ne 0) {
             throw "CMake build failed for $Architecture"
@@ -218,6 +220,28 @@ function Check-AndBuildMissingArtifacts {
     }
 }
 
+function Convert-LicenseTextToRtf([string]$InputPath, [string]$OutputPath) {
+    if (-not (Test-Path $InputPath)) {
+        throw "License file not found: $InputPath"
+    }
+
+    if (-not (Test-Path $GeneratedDir)) {
+        New-Item -ItemType Directory -Path $GeneratedDir | Out-Null
+    }
+
+    $content = Get-Content -LiteralPath $InputPath -Raw
+    $escaped = $content `
+        -replace '\\', '\\\\' `
+        -replace '\{', '\{' `
+        -replace '\}', '\}' `
+        -replace "`r`n", "\par`n" `
+        -replace "`n", "\par`n" `
+        -replace "`r", "\par`n"
+
+    $rtf = "{\rtf1\ansi\deff0{\fonttbl{\f0 Arial;}}\viewkind4\uc1\pard\f0\fs20 " + $escaped + "}"
+    Set-Content -LiteralPath $OutputPath -Value $rtf -Encoding ASCII
+}
+
 # Check for CMake
 $cmake = Get-Command cmake -ErrorAction SilentlyContinue
 if (-not $cmake) {
@@ -229,6 +253,7 @@ Write-Host "Using CMake: $($cmake.Source)" -ForegroundColor Cyan
 
 # Build missing artifacts
 Check-AndBuildMissingArtifacts
+Convert-LicenseTextToRtf -InputPath $LicenseTxtPath -OutputPath $LicenseRtfPath
 
 function Find-WixExecutable {
     $candidates = @(

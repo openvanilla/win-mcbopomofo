@@ -135,6 +135,7 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void** ppvObj) {
 STDAPI DllCanUnloadNow() { return (g_cRefDll == 0) ? S_OK : S_FALSE; }
 
 STDAPI DllRegisterServer() {
+  UnregisterProfiles();
   if (!RegisterServer()) return E_FAIL;
   if (!RegisterProfiles()) return E_FAIL;
   if (!RegisterCategories()) return E_FAIL;

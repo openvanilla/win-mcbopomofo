@@ -39,6 +39,7 @@
 #include "NamedPipe.h"
 #include "PathCompat.h"
 #include "Settings.h"
+#include "SettingsApp.h"
 #include "UIInterface.h"
 #include "UTF8Helper.h"
 #include "UTFHelper.h"
@@ -141,18 +142,6 @@ static void RelaunchCurrentProcess() {
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
   }
-}
-
-void OpenSettingsApp() {
-  WCHAR path[MAX_PATH] = {};
-  if (GetModuleFileNameW(nullptr, path, MAX_PATH) == 0) {
-    return;
-  }
-
-  std::filesystem::path configPath(path);
-  configPath.replace_filename(L"McBopomofoConfig.exe");
-  ShellExecuteW(nullptr, L"open", configPath.c_str(), nullptr, nullptr,
-                SW_SHOWNORMAL);
 }
 
 }  // namespace
@@ -432,7 +421,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
   return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-int main(int argc, char* argv[]) {
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   HANDLE hSingleInstanceMutex =
       CreateMutexW(nullptr, TRUE, kServerSingleInstanceMutexName);
   if (hSingleInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
@@ -446,9 +435,12 @@ int main(int argc, char* argv[]) {
   std::filesystem::path exeDir = std::filesystem::path(szExePath).parent_path();
 
   std::string dataPath = (exeDir / "data" / "data.txt").string();
-  if (argc >= 2) {
-    dataPath = argv[1];
+  int argc = 0;
+  LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  if (argv != nullptr && argc >= 2) {
+    dataPath = Utf16ToUtf8(argv[1]);
   }
+  LocalFree(argv);
   LogDataFileStatus("Language model data file", dataPath);
 
   auto lm = std::make_shared<McBopomofoLM>();
