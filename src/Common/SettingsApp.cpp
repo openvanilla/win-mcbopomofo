@@ -35,11 +35,18 @@ bool ShellOpenPath(const std::filesystem::path& path) {
 }
 
 bool OpenSettingsFromBasePath(const std::filesystem::path& basePath) {
-  static constexpr const wchar_t* kCandidates[] = {
-      L"McBopomofoConfig.exe", L"McBopomofoConfig_x86.exe",
-      L"McBopomofoConfig_x64.exe", L"McBopomofoConfig_arm64.exe"};
+  static constexpr const wchar_t* kGeneric = L"McBopomofoConfig.exe";
+#if defined(_M_ARM64)
+  static constexpr const wchar_t* kArchSpecific = L"McBopomofoConfig_arm64.exe";
+#elif defined(_M_X64) || defined(_M_AMD64)
+  static constexpr const wchar_t* kArchSpecific = L"McBopomofoConfig_x64.exe";
+#else
+  static constexpr const wchar_t* kArchSpecific = L"McBopomofoConfig_x86.exe";
+#endif
 
-  for (const wchar_t* candidate : kCandidates) {
+  const wchar_t* candidates[] = {kGeneric, kArchSpecific};
+
+  for (const wchar_t* candidate : candidates) {
     const auto configPath = basePath / candidate;
     if (std::filesystem::exists(configPath) && ShellOpenPath(configPath)) {
       return true;

@@ -1,45 +1,45 @@
-# 候選模式與空白鍵行為
+# Candidate Mode and Space Bar Behavior
 
-## 目的
+## Purpose
 
-本文檔說明目前 Windows 版對空白鍵的實際定義，避免把兩件不同的事情混在一起：
+This document explains the actual definition of the space bar behavior in the current Windows version, to avoid confusing two different things:
 
-- 空白鍵是否用來「進入候選模式」
-- 進入候選模式後，空白鍵是否用來「翻頁」
+- Whether the space bar is used to "enter candidate mode"
+- Once in candidate mode, whether the space bar is used to "turn the page"
 
-## 結論
+## Conclusion
 
-目前系統的語意如下：
+The current system semantics are as follows:
 
-1. `ChooseCandidateUsingSpace` 設定控制的是：
-   是否允許在一般輸入狀態下，用空白鍵進入候選模式。
-2. 一旦已經進入候選模式：
-   空白鍵的意義固定為「候選列表下一頁」。
+1. The `ChooseCandidateUsingSpace` setting controls:
+   Whether it is allowed to enter candidate mode using the space bar from a normal input state.
+2. Once candidate mode has been entered:
+   The meaning of the space bar is fixed to "next page in the candidate list".
 
-也就是說，這個設定不是「空白鍵是否在候選模式中選字」，而是「空白鍵是否從一般輸入狀態切入候選模式」。
+In other words, this setting is not "whether the space bar selects characters in candidate mode", but rather "whether the space bar switches into candidate mode from a normal input state".
 
-## 一般輸入狀態下的空白鍵
+## Space Bar in Normal Input State
 
-實作位於 `src/Server/KeyHandler.cpp`。
+Implementation is located in `src/Server/KeyHandler.cpp`.
 
-- 若目前 state 是 `NotEmpty`，且：
-  - 使用者按下 `Shift+Space`，或
-  - `ChooseCandidateUsingSpace == false`
-- 則空白鍵被當作實際空白字元插入 composing buffer。
+- If the current state is `NotEmpty`, and:
+    - The user presses `Shift+Space`, or
+    - `ChooseCandidateUsingSpace == false`
+- Then the space bar is treated as a literal space character and inserted into the composing buffer.
 
-相對地：
+Conversely:
 
-- 若目前 state 是 `NotEmpty`
-- 且 `ChooseCandidateUsingSpace == true`
-- 且 reading 為空
+- If the current state is `NotEmpty`
+- And `ChooseCandidateUsingSpace == true`
+- And reading is empty
 
-則按下空白鍵會進入 candidate choosing state。
+Then pressing the space bar will enter the candidate choosing state.
 
-## 候選模式下的空白鍵
+## Space Bar in Candidate Mode
 
-實作位於 `src/Server/InputController.cpp` 的 `HandleCandidateKey()`。
+Implementation is located in `HandleCandidateKey()` of `src/Server/InputController.cpp`.
 
-當目前狀態屬於 candidate state，例如：
+When the current state is a candidate state, such as:
 
 - `ChoosingCandidate`
 - `SelectingDictionary`
@@ -52,33 +52,33 @@
 - `IrohaCandidate`
 - `CustomMenu`
 
-按下空白鍵會執行：
+Pressing the space bar will execute:
 
 - `MoveCandidatePage(true)`
 
-也就是翻到下一頁，而不是直接選取目前候選字。
+That is, it turns to the next page, rather than directly selecting the current candidate.
 
-## 與 fcitx5 版本的對照
+## Comparison with the fcitx5 Version
 
-fcitx5 版同樣把「一般輸入狀態的空白鍵」與「候選模式中的空白鍵」視為不同層次的邏輯：
+The fcitx5 version also treats "space bar in normal input state" and "space bar in candidate mode" as logic at different layers:
 
-- 一般輸入狀態由 `KeyHandler` 決定是否用空白鍵切入 candidate choosing
-- 進入 candidate panel 後，候選列表按鍵處理由候選模式邏輯與框架 UI 負責
+- In the normal input state, `KeyHandler` decides whether to use the space bar to switch into candidate choosing.
+- After entering the candidate panel, the candidate list key processing is handled by the candidate mode logic and framework UI.
 
-Windows 版先前的問題不是缺少 `Space -> page down` 的邏輯，而是翻頁後沒有立即呼叫 UI update，因此畫面看起來像沒有翻頁。這個問題已在 `InputController::HandleCandidateKey()` 補上 `ui_->Update(...)`。
+The previous issue in the Windows version was not missing the `Space -> page down` logic, but that `UI update` was not immediately called after turning the page, so the screen looked as if the page hadn't turned. This issue has been fixed by adding `ui_->Update(...)` in `InputController::HandleCandidateKey()`.
 
-## 對設定名稱的提醒
+## Note on Setting Name
 
-目前設定畫面顯示的是：
+Currently, the setting UI displays:
 
-- `使用空白鍵選取候選字`
+- `使用空白鍵選取候選字` (Use Space to Select Candidates)
 
-但依照實際程式行為，這個文字並不精確。更接近實作的描述是：
+But according to the actual program behavior, this text is not precise. A description closer to the implementation would be:
 
-- `使用空白鍵進入候選模式`
+- `使用空白鍵進入候選模式` (Use Space to Enter Candidate Mode)
 
-或：
+Or:
 
-- `空白鍵用於候選模式切入`
+- `空白鍵用於候選模式切入` (Space Bar Used for Candidate Mode Switch)
 
-若未來要改善使用者理解，建議優先修改 UI 文案，而不是修改這個設定的底層語意。
+If we want to improve user understanding in the future, it is recommended to prioritize modifying the UI copy, rather than modifying the underlying semantics of this setting.

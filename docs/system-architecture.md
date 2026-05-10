@@ -1,144 +1,144 @@
-# Win-McBopomofo 系統架構
+# Win-McBopomofo System Architecture
 
-## 1. 架構總覽
+## 1. Architecture Overview
 
-目前系統採用 Client/Server 架構，由四個主要部分組成：
+The current system adopts a Client/Server architecture, consisting of four main components:
 
 1. `src/Server`
-   單一背景程序，負責輸入法核心邏輯、狀態管理、設定與詞庫載入。
+   A single background process responsible for the core input method logic, state management, settings, and language model loading.
 2. `src/Client`
-   TSF TIP DLL，載入到前景應用程式程序內，負責攔截按鍵與操作 TSF composition。
+   The TSF TIP DLL, loaded into the foreground application process, responsible for intercepting key presses and operating the TSF composition.
 3. `src/Common`
-   Client 與 Server 共用的 IPC、序列化與通用工具。
+   IPC, serialization, and utility components shared between the Client and Server.
 4. `src/ConfigApp`
-   獨立設定程式，負責修改 INI 設定並通知 Server reload。
+   A standalone configuration program, responsible for modifying INI settings and notifying the Server to reload.
 
-## 2. 元件責任
+## 2. Component Responsibilities
 
 ### Server
 
-核心入口在 `src/Server/main.cpp`。
+The core entry point is in `src/Server/main.cpp`.
 
-主要責任：
+Main responsibilities:
 
-- 啟動 `NamedPipeServer`
-- 建立 `KeyHandler`
-- 建立 `InputController`
-- 載入並套用 `Settings`
-- 接收 Client 傳來的 key event / select candidate / reload / reset 指令
-- 將 `InputState` 映射為 `IPC::StateUpdatePayload`
+- Start `NamedPipeServer`.
+- Create `KeyHandler`.
+- Create `InputController`.
+- Load and apply `Settings`.
+- Receive key event / select candidate / reload / reset commands from the Client.
+- Map `InputState` to `IPC::StateUpdatePayload`.
 
-Server 內部又可分成兩層：
+The Server itself can be divided into two layers:
 
 - `KeyHandler`
-  純輸入法邏輯層，決定輸入、選字、標點、特殊模式與狀態轉換。
+  The pure input method logic layer, determining input, character selection, punctuation, special modes, and state transitions.
 - `InputController`
-  互動協調層，負責：
-  - 決定是否進入 candidate key handling
-  - 管理 `candidateIndex_`
-  - 處理翻頁、移動、取消、選取候選字
-  - 把 `Committing` 轉成 `UIInterface::CommitString()`
+  The interaction coordination layer, responsible for:
+    - Determining whether to enter candidate key handling.
+    - Managing `candidateIndex_`.
+    - Handling page turning, moving, canceling, and selecting candidates.
+    - Converting `Committing` into `UIInterface::CommitString()`.
 
 ### Client
 
-核心入口在 `src/Client/McBopomofoTIP.cpp`。
+The core entry point is in `src/Client/McBopomofoTIP.cpp`.
 
-主要責任：
+Main responsibilities:
 
-- 透過 TSF `ITfKeyEventSink` 攔截按鍵
-- 將按鍵轉成 IPC request，送給 Server
-- 接收 `StateUpdatePayload`
-- 建立 `CStateEditSession`
-- 在 edit session 內更新：
-  - `ITfComposition`
-  - composing string
-  - caret
-  - display attribute
-  - candidate window
-  - tooltip window
+- Intercept keystrokes via TSF `ITfKeyEventSink`.
+- Convert keystrokes into IPC requests and send them to the Server.
+- Receive `StateUpdatePayload`.
+- Create `CStateEditSession`.
+- Update the following within the edit session:
+    - `ITfComposition`
+    - composing string
+    - caret
+    - display attribute
+    - candidate window
+    - tooltip window
 
-Client 自己不判斷語言模型或選字邏輯；它只根據 Server 回傳 payload 做顯示與提交。
+The Client itself does not judge language models or character selection logic; it only performs display and commits based on the payload returned by the Server.
 
 ### Common
 
-位於 `src/Common`，主要包含：
+Located in `src/Common`, it primarily contains:
 
 - `Ipc.h/.cpp`
-  定義 `KeyEventPayload`、`SelectCandidatePayload`、`StateUpdatePayload` 與序列化格式。
+  Defines `KeyEventPayload`, `SelectCandidatePayload`, `StateUpdatePayload`, and serialization formats.
 - `NamedPipe.h/.cpp`
-  封裝 Windows Named Pipe server/client。
+  Encapsulates the Windows Named Pipe server/client.
 - `UTFHelper.cpp`
-  UTF-8 / UTF-16 轉換。
+  UTF-8 / UTF-16 conversions.
 
 ### ConfigApp
 
-位於 `src/ConfigApp/main.cpp`。
+Located in `src/ConfigApp/main.cpp`.
 
-主要責任：
+Main responsibilities:
 
-- 讀寫 `Settings`
-- 顯示 Win32 GUI
-- 儲存後透過 `IPC::SerializeReloadSettings()` 通知 Server 重載設定
+- Read and write `Settings`.
+- Display the Win32 GUI.
+- Notify the Server to reload settings via `IPC::SerializeReloadSettings()` after saving.
 
-## 3. 主要資料流
+## 3. Main Data Flows
 
-### 鍵盤事件流
+### Keyboard Event Flow
 
-1. 前景應用程式收到按鍵。
-2. TSF 呼叫 Client 的 `OnTestKeyDown()` / `OnKeyDown()`。
-3. Client 把按鍵轉成 `IPC::KeyEventPayload`。
-4. Payload 經 Named Pipe 傳給 Server。
-5. Server 呼叫 `InputController::HandleKey()`。
-6. `InputController` 可能再呼叫 `KeyHandler` 或 candidate handling 邏輯。
-7. `ServerUI` 把結果轉成 `StateUpdatePayload`。
-8. Payload 回傳給 Client。
-9. Client 在 `CStateEditSession::DoEditSession()` 套用結果。
+1. The foreground application receives a key press.
+2. TSF calls the Client's `OnTestKeyDown()` / `OnKeyDown()`.
+3. The Client converts the key press into an `IPC::KeyEventPayload`.
+4. The payload is sent to the Server via Named Pipe.
+5. The Server calls `InputController::HandleKey()`.
+6. `InputController` may further call `KeyHandler` or candidate handling logic.
+7. `ServerUI` converts the result into a `StateUpdatePayload`.
+8. The payload is returned to the Client.
+9. The Client applies the result in `CStateEditSession::DoEditSession()`.
 
-### 候選字選擇流
+### Candidate Selection Flow
 
-1. 使用者在 candidate mode 中按數字、Enter 或空白翻頁。
-2. Server 端 `InputController::HandleCandidateKey()` 更新 `candidateIndex_` 或呼叫 `SelectCandidate()`。
-3. 若選定候選字，`InputController` 可能進入：
+1. The user presses a number, Enter, or the space bar to turn the page in candidate mode.
+2. The Server's `InputController::HandleCandidateKey()` updates `candidateIndex_` or calls `SelectCandidate()`.
+3. If a candidate is selected, `InputController` may enter:
    - `Committing`
-   - 另一個 candidate state
+   - Another candidate state
    - `Inputting`
    - `Empty`
-4. Client 依 payload 更新 preedit 或直接 commit。
+4. The Client updates the preedit or commits directly based on the payload.
 
-## 4. 狀態與顯示的邊界
+## 4. Boundary Between State and Display
 
-系統有一個重要分工：
+The system has an important division of labor:
 
 - `InputState`
-  是邏輯狀態，不保證能直接顯示。
+  Is a logical state and does not guarantee it can be displayed directly.
 - `StateUpdatePayload`
-  是顯示狀態，是 Server 為 Windows Client 整理過的 UI 投影。
+  Is a display state; it is a UI projection prepared by the Server for the Windows Client.
 
-例如：
+For example:
 
-- `SelectingFeature` 在邏輯上是 candidate-only state
-- 它不是 `NotEmpty`
-- 因此不應被硬塞假的 composing buffer
+- `SelectingFeature` is logically a candidate-only state.
+- It is not `NotEmpty`.
+- Therefore, a fake composing buffer should not be forcibly inserted into it.
 
-這個邊界很重要，因為 Client 是否建立 composition、是否 direct commit，都是由 payload 內容決定，而不是由 state 類型名稱直接決定。
+This boundary is important because whether the Client creates a composition or performs a direct commit is determined by the payload contents, not directly by the state type name.
 
-## 5. 為什麼採用 Client/Server
+## 5. Why Adopt Client/Server
 
-主要原因：
+Main reasons:
 
-- 避免每個前景程序都載入完整語言模型
-- 把核心狀態集中在單一 server process
-- 簡化 TSF DLL，只保留 Windows 介面層
-- 讓設定程式與輸入法服務都能共用同一份狀態與 reload 機制
+- Avoid having every foreground process load the full language model.
+- Centralize core states in a single server process.
+- Simplify the TSF DLL, retaining only the Windows interface layer.
+- Allow both the configuration program and the input method service to share the same state and reload mechanism.
 
-代價是：
+The cost is:
 
-- 必須處理 IPC
-- 必須定義穩定的 payload 格式
-- 需要清楚定義 server state 與 client 行為對應
+- Must handle IPC.
+- Must define a stable payload format.
+- Need to clearly define the mapping between server states and client behaviors.
 
-## 6. 目前的重要限制
+## 6. Current Major Limitations
 
-目前 Server 只維護單一 `InputController` 實例，而不是以「每個輸入焦點 / 每個應用程式 context」切分 session。這代表系統架構仍然偏向單一互動上下文，而不是完整多 session state 管理。
+Currently, the Server only maintains a single `InputController` instance, rather than splitting sessions "per input focus / per application context". This means the system architecture still leans toward a single interaction context, rather than comprehensive multi-session state management.
 
-如果未來要支援更嚴格的多視窗、多程序隔離，這會是第一個需要演進的地方。
+If stricter multi-window, multi-process isolation needs to be supported in the future, this would be the first area requiring evolution.

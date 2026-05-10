@@ -1,28 +1,28 @@
-# Input State 轉換文件
+# Input State Transitions
 
-## 1. 目的
+## 1. Purpose
 
-本文檔描述 `src/Server/InputState.h` 中各種 `InputState` 的意義，以及它們在 `KeyHandler` / `InputController` 中的主要轉換方向。
+This document describes the meanings of various `InputState` classes in `src/Server/InputState.h`, as well as their primary transition paths in `KeyHandler` / `InputController`.
 
-這是一份實作導向文件，不嘗試覆蓋每一個按鍵分支，只整理主要狀態與常見路徑。
+This is an implementation-oriented document. It does not attempt to cover every key branch but instead summarizes the main states and common paths.
 
-## 2. 狀態分群
+## 2. State Grouping
 
-### 基礎狀態
+### Base States
 
 - `Empty`
-  無輸入內容的基底狀態。
+  The base state indicating no input content.
 - `EmptyIgnoringPrevious`
-  丟棄前一狀態，不產生額外 side effect。
+  Discards the previous state and does not produce additional side effects.
 - `Committing`
-  代表要提交文字，不是穩定停留狀態。
+  Represents the intent to commit text; it is not a stable resting state.
 - `StateSequence`
-  同一按鍵觸發多個狀態依序處理。
+  Triggered by a single key, processes multiple states sequentially.
 
-### 有 composing buffer 的狀態
+### States with a Composing Buffer
 
 - `NotEmpty`
-  所有有 preedit 的共同基底。
+  The common base class for all states with a preedit buffer.
 - `Inputting`
 - `ChoosingCandidate`
 - `ChoosingPunctuationList`
@@ -33,7 +33,7 @@
 - `NumberInput`
 - `CustomMenu`
 
-### 沒有 composing buffer 的 candidate-only 或特殊狀態
+### Candidate-Only or Special States without a Composing Buffer
 
 - `AssociatedPhrasesPlain`
 - `Big5`
@@ -42,131 +42,177 @@
 - `SelectingDateMacro`
 - `SelectingFeature`
 
-注意：
+Note:
 
-- `Big5` / `Iroha` 雖然可顯示字串，但不是 `NotEmpty`
-- `SelectingFeature` / `SelectingDateMacro` 是 candidate-only state
-- 這些狀態不應被視為一般 TSF composition state
+- Although `Big5` / `Iroha` can display strings, they are not `NotEmpty`.
+- `SelectingFeature` / `SelectingDateMacro` are candidate-only states.
+- These states should not be treated as general TSF composition states.
 
-## 3. 主要轉換路徑
+## 3. Primary Transition Paths
 
-### 3.1 一般輸入
+### State Diagram
 
-常見路徑：
+```mermaid
+stateDiagram-v2
+    [*] --> Empty
+    
+    Empty --> Inputting : Input Bopomofo
+    Empty --> SelectingFeature : Trigger Feature Menu
+    Empty --> ChoosingPunctuationList : Input Punctuation
+    
+    Inputting --> ChoosingCandidate : Space / Arrow Keys
+    Inputting --> ChoosingPunctuationList : Trigger Punctuation List
+    Inputting --> Marking : Shift + Left/Right
+    Inputting --> Committing : Confirm Input
+    
+    ChoosingCandidate --> Committing : Select Candidate
+    ChoosingCandidate --> AssociatedPhrases : Trigger Phrases
+    ChoosingCandidate --> Inputting : Cancel/Edit
+    
+    ChoosingPunctuationList --> Committing : Select Punctuation
+    ChoosingPunctuationList --> Inputting : Cancel (if from Inputting)
+    ChoosingPunctuationList --> EmptyIgnoringPrevious : Cancel (if from Empty)
+    
+    SelectingFeature --> Big5 : Select Big5
+    SelectingFeature --> SelectingDateMacro : Select Date Macro
+    SelectingFeature --> NumberInput : Select Number Input
+    SelectingFeature --> Iroha : Select Iroha
+    
+    Big5 --> Committing : Confirm Hex
+    Big5 --> Empty : Cancel
+    
+    SelectingDateMacro --> Committing : Select Date
+    SelectingDateMacro --> Empty : Cancel
+    
+    Iroha --> IrohaCandidate : Continue
+    IrohaCandidate --> Committing : Select Candidate
+    
+    Marking --> SelectingDictionary : Dictionary feature
+    Marking --> Inputting : Cancel Marking
+    
+    AssociatedPhrases --> Committing : Select Phrase
+    AssociatedPhrases --> Inputting : Cancel
+    
+    Committing --> Empty : Auto transition (CommitString)
+```
+
+### 3.1 Normal Input
+
+Common path:
 
 1. `Empty`
 2. `Inputting`
-3. `ChoosingCandidate` 或 `Committing`
-4. `Empty` 或回到 `Inputting`
+3. `ChoosingCandidate` or `Committing`
+4. `Empty` or return to `Inputting`
 
-說明：
+Explanation:
 
-- 使用者輸入注音後，`KeyHandler::buildInputtingState()` 建立 `Inputting`
-- 在適當條件下，空白鍵或方向鍵可進入 `ChoosingCandidate`
-- 若直接確認，可能進入 `Committing`
-- `InputController::ChangeState()` 會把 `Committing` 轉為 `ui_->CommitString(...)`，之後再落到 `Empty`
+- After the user inputs Bopomofo symbols, `KeyHandler::buildInputtingState()` creates an `Inputting` state.
+- Under appropriate conditions, the space bar or arrow keys can transition to `ChoosingCandidate`.
+- If directly confirmed, it may transition to `Committing`.
+- `InputController::ChangeState()` converts `Committing` into `ui_->CommitString(...)`, and then falls back to `Empty`.
 
-### 3.2 標點候選
+### 3.2 Punctuation Candidates
 
-常見路徑：
+Common path:
 
-1. `Inputting` 或 `Empty`
+1. `Inputting` or `Empty`
 2. `ChoosingPunctuationList`
-3. `Committing` 或 `Inputting` / `EmptyIgnoringPrevious`
+3. `Committing` or `Inputting` / `EmptyIgnoringPrevious`
 
-### 3.3 Feature menu
+### 3.3 Feature Menu
 
-常見路徑：
+Common path:
 
-1. `Empty` 或其他狀態
+1. `Empty` or other states
 2. `StateSequence(Empty -> SelectingFeature)`
 3. `SelectingFeature`
-4. 依選項進入：
+4. Enters depending on the selection:
    - `Big5`
    - `SelectingDateMacro`
    - `NumberInput`
    - `Iroha`
 
-### 3.4 Date macro
+### 3.4 Date Macro
 
-常見路徑：
+Common path:
 
 1. `SelectingFeature`
 2. `SelectingDateMacro`
 3. `Committing`
 4. `Empty`
 
-這是一條很重要的 direct commit 路徑：
+This is a very important direct commit path:
 
-- `SelectingDateMacro` 沒有 composing buffer
-- 選定後直接產生 `Committing(text)`
-- Client 可能收到 `commitString != empty` 且 `composingBuffer == empty`
+- `SelectingDateMacro` does not have a composing buffer.
+- Once selected, it directly produces `Committing(text)`.
+- The Client may receive `commitString != empty` while `composingBuffer == empty`.
 
 ### 3.5 Big5
 
-常見路徑：
+Common path:
 
 1. `SelectingFeature`
 2. `Big5`
-3. `Big5` 持續累積十六進位輸入
-4. `Committing` 或 `Empty`
+3. `Big5` continues to accumulate hexadecimal input.
+4. `Committing` or `Empty`
 
 ### 3.6 Iroha
 
-常見路徑：
+Common path:
 
 1. `SelectingFeature`
 2. `Iroha`
-3. `IrohaCandidate` 或 `EmptyIgnoringPrevious`
-4. `StateSequence(Committing -> Iroha)` 或 `Empty`
+3. `IrohaCandidate` or `EmptyIgnoringPrevious`
+4. `StateSequence(Committing -> Iroha)` or `Empty`
 
-### 3.7 使用者詞與標記
+### 3.7 User Phrases and Marking
 
-常見路徑：
+Common path:
 
 1. `Inputting`
 2. `Marking`
-3. `Inputting` 或維持 `Marking`
-4. `SelectingDictionary` / `ShowingCharInfo` 等延伸狀態
+3. `Inputting` or remains in `Marking`
+4. Extended states such as `SelectingDictionary` / `ShowingCharInfo`
 
-### 3.8 聯想詞
+### 3.8 Associated Phrases
 
-常見路徑：
+Common path:
 
-1. `Inputting` 或 `ChoosingCandidate`
-2. `AssociatedPhrases` 或 `AssociatedPhrasesPlain`
-3. 選字後回到 `Inputting`、`Committing` 或 `Empty`
+1. `Inputting` or `ChoosingCandidate`
+2. `AssociatedPhrases` or `AssociatedPhrasesPlain`
+3. Returns to `Inputting`, `Committing`, or `Empty` after character selection.
 
-## 4. `Committing` 的特殊性
+## 4. The Specificity of `Committing`
 
-`Committing` 不是 UI state，而是動作 state。
+`Committing` is not a UI state, but an action state.
 
-在 `InputController::ChangeState()` 中：
+In `InputController::ChangeState()`:
 
-1. 若新狀態是 `Committing`
-2. 會呼叫 `ui_->CommitString(text)`
-3. 接著把狀態替換成 `Empty`
+1. If the new state is `Committing`
+2. It will call `ui_->CommitString(text)`
+3. It then replaces the state with `Empty`
 
-因此：
+Therefore:
 
-- Server 邏輯上可以產生 `Committing`
-- 但 client 端不會收到一個名為 `Committing` 的穩定狀態
-- client 收到的是：
-  - `commitString` 被填入
-  - 然後配合 `Reset()` / `Update()` 形成最終 payload
+- The Server logically can produce `Committing`.
+- But the client will not receive a stable state named `Committing`.
+- What the client receives is:
+    - `commitString` is populated
+    - Then combined with `Reset()` / `Update()` to form the final payload.
 
-## 5. `Empty` 與 `EmptyIgnoringPrevious` 的差別
+## 5. Difference between `Empty` and `EmptyIgnoringPrevious`
 
 - `Empty`
-  允許前一狀態產生 side effect，例如 commit。
+  Allows the previous state to produce side effects, such as committing.
 - `EmptyIgnoringPrevious`
-  明確表示丟棄前一狀態，不要再依賴 previous state。
+  Explicitly indicates to discard the previous state and not to rely on the previous state anymore.
 
-在 `InputController::ChangeState()` 中，兩者最終都會讓 controller 落回 `Empty`，但語意不同。
+In `InputController::ChangeState()`, both will eventually cause the controller to fall back to `Empty`, but with different semantics.
 
-## 6. candidate state 的共同規則
+## 6. Common Rules for Candidate States
 
-在 `InputController` 中，以下狀態都被視為 candidate state：
+In `InputController`, the following states are treated as candidate states:
 
 - `ChoosingCandidate`
 - `SelectingDictionary`
@@ -179,17 +225,17 @@
 - `IrohaCandidate`
 - `CustomMenu`
 
-這些狀態的共同特性：
+Common characteristics of these states:
 
-- `HandleKey()` 會先分流到 `HandleCandidateKey()`
-- `candidateIndex_` 由 `InputController` 管理
-- 方向鍵、Home/End、PageUp/PageDown、空白鍵翻頁都在這層處理
+- `HandleKey()` will first branch into `HandleCandidateKey()`.
+- `candidateIndex_` is managed by `InputController`.
+- Arrow keys, Home/End, PageUp/PageDown, and space bar page turning are all handled at this layer.
 
-## 7. 文件維護原則
+## 7. Documentation Maintenance Principles
 
-若新增新的 `InputState` 類型，至少要同步更新：
+If a new `InputState` type is added, you must synchronously update at least:
 
-1. 本文件的狀態分群
-2. `CandidateCount()` / `IsCandidateState()` 的描述
-3. `ServerUI::Update()` 如何映射 payload
-4. Client 如何顯示或提交
+1. The state grouping in this document.
+2. The description of `CandidateCount()` / `IsCandidateState()`.
+3. How `ServerUI::Update()` maps the payload.
+4. How the Client displays or commits it.

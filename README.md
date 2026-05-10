@@ -2,6 +2,37 @@
 
 Windows port of McBopomofo built on TSF.
 
+## Development Requirements
+
+To build this project, you need to install the following tools:
+
+- **Visual Studio 2026** (or newer) with the "Desktop development with C++" workload. Ensure you select the following individual components:
+    - MSVC v145 - VS 2026 C++ x64/x86 build tools
+    - MSVC v145 - VS 2026 C++ ARM64 build tools
+    - Windows SDK (latest version recommended)
+- **CMake** (included in Visual Studio or installed standalone)
+- **WiX Toolset** (v7.0 or newer) - Required for building the `.msi` installer. Ensure the WiX binaries are added to your system `PATH`.
+
+### Quick Installation via Winget
+
+You can quickly install the base tools using Windows Package Manager (`winget`):
+
+```powershell
+# Install Visual Studio 2026 Community
+winget install Microsoft.VisualStudio.2026.Community
+
+# Install CMake
+winget install Kitware.CMake
+
+# Install WiX Toolset
+winget install wixtoolset.wix
+
+# Accept WiX v7 EULA (required for build)
+wix eula accept wix7
+```
+
+*Note: After installing Visual Studio via `winget`, you must open the Visual Studio Installer to manually select the "Desktop development with C++" workload and the specific ARM64 build tools.*
+
 ## What This Repo Contains
 
 - `src/`: client, server, config app, and shared code
@@ -40,11 +71,9 @@ Important outputs are usually placed under:
 
 ## Windows Compatibility
 
-- Officially supported: `Windows 10` and later.
-- Installer policy: the MSI installer blocks installation on versions older than Windows 10.
-- Practical compatibility note:
-  The core code mostly relies on Win32, TSF, Direct2D, and DirectWrite APIs that can exist on older systems such as Windows 7 SP1.
-  However, older Windows versions are not part of the supported matrix, are not covered by installer support, and may have runtime issues in UI behavior, theming, DPI handling, or TSF host compatibility.
+- **Supported OS**: Windows 10 and later (x64, x86, and ARM64).
+- **Installer policy**: The MSI installer is configured to block installation on versions older than Windows 10.
+- **Note**: While the core logic uses standard Win32 and TSF APIs, older versions (like Windows 7 or 8) are not supported and may experience issues with high-DPI scaling, modern UI themes, or TSF host integration.
 
 ## Misc
 
