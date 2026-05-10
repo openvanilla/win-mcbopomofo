@@ -92,4 +92,5 @@ $dataPath = "$installDir\data\data.txt"
 Start-Process -FilePath $serverPath -ArgumentList "`"$dataPath`"" -WorkingDirectory "$installDir" -WindowStyle Hidden
 
 Write-Host "`nDone! Win-McBopomofo is installed in: $installDir"
-Write-Host "You can launch the settings tool from: $installDir\McBopomofoConfig.exe"
+Write-Host "You can launch the configuration tool from the Start Menu or $installDir\McBopomofoConfig.exe"
+Write-Host "Note: All components are now multi-lingual and will follow your Windows display language."

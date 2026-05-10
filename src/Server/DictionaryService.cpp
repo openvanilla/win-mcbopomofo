@@ -31,6 +31,7 @@
 
 #include "UTF8Helper.h"
 #include "UTFHelper.h"
+#include "resource.h"
 
 namespace McBopomofo {
 
@@ -88,6 +89,30 @@ std::string ExtractJsonString(const std::string& json, const std::string& key,
   return unescaped;
 }
 
+class CharacterInfoService : public DictionaryService {
+ public:
+  std::string name() const override {
+    return Utf16ToUtf8(
+        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_CHARACTER_INFORMATION));
+  }
+
+  void lookup(std::string phrase, InputState* state, size_t /** serviceIndex */,
+              const StateCallback& stateCallback) override {
+    auto* selecting = dynamic_cast<InputStates::SelectingDictionary*>(state);
+    if (selecting != nullptr) {
+      auto copy =
+          std::make_unique<InputStates::SelectingDictionary>(*selecting);
+      auto newState = std::make_unique<InputStates::ShowingCharInfo>(
+          std::move(copy), phrase);
+      stateCallback(std::move(newState));
+    }
+  }
+
+  std::string textForMenu(std::string /** selectedString */) const override {
+    return name();
+  }
+};
+
 class SimpleDictionaryService : public DictionaryService {
  public:
   SimpleDictionaryService(std::string name, std::string urlTemplate)
@@ -138,11 +163,14 @@ class SimpleDictionaryService : public DictionaryService {
 DictionaryServices::DictionaryServices() {}
 DictionaryServices::~DictionaryServices() {}
 
-void DictionaryServices::load() { load("data\\dictionary_service.json"); }
+void DictionaryServices::load() {
+  services_.clear();
+  services_.push_back(std::make_unique<CharacterInfoService>());
+  load("data\\dictionary_service.json");
+}
 
 void DictionaryServices::load(const std::string& jsonPath) {
-  services_.clear();
-
+  // services_.clear(); // Removed as we want to keep CharacterInfoService
   std::ifstream file(jsonPath);
   if (!file.is_open()) {
     return;
@@ -168,11 +196,7 @@ void DictionaryServices::lookup(std::string phrase, size_t serviceIndex,
                                 InputState* state,
                                 const StateCallback& stateCallback) {
   if (serviceIndex < services_.size()) {
-    auto* svc =
-        dynamic_cast<SimpleDictionaryService*>(services_[serviceIndex].get());
-    if (svc) {
-      svc->lookup(phrase, state, serviceIndex, stateCallback);
-    }
+    services_[serviceIndex]->lookup(phrase, state, serviceIndex, stateCallback);
   }
 }
 

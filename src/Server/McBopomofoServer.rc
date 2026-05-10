@@ -34,6 +34,7 @@ BEGIN
     IDS_EXCLUDE_PROMPT             "Do you want to exclude the phrase?"
     IDS_USER_PHRASE_FILE_HEADER    "# Custom Phrases or Characters.\n# See https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動加詞 for usage.\n# Add your phrases and their respective Bopomofo reading below. Use hyphen (""-"")\n# to connect the Bopomofo syllables.\n# Any line that starts with ""#"" is treated as comment.\n"
     IDS_EXCLUDED_PHRASE_FILE_HEADER "# Custom Excluded Phrases or Characters.\n# See https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動刪詞 for usage.\n# For example, the line below will prevent the phrase ""家祠"" from showing up anywhere:\n# Note that you need to use a hyphen (""-"") between Bopomofo syllables.\n"
+    IDS_CHARACTER_INFORMATION      "Character Information"
 END
 
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
@@ -65,6 +66,7 @@ BEGIN
     IDS_EXCLUDE_PROMPT             "您想要排除這個詞嗎？"
     IDS_USER_PHRASE_FILE_HEADER    "# 手動加詞資料檔\n# 使用方式請參考 https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動加詞\n# 請在下方加入用戶自訂字詞。每個詞後面要有字詞的讀音。注音音節之間要用減\n# 號 (""-"") 分隔。例如，以下範例加入「小麥注音」一詞：\n# 如果任何一行以 ""#"" 開頭，該行將被當作註解忽略。\n"
     IDS_EXCLUDED_PHRASE_FILE_HEADER "# 手動刪詞資料檔\n# 使用方式請參考 https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動刪詞\n# 如果將下面這行範例加入資料檔中，輸入 ""ㄐㄧㄚ ㄘˊ"" 時不會再看到「家祠」一詞：\n# 請注意，注音音節之間要用減號 (""-"") 分隔。\n"
+    IDS_CHARACTER_INFORMATION      "字元資訊"
 END
 
 
