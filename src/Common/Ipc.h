@@ -36,6 +36,7 @@ enum class Command : int {
   CMD_KEY_EVENT = 1,
   CMD_SELECT_CANDIDATE = 2,
   CMD_RELOAD_SETTINGS = 3,
+  CMD_OPEN_SETTINGS = 4,
 };
 
 struct KeyEventPayload {
@@ -83,6 +84,11 @@ bool IsResetCommand(const std::string& data);
 std::string SerializeReloadSettings();
 // Check if it is a reload settings command
 bool IsReloadSettingsCommand(const std::string& data);
+
+// Serialize an open settings command
+std::string SerializeOpenSettings();
+// Check if it is an open settings command
+bool IsOpenSettingsCommand(const std::string& data);
 
 // Serialize a state update to a string
 std::string SerializeStateUpdate(const StateUpdatePayload& payload);

@@ -153,6 +153,23 @@ bool IsReloadSettingsCommand(const std::string& data) {
   }
 }
 
+std::string SerializeOpenSettings() {
+  std::ostringstream ss;
+  ss << (int)Command::CMD_OPEN_SETTINGS << "\n";
+  return ss.str();
+}
+
+bool IsOpenSettingsCommand(const std::string& data) {
+  std::istringstream ss(data);
+  std::string line;
+  if (!std::getline(ss, line)) return false;
+  try {
+    return std::stoi(line) == (int)Command::CMD_OPEN_SETTINGS;
+  } catch (...) {
+    return false;
+  }
+}
+
 // Format for StateUpdate:
 // CONSUMED(1/0)
 // CURSOR_INDEX
