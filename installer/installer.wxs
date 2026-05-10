@@ -182,61 +182,62 @@
     <!-- Custom Actions to register/unregister the TSF DLL and manage Server process -->
     <CustomAction Id="RegisterTIP_X64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="[System64Folder]regsvr32.exe /s &quot;[#file_TipDllX64]&quot;" 
+                  ExeCommand="&quot;[System64Folder]regsvr32.exe&quot; /s &quot;[#file_TipDllX64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
                   Return="check" />
 
     <CustomAction Id="UnregisterTIP_X64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="[System64Folder]regsvr32.exe /u /s &quot;[#file_TipDllX64]&quot;" 
+                  ExeCommand="&quot;[System64Folder]regsvr32.exe&quot; /u /s &quot;[#file_TipDllX64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
                   Return="check" />
 
     <CustomAction Id="RegisterTIP_X86" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="[SystemFolder]regsvr32.exe /s &quot;[#file_TipDllX86]&quot;" 
+                  ExeCommand="&quot;[SystemFolder]regsvr32.exe&quot; /s &quot;[#file_TipDllX86]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
                   Return="check" />
 
     <CustomAction Id="UnregisterTIP_X86" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="[SystemFolder]regsvr32.exe /u /s &quot;[#file_TipDllX86]&quot;" 
+                  ExeCommand="&quot;[SystemFolder]regsvr32.exe&quot; /u /s &quot;[#file_TipDllX86]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
                   Return="check" />
 
     <CustomAction Id="RegisterTIP_ARM64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="[System64Folder]regsvr32.exe /s &quot;[#file_TipDllArm64]&quot;" 
+                  ExeCommand="&quot;[System64Folder]regsvr32.exe&quot; /s &quot;[#file_TipDllArm64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
                   Return="check" />
 
     <CustomAction Id="UnregisterTIP_ARM64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="[System64Folder]regsvr32.exe /u /s &quot;[#file_TipDllArm64]&quot;" 
+                  ExeCommand="&quot;[System64Folder]regsvr32.exe&quot; /u /s &quot;[#file_TipDllArm64]&quot;" 
                   Execute="deferred" 
                   Impersonate="no" 
                   Return="check" />
 
+    <!-- Start the server executables asynchronously -->
     <CustomAction Id="StartServer_X86" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="cmd.exe /c start &quot;&quot; &quot;[#file_ServerExeX86]&quot;" 
+                  ExeCommand="&quot;[#file_ServerExeX86]&quot;" 
                   Execute="immediate" 
                   Impersonate="yes" 
                   Return="asyncNoWait" />
     <CustomAction Id="StartServer_X64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="cmd.exe /c start &quot;&quot; &quot;[#file_ServerExeX64]&quot;" 
+                  ExeCommand="&quot;[#file_ServerExeX64]&quot;" 
                   Execute="immediate" 
                   Impersonate="yes" 
                   Return="asyncNoWait" />
     <CustomAction Id="StartServer_ARM64" 
                   Directory="INSTALLFOLDER" 
-                  ExeCommand="cmd.exe /c start &quot;&quot; &quot;[#file_ServerExeArm64]&quot;" 
+                  ExeCommand="&quot;[#file_ServerExeArm64]&quot;" 
                   Execute="immediate" 
                   Impersonate="yes" 
                   Return="asyncNoWait" />
