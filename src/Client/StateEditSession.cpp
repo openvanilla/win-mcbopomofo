@@ -30,26 +30,72 @@
 
 namespace {
 
-POINT ComputeAuxiliaryWindowPoint(const RECT& rc) {
-  const int rectHeight = std::max<int>(0, static_cast<int>(rc.bottom - rc.top));
-  const int verticalGap = std::max(8, rectHeight + 4);
-  return POINT{rc.left, rc.bottom + verticalGap};
-}
-
-void MoveAuxiliaryWindowsInternal(McBopomofoTIP* tip, POINT pt) {
+void MoveAuxiliaryWindowsInternal(McBopomofoTIP* tip, const RECT& rc) {
   auto* candWin = tip->GetCandidateWindow();
   auto* tooltipWin = tip->GetTooltipWindow();
 
   const bool candVisible = candWin->IsVisible();
   const bool tooltipVisible = tooltipWin->IsVisible();
 
-  if (candVisible && tooltipVisible) {
-    tooltipWin->Move(pt.x, pt.y);
-    candWin->Move(pt.x, pt.y + tooltipWin->GetHeight() + 4);
-  } else if (tooltipVisible) {
-    tooltipWin->Move(pt.x, pt.y);
-  } else if (candVisible) {
-    candWin->Move(pt.x, pt.y);
+  if (!candVisible && !tooltipVisible) {
+    return;
+  }
+
+  // Determine the monitor where the text is being typed
+  POINT ptTopLeft = {rc.left, rc.top};
+  HMONITOR hMonitor = MonitorFromPoint(ptTopLeft, MONITOR_DEFAULTTONEAREST);
+  MONITORINFO mi = {0};
+  mi.cbSize = sizeof(MONITORINFO);
+  GetMonitorInfoW(hMonitor, &mi);
+  
+  const int screenBottom = mi.rcWork.bottom;
+  const int screenRight = mi.rcWork.right;
+  const int screenLeft = mi.rcWork.left;
+
+  int candHeight = candVisible ? candWin->GetHeight() : 0;
+  int candWidth = candVisible ? candWin->GetWidth() : 0;
+  int tooltipHeight = tooltipVisible ? tooltipWin->GetHeight() : 0;
+  int tooltipWidth = tooltipVisible ? tooltipWin->GetWidth() : 0;
+
+  int totalRequiredHeight = tooltipHeight + (tooltipVisible && candVisible ? 4 : 0) + candHeight;
+  int yBelow = rc.bottom + 10;
+  
+  int finalCandY = 0;
+  int finalTooltipY = 0;
+  bool showAbove = false;
+
+  if (yBelow + totalRequiredHeight > screenBottom) {
+    showAbove = true;
+  }
+
+  if (showAbove) {
+    // If going above, candidate window is at the bottom, tooltip above it.
+    // cand_win.y = input_text_rect.top - cand_win.height - 10
+    finalCandY = rc.top - candHeight - 10;
+    finalTooltipY = finalCandY - tooltipHeight - (tooltipVisible && candVisible ? 4 : 0);
+  } else {
+    // Default below
+    finalTooltipY = yBelow;
+    finalCandY = yBelow + (tooltipVisible ? tooltipHeight + 4 : 0);
+  }
+
+  int x = rc.left;
+
+  // Prevent going off the right edge of the screen
+  int maxWidth = std::max(candWidth, tooltipWidth);
+  if (x + maxWidth > screenRight) {
+    x = screenRight - maxWidth;
+  }
+  // Prevent going off the left edge of the screen
+  if (x < screenLeft) {
+    x = screenLeft;
+  }
+
+  if (tooltipVisible) {
+    tooltipWin->Move(x, finalTooltipY);
+  }
+  if (candVisible) {
+    candWin->Move(x, finalCandY);
   }
 }
 
@@ -68,8 +114,7 @@ bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
   BOOL fClipped = FALSE;
   bool moved = false;
   if (SUCCEEDED(pView->GetTextExt(ec, range, &rc, &fClipped))) {
-    POINT pt = ComputeAuxiliaryWindowPoint(rc);
-    MoveAuxiliaryWindowsInternal(tip, pt);
+    MoveAuxiliaryWindowsInternal(tip, rc);
     moved = true;
   }
   pView->Release();
@@ -100,9 +145,18 @@ void MoveWindowsToCaretFallback(McBopomofoTIP* tip) {
   gti.cbSize = sizeof(GUITHREADINFO);
   if (GetGUIThreadInfo(GetCurrentThreadId(), &gti) && gti.hwndCaret) {
     RECT caretRect = gti.rcCaret;
-    POINT pt = ComputeAuxiliaryWindowPoint(caretRect);
-    ClientToScreen(gti.hwndCaret, &pt);
-    MoveAuxiliaryWindowsInternal(tip, pt);
+    POINT ptTopLeft = {caretRect.left, caretRect.top};
+    POINT ptBottomRight = {caretRect.right, caretRect.bottom};
+    ClientToScreen(gti.hwndCaret, &ptTopLeft);
+    ClientToScreen(gti.hwndCaret, &ptBottomRight);
+    
+    RECT screenRect;
+    screenRect.left = ptTopLeft.x;
+    screenRect.top = ptTopLeft.y;
+    screenRect.right = ptBottomRight.x;
+    screenRect.bottom = ptBottomRight.y;
+    
+    MoveAuxiliaryWindowsInternal(tip, screenRect);
   }
 }
 

@@ -50,6 +50,12 @@ class CandidateWindow {
     GetWindowRect(hwnd_, &rc);
     return rc.bottom - rc.top;
   }
+  int GetWidth() const {
+    if (!hwnd_) return 0;
+    RECT rc;
+    GetWindowRect(hwnd_, &rc);
+    return rc.right - rc.left;
+  }
 
   // For testing purposes
   std::wstring GetDisplayString() const { return displayString_; }

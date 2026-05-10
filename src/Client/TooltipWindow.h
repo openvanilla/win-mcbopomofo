@@ -47,6 +47,12 @@ class TooltipWindow {
     GetWindowRect(hwnd_, &rc);
     return rc.bottom - rc.top;
   }
+  int GetWidth() const {
+    if (!hwnd_) return 0;
+    RECT rc;
+    GetWindowRect(hwnd_, &rc);
+    return rc.right - rc.left;
+  }
 
  private:
   static LRESULT CALLBACK wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
