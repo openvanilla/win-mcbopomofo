@@ -100,11 +100,11 @@ Win-McBopomofo is a **state-driven** input method. The system is designed as a p
 
 The data flow follows this sequence:
 
-1.  **Windows Virtual Key**: The OS sends a raw key event (VK code) to the Client DLL.
-2.  **Abstract Key + State**: The Client maps the VK code to an internal `Key` structure and sends it to the Server. The Server combines this key with the current `InputState`.
-3.  **New State**: The `KeyHandler` logic processes the input and produces a **new logical state** (e.g., transitioning from `Empty` to `Inputting`, or `Inputting` to `ChoosingCandidate`).
-4.  **New UI State**: The Server projects this internal logical state into a `StateUpdatePayload` (UI state), which is a simplified representation designed for display.
-5.  **UI**: The Client receives the payload and renders the final user interface (composing buffer, candidate window, tooltips) using Direct2D.
+1. **Windows Virtual Key**: The OS sends a raw key event (VK code) to the Client DLL.
+2. **Abstract Key + State**: The Client maps the VK code to an internal `Key` structure and sends it to the Server. The Server combines this key with the current `InputState`.
+3. **New State**: The `KeyHandler` logic processes the input and produces a **new logical state** (e.g., transitioning from `Empty` to `Inputting`, or `Inputting` to `ChoosingCandidate`).
+4. **New UI State**: The Server projects this internal logical state into a `StateUpdatePayload` (UI state), which is a simplified representation designed for display.
+5. **UI**: The Client receives the payload and renders the final user interface (composing buffer, candidate window, tooltips) using Direct2D.
 
 This architecture decouples the complex Windows TSF/Win32 APIs from the core input method logic, making the system easier to test, debug, and extend.
 
@@ -112,15 +112,17 @@ This architecture decouples the complex Windows TSF/Win32 APIs from the core inp
 
 To add new features or input modes (like the current Big5 or Iroha modes), you should design and implement new states. The typical workflow is:
 
-1.  **Update `InputState.h`**: Define a new struct that inherits from `InputState` (or `NotEmpty` if it has a composing buffer).
-2.  **Update `KeyHandler`**: Implement the logic to enter this new state via the `stateCallback`. Add logic in `KeyHandler::handle` (or a specific handler method) to process keys while in this state.
-3.  **Update `InputController`**: Update `buildStateUpdatePayload_` to project your new logical state into the appropriate UI state (candidates, tooltips, etc.) for the Client to render.
+1. **Update `InputState.h`**: Define a new struct that inherits from `InputState` (or `NotEmpty` if it has a composing buffer).
+2. **Update `KeyHandler`**: Implement the logic to enter this new state via the `stateCallback`. Add logic in `KeyHandler::handle` (or a specific handler method) to process keys while in this state.
+3. **Update `InputController`**: Update `buildStateUpdatePayload_` to project your new logical state into the appropriate UI state (candidates, tooltips, etc.) for the Client to render.
 
 ## Vocabulary and Language Model
 
 The vocabulary and language model data for Win-McBopomofo are derived from the [upstream macOS McBopomofo project](https://github.com/openvanilla/McBopomofo).
 
 **Please report any issues regarding vocabulary, word frequencies, or bopomofo readings to the macOS version's repository.**
+
+Because the data tables are shared across platforms, if you plan to implement new features related to data tables or language models, it is highly recommended to develop them in the macOS version first and then port them to other platforms.
 
 ## Coding Style
 
