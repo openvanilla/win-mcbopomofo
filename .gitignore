@@ -13,3 +13,4 @@ tmp_pime/
 
 # IDE
 .vs/
+*.aps

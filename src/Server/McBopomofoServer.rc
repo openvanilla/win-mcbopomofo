@@ -19,6 +19,14 @@ BEGIN
     IDS_TRAY_TIP                   "Win-McBopomofo Server"
     IDS_DAEMON_STARTING            "Win-McBopomofo Server daemon starting..."
     IDS_SERVER_RUNNING             "Server is running in background. Check System Tray to exit."
+    IDS_CURSOR_BETWEEN_SYLLABLES   "Cursor between %s and %s"
+    IDS_SYLLABLES_REQUIRED         "%d syllables required"
+    IDS_SYLLABLES_MAXIMUM          "Maximum %d syllables"
+    IDS_PHRASE_ALREADY_EXISTS      "Phrase already exists"
+    IDS_PRESS_ENTER_TO_ADD_THE_PHRASE "Press Enter to add the phrase"
+    IDS_MARKING_NOT_AVAILABLE_IN_FONT_ANNOTATION_MODE "Marking not available in font annotation mode"
+    IDS_FONT_ANNOTATION_MODE_TOOLTIP "Font annotation mode"
+    IDS_FONT_ANNOTATION_MODE_TOOLTIP_ADVANCED "Font annotation mode (Advanced)"
 END
 
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
@@ -35,6 +43,15 @@ BEGIN
     IDS_TRAY_TIP                   "小麥注音 Server"
     IDS_DAEMON_STARTING            "小麥注音 Server 啟動中..."
     IDS_SERVER_RUNNING             "Server 正在背景執行，請檢查系統匣圖示。"
+    IDS_CURSOR_BETWEEN_SYLLABLES   "游標在 %s 與 %s 之間"
+    IDS_SYLLABLES_REQUIRED         "需要 %d 個音節"
+    IDS_SYLLABLES_MAXIMUM          "最多 %d 個音節"
+    IDS_PHRASE_ALREADY_EXISTS      "詞彙已存在"
+    IDS_PRESS_ENTER_TO_ADD_THE_PHRASE "按 Enter 加入詞彙"
+    IDS_MARKING_NOT_AVAILABLE_IN_FONT_ANNOTATION_MODE "注音標示模式下無法標記"
+    IDS_FONT_ANNOTATION_MODE_TOOLTIP "注音標示模式"
+    IDS_FONT_ANNOTATION_MODE_TOOLTIP_ADVANCED "注音標示模式 (進階)"
 END
+
 
 

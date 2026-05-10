@@ -215,32 +215,60 @@ class ServerUI : public UIInterface {
   }
 };
 
-class DummyLocalizedStrings : public LocalizedStrings {
+class WinLocalizedStrings : public LocalizedStrings {
  public:
-  std::string cursorIsBetweenSyllables(const std::string&,
-                                       const std::string&) override {
-    return "Cursor between syllables";
+  std::string cursorIsBetweenSyllables(const std::string& prevReading,
+                                       const std::string& nextReading) override {
+    std::wstring fmt =
+        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_CURSOR_BETWEEN_SYLLABLES);
+    WCHAR buffer[256] = {};
+    swprintf_s(buffer, fmt.c_str(), Utf8ToUtf16(prevReading).c_str(),
+               Utf8ToUtf16(nextReading).c_str());
+    return Utf16ToUtf8(buffer);
   }
-  std::string bopomofoFontAnnotationModeTooltip(bool, bool) override {
-    return "Font annotation mode";
+
+  std::string syllablesRequired(size_t syllables) override {
+    std::wstring fmt =
+        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_SYLLABLES_REQUIRED);
+    WCHAR buffer[128] = {};
+    swprintf_s(buffer, fmt.c_str(), static_cast<int>(syllables));
+    return Utf16ToUtf8(buffer);
   }
-  std::string syllablesRequired(size_t s) override {
-    return "Requires " + std::to_string(s) + " syllables";
+
+  std::string syllablesMaximum(size_t syllables) override {
+    std::wstring fmt =
+        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_SYLLABLES_MAXIMUM);
+    WCHAR buffer[128] = {};
+    swprintf_s(buffer, fmt.c_str(), static_cast<int>(syllables));
+    return Utf16ToUtf8(buffer);
   }
-  std::string syllablesMaximum(size_t s) override {
-    return "Maximum " + std::to_string(s) + " syllables";
+
+  std::string phraseAlreadyExists() override {
+    return Utf16ToUtf8(
+        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_PHRASE_ALREADY_EXISTS));
   }
-  std::string phraseAlreadyExists() override { return "Phrase exists"; }
+
   std::string pressEnterToAddThePhrase() override {
-    return "Press Enter to add";
+    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL),
+                                            IDS_PRESS_ENTER_TO_ADD_THE_PHRASE));
   }
+
   std::string markedWithSyllablesAndStatus(const std::string&,
                                            const std::string&,
-                                           const std::string& s) override {
-    return s;
+                                           const std::string& status) override {
+    return status;
   }
+
+  std::string bopomofoFontAnnotationModeTooltip(bool, bool pua) override {
+    UINT id = pua ? IDS_FONT_ANNOTATION_MODE_TOOLTIP_ADVANCED
+                  : IDS_FONT_ANNOTATION_MODE_TOOLTIP;
+    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL), id));
+  }
+
   std::string markingNotAvailableInFontAnnotationMode() override {
-    return "Not available in font annotation mode";
+    return Utf16ToUtf8(LoadLocalizedStringW(
+        GetModuleHandle(NULL),
+        IDS_MARKING_NOT_AVAILABLE_IN_FONT_ANNOTATION_MODE));
   }
 };
 
@@ -510,7 +538,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
 
   std::shared_ptr<KeyHandler> keyHandler(new KeyHandler(
       lm, variantAnnotator, std::make_shared<WinUserPhraseAdder>(lm),
-      std::unique_ptr<LocalizedStrings>(new DummyLocalizedStrings())));
+      std::unique_ptr<LocalizedStrings>(new WinLocalizedStrings())));
 
   std::string dictionaryServiceJsonPath =
       (exeDir / "data" / "dictionary_service.json").string();
