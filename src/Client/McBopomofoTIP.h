@@ -92,40 +92,46 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   STDMETHODIMP OnChange(REFGUID rguid) override;
 
  private:
-  BOOL _InitKeyEventSink();
-  void _UninitKeyEventSink();
-  BOOL _InitCompartmentEventSink();
-  void _UninitCompartmentEventSink();
-  BOOL _InitThreadMgrEventSink();
-  void _UninitThreadMgrEventSink();
-  BOOL _InitThreadFocusSink();
-  void _UninitThreadFocusSink();
-  bool IsDirectCommitWithoutComposition(
+  BOOL initKeyEventSink_();
+  void uninitKeyEventSink_();
+  BOOL initCompartmentEventSink_();
+  void uninitCompartmentEventSink_();
+  BOOL initThreadMgrEventSink_();
+  void uninitThreadMgrEventSink_();
+  BOOL initThreadFocusSink_();
+  void uninitThreadFocusSink_();
+  bool isDirectCommitWithoutComposition_(
       const McBopomofo::IPC::StateUpdatePayload& state) const;
-  void HideAuxiliaryWindowsForDirectCommit(
+  void hideAuxiliaryWindowsForDirectCommit_(
       const McBopomofo::IPC::StateUpdatePayload& state);
-  void ApplyStateToContext(ITfContext* context,
-                           const McBopomofo::IPC::StateUpdatePayload& state,
-                           const char* logPrefix);
-  void ResetServerState();
+  void applyStateToContext_(ITfContext* context,
+                            const McBopomofo::IPC::StateUpdatePayload& state,
+                            const char* logPrefix);
+  void resetServerState_();
 
-  LONG _cRef;
-  ITfThreadMgr* _ptim;
-  TfClientId _tid;
+  LONG cRef_;
+  ITfThreadMgr* ptim_;
+  TfClientId tid_;
 
-  DWORD _dwThreadMgrEventSinkCookie;
-  DWORD _dwThreadFocusSinkCookie;
-  DWORD _dwOpenCloseCompartmentEventSinkCookie;
+  DWORD dwThreadMgrEventSinkCookie_;
+  DWORD dwThreadFocusSinkCookie_;
+  DWORD dwOpenCloseCompartmentEventSinkCookie_;
 
   // Track the server state locally to decide whether to eat keys in
   // OnTestKeyDown
-  McBopomofo::IPC::StateUpdatePayload _lastState;
+  McBopomofo::IPC::StateUpdatePayload lastState_;
 
-  ITfComposition* _pComposition;
-  CandidateWindow _candidateWindow;
-  TooltipWindow _tooltipWindow;
-  class CLangBarButton* _pModeIconButton;
-  class CLangBarButton* _pSwitchLangButton;
+  ITfComposition* pComposition_;
+  CandidateWindow candidateWindow_;
+  TooltipWindow tooltipWindow_;
+
+  // Modern input mode icon that appears directly in the Windows Taskbar
+  // (Input Indicator area in Windows 10/11).
+  class CLangBarButton* pModeIconButton_;
+
+  // Standard menu button that appears in the legacy Windows Language Bar
+  // (floating or docked in the Taskbar on older Windows versions).
+  class CLangBarButton* pSwitchLangButton_;
 
  public:
   void ToggleOpenClose();
@@ -133,8 +139,8 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   void RefreshLangBar();
 
  public:
-  ITfComposition* GetComposition() const { return _pComposition; }
-  void SetComposition(ITfComposition* pComp) { _pComposition = pComp; }
-  CandidateWindow* GetCandidateWindow() { return &_candidateWindow; }
-  TooltipWindow* GetTooltipWindow() { return &_tooltipWindow; }
+  ITfComposition* GetComposition() const { return pComposition_; }
+  void SetComposition(ITfComposition* pComp) { pComposition_ = pComp; }
+  CandidateWindow* GetCandidateWindow() { return &candidateWindow_; }
+  TooltipWindow* GetTooltipWindow() { return &tooltipWindow_; }
 };

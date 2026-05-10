@@ -195,15 +195,15 @@ bool GetFocusedContext(ITfThreadMgr* threadMgr, ITfContext** context) {
 }  // namespace
 
 McBopomofoTIP::McBopomofoTIP()
-    : _cRef(1),
-      _ptim(nullptr),
-      _tid(TF_CLIENTID_NULL),
-      _dwThreadMgrEventSinkCookie(TF_INVALID_COOKIE),
-      _dwThreadFocusSinkCookie(TF_INVALID_COOKIE),
-      _dwOpenCloseCompartmentEventSinkCookie(TF_INVALID_COOKIE),
-      _pComposition(nullptr),
-      _pModeIconButton(nullptr),
-      _pSwitchLangButton(nullptr) {
+    : cRef_(1),
+      ptim_(nullptr),
+      tid_(TF_CLIENTID_NULL),
+      dwThreadMgrEventSinkCookie_(TF_INVALID_COOKIE),
+      dwThreadFocusSinkCookie_(TF_INVALID_COOKIE),
+      dwOpenCloseCompartmentEventSinkCookie_(TF_INVALID_COOKIE),
+      pComposition_(nullptr),
+      pModeIconButton_(nullptr),
+      pSwitchLangButton_(nullptr) {
   DllAddRef();
 }
 
@@ -242,107 +242,107 @@ STDAPI McBopomofoTIP::QueryInterface(REFIID riid, void** ppvObj) {
   return E_NOINTERFACE;
 }
 
-STDAPI_(ULONG) McBopomofoTIP::AddRef() { return InterlockedIncrement(&_cRef); }
+STDAPI_(ULONG) McBopomofoTIP::AddRef() { return InterlockedIncrement(&cRef_); }
 
 STDAPI_(ULONG) McBopomofoTIP::Release() {
-  LONG cr = InterlockedDecrement(&_cRef);
+  LONG cr = InterlockedDecrement(&cRef_);
   if (cr == 0) {
     delete this;
   }
   return cr;
 }
 
-BOOL McBopomofoTIP::_InitKeyEventSink() {
+BOOL McBopomofoTIP::initKeyEventSink_() {
   ITfKeystrokeMgr* pKeystrokeMgr = nullptr;
   HRESULT hr =
-      _ptim->QueryInterface(IID_ITfKeystrokeMgr, (void**)&pKeystrokeMgr);
+      ptim_->QueryInterface(IID_ITfKeystrokeMgr, (void**)&pKeystrokeMgr);
   if (FAILED(hr)) {
     return FALSE;
   }
 
   hr = pKeystrokeMgr->AdviseKeyEventSink(
-      _tid, static_cast<ITfKeyEventSink*>(this), TRUE);
+      tid_, static_cast<ITfKeyEventSink*>(this), TRUE);
   pKeystrokeMgr->Release();
   return SUCCEEDED(hr);
 }
 
-void McBopomofoTIP::_UninitKeyEventSink() {
-  if (!_ptim) {
+void McBopomofoTIP::uninitKeyEventSink_() {
+  if (!ptim_) {
     return;
   }
 
   ITfKeystrokeMgr* pKeystrokeMgr = nullptr;
   HRESULT hr =
-      _ptim->QueryInterface(IID_ITfKeystrokeMgr, (void**)&pKeystrokeMgr);
+      ptim_->QueryInterface(IID_ITfKeystrokeMgr, (void**)&pKeystrokeMgr);
   if (SUCCEEDED(hr)) {
-    pKeystrokeMgr->UnadviseKeyEventSink(_tid);
+    pKeystrokeMgr->UnadviseKeyEventSink(tid_);
     pKeystrokeMgr->Release();
   }
 }
 
-BOOL McBopomofoTIP::_InitCompartmentEventSink() {
-  return AdviseCompartmentSink(_ptim, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
+BOOL McBopomofoTIP::initCompartmentEventSink_() {
+  return AdviseCompartmentSink(ptim_, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
                                static_cast<ITfCompartmentEventSink*>(this),
-                               &_dwOpenCloseCompartmentEventSinkCookie);
+                               &dwOpenCloseCompartmentEventSinkCookie_);
 }
 
-void McBopomofoTIP::_UninitCompartmentEventSink() {
-  UnadviseCompartmentSink(_ptim, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
-                          &_dwOpenCloseCompartmentEventSinkCookie);
+void McBopomofoTIP::uninitCompartmentEventSink_() {
+  UnadviseCompartmentSink(ptim_, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
+                          &dwOpenCloseCompartmentEventSinkCookie_);
 }
 
-BOOL McBopomofoTIP::_InitThreadMgrEventSink() {
+BOOL McBopomofoTIP::initThreadMgrEventSink_() {
   ITfSource* pSource = nullptr;
-  HRESULT hr = _ptim->QueryInterface(IID_ITfSource, (void**)&pSource);
+  HRESULT hr = ptim_->QueryInterface(IID_ITfSource, (void**)&pSource);
   if (FAILED(hr)) {
     return FALSE;
   }
 
   hr = pSource->AdviseSink(IID_ITfThreadMgrEventSink,
                            static_cast<ITfThreadMgrEventSink*>(this),
-                           &_dwThreadMgrEventSinkCookie);
+                           &dwThreadMgrEventSinkCookie_);
   pSource->Release();
   return SUCCEEDED(hr);
 }
 
-void McBopomofoTIP::_UninitThreadMgrEventSink() {
-  if (_dwThreadMgrEventSinkCookie == TF_INVALID_COOKIE || !_ptim) {
+void McBopomofoTIP::uninitThreadMgrEventSink_() {
+  if (dwThreadMgrEventSinkCookie_ == TF_INVALID_COOKIE || !ptim_) {
     return;
   }
 
   ITfSource* pSource = nullptr;
-  if (SUCCEEDED(_ptim->QueryInterface(IID_ITfSource, (void**)&pSource))) {
-    pSource->UnadviseSink(_dwThreadMgrEventSinkCookie);
+  if (SUCCEEDED(ptim_->QueryInterface(IID_ITfSource, (void**)&pSource))) {
+    pSource->UnadviseSink(dwThreadMgrEventSinkCookie_);
     pSource->Release();
   }
-  _dwThreadMgrEventSinkCookie = TF_INVALID_COOKIE;
+  dwThreadMgrEventSinkCookie_ = TF_INVALID_COOKIE;
 }
 
-BOOL McBopomofoTIP::_InitThreadFocusSink() {
+BOOL McBopomofoTIP::initThreadFocusSink_() {
   ITfSource* pSource = nullptr;
-  HRESULT hr = _ptim->QueryInterface(IID_ITfSource, (void**)&pSource);
+  HRESULT hr = ptim_->QueryInterface(IID_ITfSource, (void**)&pSource);
   if (FAILED(hr)) {
     return FALSE;
   }
 
   hr = pSource->AdviseSink(IID_ITfThreadFocusSink,
                            static_cast<ITfThreadFocusSink*>(this),
-                           &_dwThreadFocusSinkCookie);
+                           &dwThreadFocusSinkCookie_);
   pSource->Release();
   return SUCCEEDED(hr);
 }
 
-void McBopomofoTIP::_UninitThreadFocusSink() {
-  if (_dwThreadFocusSinkCookie == TF_INVALID_COOKIE || !_ptim) {
+void McBopomofoTIP::uninitThreadFocusSink_() {
+  if (dwThreadFocusSinkCookie_ == TF_INVALID_COOKIE || !ptim_) {
     return;
   }
 
   ITfSource* pSource = nullptr;
-  if (SUCCEEDED(_ptim->QueryInterface(IID_ITfSource, (void**)&pSource))) {
-    pSource->UnadviseSink(_dwThreadFocusSinkCookie);
+  if (SUCCEEDED(ptim_->QueryInterface(IID_ITfSource, (void**)&pSource))) {
+    pSource->UnadviseSink(dwThreadFocusSinkCookie_);
     pSource->Release();
   }
-  _dwThreadFocusSinkCookie = TF_INVALID_COOKIE;
+  dwThreadFocusSinkCookie_ = TF_INVALID_COOKIE;
 }
 
 STDAPI McBopomofoTIP::Activate(ITfThreadMgr* ptim, TfClientId tid) {
@@ -357,38 +357,38 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     return E_INVALIDARG;
   }
 
-  _ptim = ptim;
-  _ptim->AddRef();
-  _tid = tid;
+  ptim_ = ptim;
+  ptim_->AddRef();
+  tid_ = tid;
 
-  if (!_InitKeyEventSink()) {
+  if (!initKeyEventSink_()) {
     LogMessage("Failed to init KeyEventSink");
     return E_FAIL;
   }
 
-  if (!_InitCompartmentEventSink()) {
+  if (!initCompartmentEventSink_()) {
     LogMessage("Failed to init CompartmentEventSink");
     return E_FAIL;
   }
-  if (!_InitThreadMgrEventSink()) {
+  if (!initThreadMgrEventSink_()) {
     LogMessage("Failed to init ThreadMgrEventSink");
     return E_FAIL;
   }
-  if (!_InitThreadFocusSink()) {
+  if (!initThreadFocusSink_()) {
     LogMessage("Failed to init ThreadFocusSink");
     return E_FAIL;
   }
 
   ITfCompartmentMgr* pCompMgr = nullptr;
   if (SUCCEEDED(
-          _ptim->QueryInterface(IID_ITfCompartmentMgr, (void**)&pCompMgr))) {
+          ptim_->QueryInterface(IID_ITfCompartmentMgr, (void**)&pCompMgr))) {
     ITfCompartment* pComp = nullptr;
     if (SUCCEEDED(pCompMgr->GetCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
                                            &pComp))) {
       VARIANT var;
       var.vt = VT_I4;
       var.lVal = 1;
-      pComp->SetValue(_tid, &var);
+      pComp->SetValue(tid_, &var);
       pComp->Release();
       LogMessage("Keyboard compartment set to OPEN");
     }
@@ -396,19 +396,19 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
   }
 
   extern HINSTANCE g_hInst;
-  _candidateWindow.Create(g_hInst);
-  _tooltipWindow.Create(g_hInst);
+  candidateWindow_.Create(g_hInst);
+  tooltipWindow_.Create(g_hInst);
 
   // Register LangBar button
   ITfLangBarItemMgr* pLangBarItemMgr = nullptr;
-  if (SUCCEEDED(_ptim->QueryInterface(IID_ITfLangBarItemMgr,
+  if (SUCCEEDED(ptim_->QueryInterface(IID_ITfLangBarItemMgr,
                                       (void**)&pLangBarItemMgr))) {
-    _pModeIconButton = new CLangBarButton(this, GUID_LBI_INPUTMODE,
+    pModeIconButton_ = new CLangBarButton(this, GUID_LBI_INPUTMODE,
                                           CLangBarButton::Kind::ModeIcon);
-    _pSwitchLangButton = new CLangBarButton(
+    pSwitchLangButton_ = new CLangBarButton(
         this, GUID_LBI_SWITCH_LANG, CLangBarButton::Kind::SwitchLanguageMenu);
-    pLangBarItemMgr->AddItem(_pModeIconButton);
-    pLangBarItemMgr->AddItem(_pSwitchLangButton);
+    pLangBarItemMgr->AddItem(pModeIconButton_);
+    pLangBarItemMgr->AddItem(pSwitchLangButton_);
     pLangBarItemMgr->Release();
   }
 
@@ -419,51 +419,53 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
 STDAPI McBopomofoTIP::Deactivate() {
   LogMessage("McBopomofoTIP::Deactivate called");
 
-  if (_pModeIconButton || _pSwitchLangButton) {
+  if (pModeIconButton_ || pSwitchLangButton_) {
     ITfLangBarItemMgr* pLangBarItemMgr = nullptr;
-    if (SUCCEEDED(_ptim->QueryInterface(IID_ITfLangBarItemMgr,
+    if (SUCCEEDED(ptim_->QueryInterface(IID_ITfLangBarItemMgr,
                                         (void**)&pLangBarItemMgr))) {
-      if (_pModeIconButton) {
-        pLangBarItemMgr->RemoveItem(_pModeIconButton);
+      if (pModeIconButton_) {
+        pLangBarItemMgr->RemoveItem(pModeIconButton_);
       }
-      if (_pSwitchLangButton) {
-        pLangBarItemMgr->RemoveItem(_pSwitchLangButton);
+      if (pSwitchLangButton_) {
+        pLangBarItemMgr->RemoveItem(pSwitchLangButton_);
       }
       pLangBarItemMgr->Release();
     }
-    if (_pModeIconButton) {
-      _pModeIconButton->Release();
-      _pModeIconButton = nullptr;
+    if (pModeIconButton_) {
+      pModeIconButton_->Release();
+      pModeIconButton_ = nullptr;
     }
-    if (_pSwitchLangButton) {
-      _pSwitchLangButton->Release();
-      _pSwitchLangButton = nullptr;
+    if (pSwitchLangButton_) {
+      pSwitchLangButton_->Release();
+      pSwitchLangButton_ = nullptr;
     }
   }
 
-  _candidateWindow.Destroy();
+  candidateWindow_.Destroy();
 
-  _UninitCompartmentEventSink();
-  _UninitThreadFocusSink();
-  _UninitThreadMgrEventSink();
-  _UninitKeyEventSink();
+  uninitCompartmentEventSink_();
+  uninitThreadFocusSink_();
+  uninitThreadMgrEventSink_();
+  uninitKeyEventSink_();
 
-  if (_pComposition) {
-    _pComposition->Release();
-    _pComposition = nullptr;
+  if (pComposition_) {
+    pComposition_->Release();
+    pComposition_ = nullptr;
   }
 
-  if (_ptim) {
-    _ptim->Release();
-    _ptim = nullptr;
+  if (ptim_) {
+    ptim_->Release();
+    ptim_ = nullptr;
   }
-  _tid = TF_CLIENTID_NULL;
+  tid_ = TF_CLIENTID_NULL;
 
   return S_OK;
 }
 
 STDAPI McBopomofoTIP::OnSetFocus(BOOL fForeground) {
-  UNREFERENCED_PARAMETER(fForeground);
+  if (fForeground) {
+    resetServerState_();
+  }
   return S_OK;
 }
 
@@ -489,7 +491,7 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
 
   // If we have active composing buffer or candidates, let server handle all
   // keys
-  if (!_lastState.composingBuffer.empty() || !_lastState.candidates.empty()) {
+  if (!lastState_.composingBuffer.empty() || !lastState_.candidates.empty()) {
     *pfEaten = TRUE;
     return S_OK;
   }
@@ -559,15 +561,15 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
 
   if (pipe.Call(payload, response)) {
     LogMessage("Received IPC response: %s", response.c_str());
-    if (McBopomofo::IPC::DeserializeStateUpdate(response, _lastState)) {
-      *pfEaten = _lastState.consumed ? TRUE : FALSE;
+    if (McBopomofo::IPC::DeserializeStateUpdate(response, lastState_)) {
+      *pfEaten = lastState_.consumed ? TRUE : FALSE;
       LogMessage(
           "State deserialized. Consumed: %d, CommitStr: '%s', CompStr: '%s'",
-          _lastState.consumed, _lastState.commitString.c_str(),
-          _lastState.composingBuffer.c_str());
+          lastState_.consumed, lastState_.commitString.c_str(),
+          lastState_.composingBuffer.c_str());
 
-      if (_lastState.consumed) {
-        ApplyStateToContext(pic, _lastState, "");
+      if (lastState_.consumed) {
+        applyStateToContext_(pic, lastState_, "");
       }
     } else {
       LogMessage("Failed to deserialize state update");
@@ -626,7 +628,7 @@ STDAPI McBopomofoTIP::OnChange(REFGUID rguid) {
   LogMessage("GUID_COMPARTMENT_KEYBOARD_OPENCLOSE changed: %s",
              isOpen ? "OPEN" : "CLOSED");
   if (!isOpen) {
-    ResetServerState();
+    resetServerState_();
   }
 
   RefreshLangBar();
@@ -636,9 +638,9 @@ STDAPI McBopomofoTIP::OnChange(REFGUID rguid) {
 STDAPI McBopomofoTIP::OnCompositionTerminated(TfEditCookie ecWrite,
                                               ITfComposition* pComposition) {
   UNREFERENCED_PARAMETER(ecWrite);
-  if (_pComposition == pComposition) {
-    _pComposition->Release();
-    _pComposition = nullptr;
+  if (pComposition_ == pComposition) {
+    pComposition_->Release();
+    pComposition_ = nullptr;
   }
   return S_OK;
 }
@@ -694,6 +696,7 @@ STDAPI McBopomofoTIP::OnSetFocus(ITfDocumentMgr* pDocMgrFocus,
                                  ITfDocumentMgr* pDocMgrPrevFocus) {
   UNREFERENCED_PARAMETER(pDocMgrFocus);
   UNREFERENCED_PARAMETER(pDocMgrPrevFocus);
+  resetServerState_();
   return S_OK;
 }
 
@@ -707,37 +710,42 @@ STDAPI McBopomofoTIP::OnPopContext(ITfContext* pic) {
   return S_OK;
 }
 
-STDAPI McBopomofoTIP::OnSetThreadFocus() { return S_OK; }
+STDAPI McBopomofoTIP::OnSetThreadFocus() {
+  resetServerState_();
+  return S_OK;
+}
 
 STDAPI McBopomofoTIP::OnKillThreadFocus() {
-  _candidateWindow.Hide();
+  candidateWindow_.Hide();
+  tooltipWindow_.Hide();
+  resetServerState_();
   return S_OK;
 }
 
 bool McBopomofoTIP::IsOpen() {
   DWORD value = 1;
-  if (ReadDWORDCompartmentValue(_ptim, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
+  if (ReadDWORDCompartmentValue(ptim_, GUID_COMPARTMENT_KEYBOARD_OPENCLOSE,
                                 &value)) {
     return value != 0;
   }
   return true;
 }
 
-bool McBopomofoTIP::IsDirectCommitWithoutComposition(
+bool McBopomofoTIP::isDirectCommitWithoutComposition_(
     const McBopomofo::IPC::StateUpdatePayload& state) const {
   return !state.commitString.empty() && state.composingBuffer.empty() &&
-         _pComposition == nullptr;
+         pComposition_ == nullptr;
 }
 
-void McBopomofoTIP::HideAuxiliaryWindowsForDirectCommit(
+void McBopomofoTIP::hideAuxiliaryWindowsForDirectCommit_(
     const McBopomofo::IPC::StateUpdatePayload& state) {
-  if (IsDirectCommitWithoutComposition(state)) {
-    _tooltipWindow.Hide();
-    _candidateWindow.Hide();
+  if (isDirectCommitWithoutComposition_(state)) {
+    tooltipWindow_.Hide();
+    candidateWindow_.Hide();
   }
 }
 
-void McBopomofoTIP::ApplyStateToContext(
+void McBopomofoTIP::applyStateToContext_(
     ITfContext* context, const McBopomofo::IPC::StateUpdatePayload& state,
     const char* logPrefix) {
   if (!context) {
@@ -745,17 +753,17 @@ void McBopomofoTIP::ApplyStateToContext(
     return;
   }
 
-  HideAuxiliaryWindowsForDirectCommit(state);
+  hideAuxiliaryWindowsForDirectCommit_(state);
 
   CStateEditSession* pEditSession = new CStateEditSession(context, this, state);
   HRESULT hr = E_FAIL;
-  context->RequestEditSession(_tid, pEditSession, TF_ES_SYNC | TF_ES_READWRITE,
+  context->RequestEditSession(tid_, pEditSession, TF_ES_SYNC | TF_ES_READWRITE,
                               &hr);
   LogMessage("%sRequestEditSession returned: 0x%08X", logPrefix, hr);
   pEditSession->Release();
 }
 
-void McBopomofoTIP::ResetServerState() {
+void McBopomofoTIP::resetServerState_() {
   LogMessage("Sending RESET command to server");
   McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
   std::string response;
@@ -763,13 +771,13 @@ void McBopomofoTIP::ResetServerState() {
     LogMessage("Reset response received");
     McBopomofo::IPC::StateUpdatePayload state;
     if (McBopomofo::IPC::DeserializeStateUpdate(response, state)) {
-      _lastState = state;
+      lastState_ = state;
       LogMessage("Reset state: CommitStr='%s', CompStr='%s'",
                  state.commitString.c_str(), state.composingBuffer.c_str());
 
       ITfContext* pContext = nullptr;
-      if (GetFocusedContext(_ptim, &pContext)) {
-        ApplyStateToContext(pContext, state, "Reset ");
+      if (GetFocusedContext(ptim_, &pContext)) {
+        applyStateToContext_(pContext, state, "Reset ");
         pContext->Release();
       } else {
         LogMessage("Reset could not acquire focused context for edit session");
@@ -779,23 +787,23 @@ void McBopomofoTIP::ResetServerState() {
     LogMessage("Failed to send RESET command");
   }
 
-  _candidateWindow.Hide();
-  _tooltipWindow.Hide();
+  candidateWindow_.Hide();
+  tooltipWindow_.Hide();
 }
 
 void McBopomofoTIP::RefreshLangBar() {
-  if (_pModeIconButton) {
+  if (pModeIconButton_) {
     LogMessage("Refreshing mode icon button");
-    _pModeIconButton->Update();
+    pModeIconButton_->Update();
   }
-  if (_pSwitchLangButton) {
+  if (pSwitchLangButton_) {
     LogMessage("Refreshing switch lang button");
-    _pSwitchLangButton->Update();
+    pSwitchLangButton_->Update();
   }
 }
 
 void McBopomofoTIP::ToggleOpenClose() {
-  if (_ptim) {
+  if (ptim_) {
     bool currentOpen = IsOpen();
     LogMessage("ToggleOpenClose: current state = %s, toggling to %s",
                currentOpen ? "OPEN" : "CLOSED",
@@ -803,14 +811,14 @@ void McBopomofoTIP::ToggleOpenClose() {
 
     ITfCompartmentMgr* pCompMgr = nullptr;
     if (SUCCEEDED(
-            _ptim->QueryInterface(IID_ITfCompartmentMgr, (void**)&pCompMgr))) {
+            ptim_->QueryInterface(IID_ITfCompartmentMgr, (void**)&pCompMgr))) {
       ITfCompartment* pComp = nullptr;
       if (SUCCEEDED(pCompMgr->GetCompartment(
               GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &pComp))) {
         VARIANT var;
         var.vt = VT_I4;
         var.lVal = currentOpen ? 0 : 1;
-        pComp->SetValue(_tid, &var);
+        pComp->SetValue(tid_, &var);
         pComp->Release();
 
         LogMessage("Compartment value set to: %d", var.lVal);
