@@ -1,5 +1,5 @@
-#include <windows.h>
 #include <msctf.h>
+#include <windows.h>
 
 // Helper functions for COM and TSF Registration
 BOOL RegisterServer();

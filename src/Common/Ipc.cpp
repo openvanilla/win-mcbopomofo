@@ -1,4 +1,5 @@
 #include "Ipc.h"
+
 #include <sstream>
 
 namespace McBopomofo {
@@ -6,37 +7,36 @@ namespace IPC {
 namespace {
 
 void WriteSizedString(std::ostringstream& ss, const std::string& value) {
-    ss << value.size() << "\n"
-       << value << "\n";
+  ss << value.size() << "\n" << value << "\n";
 }
 
 bool ReadSizedString(std::istringstream& ss, std::string& value) {
-    std::string line;
-    if (!std::getline(ss, line)) return false;
+  std::string line;
+  if (!std::getline(ss, line)) return false;
 
-    size_t size = 0;
-    try {
-        size = std::stoull(line);
-    } catch (...) {
-        return false;
-    }
+  size_t size = 0;
+  try {
+    size = std::stoull(line);
+  } catch (...) {
+    return false;
+  }
 
-    value.resize(size);
-    if (size > 0) {
-        ss.read(value.data(), static_cast<std::streamsize>(size));
-        if (ss.gcount() != static_cast<std::streamsize>(size)) {
-            return false;
-        }
+  value.resize(size);
+  if (size > 0) {
+    ss.read(value.data(), static_cast<std::streamsize>(size));
+    if (ss.gcount() != static_cast<std::streamsize>(size)) {
+      return false;
     }
+  }
 
-    char terminator = '\0';
-    if (!ss.get(terminator) || terminator != '\n') {
-        return false;
-    }
-    return true;
+  char terminator = '\0';
+  if (!ss.get(terminator) || terminator != '\n') {
+    return false;
+  }
+  return true;
 }
 
-} // namespace
+}  // namespace
 
 // Extremely simple and fast newline-delimited serialization
 // Format for Key:
@@ -45,81 +45,89 @@ bool ReadSizedString(std::istringstream& ss, std::string& value) {
 // CTRL(1/0)
 
 std::string SerializeKeyEvent(const KeyEventPayload& payload) {
-    std::ostringstream ss;
-    ss << (int)Command::CMD_KEY_EVENT << "\n"
-       << payload.vk << "\n"
-       << payload.ascii << "\n"
-       << (payload.shift ? 1 : 0) << "\n"
-       << (payload.ctrl ? 1 : 0) << "\n";
-    return ss.str();
+  std::ostringstream ss;
+  ss << (int)Command::CMD_KEY_EVENT << "\n"
+     << payload.vk << "\n"
+     << payload.ascii << "\n"
+     << (payload.shift ? 1 : 0) << "\n"
+     << (payload.ctrl ? 1 : 0) << "\n";
+  return ss.str();
 }
 
 bool DeserializeKeyEvent(const std::string& data, KeyEventPayload& payload) {
-    std::istringstream ss(data);
-    std::string line;
-    
-    if (!std::getline(ss, line)) return false;
-    if (std::stoi(line) != (int)Command::CMD_KEY_EVENT) return false;
+  std::istringstream ss(data);
+  std::string line;
 
-    if (!std::getline(ss, line)) return false;
-    payload.vk = std::stoul(line);
-    
-    if (!std::getline(ss, line)) return false;
-    payload.ascii = std::stoul(line);
-    
-    if (!std::getline(ss, line)) return false;
-    payload.shift = (line == "1");
+  if (!std::getline(ss, line)) return false;
+  if (std::stoi(line) != (int)Command::CMD_KEY_EVENT) return false;
 
-    if (!std::getline(ss, line)) return false;
-    payload.ctrl = (line == "1");
+  if (!std::getline(ss, line)) return false;
+  payload.vk = std::stoul(line);
 
-    return true;
+  if (!std::getline(ss, line)) return false;
+  payload.ascii = std::stoul(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.shift = (line == "1");
+
+  if (!std::getline(ss, line)) return false;
+  payload.ctrl = (line == "1");
+
+  return true;
 }
 
 std::string SerializeSelectCandidate(const SelectCandidatePayload& payload) {
-    std::ostringstream ss;
-    ss << (int)Command::CMD_SELECT_CANDIDATE << "\n"
-       << payload.index << "\n";
-    return ss.str();
+  std::ostringstream ss;
+  ss << (int)Command::CMD_SELECT_CANDIDATE << "\n" << payload.index << "\n";
+  return ss.str();
 }
 
-bool DeserializeSelectCandidate(const std::string& data, SelectCandidatePayload& payload) {
-    std::istringstream ss(data);
-    std::string line;
+bool DeserializeSelectCandidate(const std::string& data,
+                                SelectCandidatePayload& payload) {
+  std::istringstream ss(data);
+  std::string line;
 
-    if (!std::getline(ss, line)) return false;
-    if (std::stoi(line) != (int)Command::CMD_SELECT_CANDIDATE) return false;
+  if (!std::getline(ss, line)) return false;
+  if (std::stoi(line) != (int)Command::CMD_SELECT_CANDIDATE) return false;
 
-    if (!std::getline(ss, line)) return false;
-    payload.index = std::stoi(line);
+  if (!std::getline(ss, line)) return false;
+  payload.index = std::stoi(line);
 
-    return true;
+  return true;
 }
 
 std::string SerializeReset() {
-    std::ostringstream ss;
-    ss << (int)Command::CMD_RESET << "\n";
-    return ss.str();
+  std::ostringstream ss;
+  ss << (int)Command::CMD_RESET << "\n";
+  return ss.str();
 }
 
 bool IsResetCommand(const std::string& data) {
-    std::istringstream ss(data);
-    std::string line;
-    if (!std::getline(ss, line)) return false;
-    try { return std::stoi(line) == (int)Command::CMD_RESET; } catch(...) { return false; }
+  std::istringstream ss(data);
+  std::string line;
+  if (!std::getline(ss, line)) return false;
+  try {
+    return std::stoi(line) == (int)Command::CMD_RESET;
+  } catch (...) {
+    return false;
+  }
 }
 
 std::string SerializeReloadSettings() {
-    std::ostringstream ss;
-    ss << (int)Command::CMD_RELOAD_SETTINGS << "\n";
-    return ss.str();
+  std::ostringstream ss;
+  ss << (int)Command::CMD_RELOAD_SETTINGS << "\n";
+  return ss.str();
 }
 
 bool IsReloadSettingsCommand(const std::string& data) {
-    std::istringstream ss(data);
-    std::string line;
-    if (!std::getline(ss, line)) return false;
-    try { return std::stoi(line) == (int)Command::CMD_RELOAD_SETTINGS; } catch(...) { return false; }
+  std::istringstream ss(data);
+  std::string line;
+  if (!std::getline(ss, line)) return false;
+  try {
+    return std::stoi(line) == (int)Command::CMD_RELOAD_SETTINGS;
+  } catch (...) {
+    return false;
+  }
 }
 
 // Format for StateUpdate:
@@ -133,68 +141,69 @@ bool IsReloadSettingsCommand(const std::string& data) {
 // ...
 
 std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
-    std::ostringstream ss;
-    ss << (payload.consumed ? 1 : 0) << "\n"
-       << payload.cursorIndex << "\n"
-       << payload.candidateIndex << "\n"
-       << (payload.forceVertical ? 1 : 0) << "\n"
-       << (payload.useShiftKeySelection ? 1 : 0) << "\n"
-       << payload.markStart << "\n"
-       << payload.markEnd << "\n";
+  std::ostringstream ss;
+  ss << (payload.consumed ? 1 : 0) << "\n"
+     << payload.cursorIndex << "\n"
+     << payload.candidateIndex << "\n"
+     << (payload.forceVertical ? 1 : 0) << "\n"
+     << (payload.useShiftKeySelection ? 1 : 0) << "\n"
+     << payload.markStart << "\n"
+     << payload.markEnd << "\n";
 
-    WriteSizedString(ss, payload.commitString);
-    WriteSizedString(ss, payload.composingBuffer);
-    WriteSizedString(ss, payload.tooltip);
+  WriteSizedString(ss, payload.commitString);
+  WriteSizedString(ss, payload.composingBuffer);
+  WriteSizedString(ss, payload.tooltip);
 
-    ss << payload.candidates.size() << "\n";
-    
-    for (const auto& cand : payload.candidates) {
-        WriteSizedString(ss, cand);
-    }
-    return ss.str();
+  ss << payload.candidates.size() << "\n";
+
+  for (const auto& cand : payload.candidates) {
+    WriteSizedString(ss, cand);
+  }
+  return ss.str();
 }
 
-bool DeserializeStateUpdate(const std::string& data, StateUpdatePayload& payload) {
-    std::istringstream ss(data);
-    std::string line;
+bool DeserializeStateUpdate(const std::string& data,
+                            StateUpdatePayload& payload) {
+  std::istringstream ss(data);
+  std::string line;
 
-    if (!std::getline(ss, line)) return false;
-    payload.consumed = (line == "1");
+  if (!std::getline(ss, line)) return false;
+  payload.consumed = (line == "1");
 
-    if (!std::getline(ss, line)) return false;
-    payload.cursorIndex = std::stoi(line);
+  if (!std::getline(ss, line)) return false;
+  payload.cursorIndex = std::stoi(line);
 
-    if (!std::getline(ss, line)) return false;
-    payload.candidateIndex = std::stoi(line);
+  if (!std::getline(ss, line)) return false;
+  payload.candidateIndex = std::stoi(line);
 
-    if (!std::getline(ss, line)) return false;
-    payload.forceVertical = (line == "1");
+  if (!std::getline(ss, line)) return false;
+  payload.forceVertical = (line == "1");
 
-    if (!std::getline(ss, line)) return false;
-    payload.useShiftKeySelection = (line == "1");
+  if (!std::getline(ss, line)) return false;
+  payload.useShiftKeySelection = (line == "1");
 
-    if (!std::getline(ss, line)) return false;
-    payload.markStart = std::stoi(line);
+  if (!std::getline(ss, line)) return false;
+  payload.markStart = std::stoi(line);
 
-    if (!std::getline(ss, line)) return false;
-    payload.markEnd = std::stoi(line);
+  if (!std::getline(ss, line)) return false;
+  payload.markEnd = std::stoi(line);
 
-    if (!ReadSizedString(ss, payload.commitString)) return false;
-    if (!ReadSizedString(ss, payload.composingBuffer)) return false;
-    if (!ReadSizedString(ss, payload.tooltip)) return false;
+  if (!ReadSizedString(ss, payload.commitString)) return false;
+  if (!ReadSizedString(ss, payload.composingBuffer)) return false;
+  if (!ReadSizedString(ss, payload.tooltip)) return false;
 
-    if (!std::getline(ss, line)) return false;
-    size_t count = std::stoul(line);
+  if (!std::getline(ss, line)) return false;
+  size_t count = std::stoul(line);
 
-    payload.candidates.clear();
-    for (size_t i = 0; i < count; ++i) {
-        std::string candidate;
-        if (!ReadSizedString(ss, candidate)) return false;
-        payload.candidates.push_back(std::move(candidate));
-    }
+  payload.candidates.clear();
+  for (size_t i = 0; i < count; ++i) {
+    std::string candidate;
+    if (!ReadSizedString(ss, candidate)) return false;
+    payload.candidates.push_back(std::move(candidate));
+  }
 
-    return true;
+  return true;
 }
 
-} // namespace IPC
-} // namespace McBopomofo
+}  // namespace IPC
+}  // namespace McBopomofo

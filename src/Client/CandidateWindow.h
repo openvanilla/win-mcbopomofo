@@ -1,67 +1,69 @@
 #pragma once
-#include <windows.h>
-#include <string>
-#include <vector>
 #include <d2d1.h>
 #include <dwrite.h>
+#include <windows.h>
+
+#include <string>
+#include <vector>
 
 class CandidateWindow {
-public:
-    CandidateWindow();
-    ~CandidateWindow();
+ public:
+  CandidateWindow();
+  ~CandidateWindow();
 
-    bool Create(HINSTANCE hInstance);
-    void Destroy();
+  bool Create(HINSTANCE hInstance);
+  void Destroy();
 
-    void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex,
-                  bool forceVertical = false,
-                  bool useShiftKeySelection = false);
-    void Move(int x, int y);
-    void Hide();
+  void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex,
+                bool forceVertical = false, bool useShiftKeySelection = false);
+  void Move(int x, int y);
+  void Hide();
 
-    // For testing purposes
-    std::wstring GetDisplayString() const { return _displayString; }
-    void SetVertical(bool vertical) { _isVertical = vertical; }
-private:
-    static LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-    LRESULT OnPaint(HWND hwnd);
-    void OnSettingChange();
+  // For testing purposes
+  std::wstring GetDisplayString() const { return _displayString; }
+  void SetVertical(bool vertical) { _isVertical = vertical; }
 
-    void CreateDeviceIndependentResources();
-    void CreateDeviceResources();
-    void DiscardDeviceResources();
-    void UpdateTheme();
-    float GetDpiScale();
+ private:
+  static LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam,
+                                  LPARAM lParam);
+  LRESULT OnPaint(HWND hwnd);
+  void OnSettingChange();
 
-    struct TextRange {
-        UINT32 start;
-        UINT32 length;
-    };
+  void CreateDeviceIndependentResources();
+  void CreateDeviceResources();
+  void DiscardDeviceResources();
+  void UpdateTheme();
+  float GetDpiScale();
 
-    HWND _hwnd;
-    float _dpiScale;
-    std::vector<std::wstring> _candidates;
-    int _cursorIndex;
-    std::wstring _displayString;
-    std::wstring _candidateKeys;
-    int _candidateKeysCount;
-    bool _isVertical;
-    bool _forceVertical;
-    bool _useShiftKeySelection;
-    bool _isDarkMode;
+  struct TextRange {
+    UINT32 start;
+    UINT32 length;
+  };
 
-    TextRange _selectedRange;
-    std::vector<TextRange> _keyRanges;
+  HWND _hwnd;
+  float _dpiScale;
+  std::vector<std::wstring> _candidates;
+  int _cursorIndex;
+  std::wstring _displayString;
+  std::wstring _candidateKeys;
+  int _candidateKeysCount;
+  bool _isVertical;
+  bool _forceVertical;
+  bool _useShiftKeySelection;
+  bool _isDarkMode;
 
-    ID2D1Factory* _pD2DFactory;
-    ID2D1HwndRenderTarget* _pRenderTarget;
-    IDWriteFactory* _pDWriteFactory;
-    IDWriteTextFormat* _pTextFormat;
-    IDWriteTextLayout* _pTextLayout;
+  TextRange _selectedRange;
+  std::vector<TextRange> _keyRanges;
 
-    ID2D1SolidColorBrush* _pTextBrush;
-    ID2D1SolidColorBrush* _pBgBrush;
-    ID2D1SolidColorBrush* _pBorderBrush;
-    ID2D1SolidColorBrush* _pHighlightBgBrush;
-    ID2D1SolidColorBrush* _pHighlightTextBrush;
+  ID2D1Factory* _pD2DFactory;
+  ID2D1HwndRenderTarget* _pRenderTarget;
+  IDWriteFactory* _pDWriteFactory;
+  IDWriteTextFormat* _pTextFormat;
+  IDWriteTextLayout* _pTextLayout;
+
+  ID2D1SolidColorBrush* _pTextBrush;
+  ID2D1SolidColorBrush* _pBgBrush;
+  ID2D1SolidColorBrush* _pBorderBrush;
+  ID2D1SolidColorBrush* _pHighlightBgBrush;
+  ID2D1SolidColorBrush* _pHighlightTextBrush;
 };

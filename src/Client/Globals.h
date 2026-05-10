@@ -1,6 +1,6 @@
 #pragma once
-#include <windows.h>
 #include <msctf.h>
+#include <windows.h>
 
 extern HINSTANCE g_hInst;
 extern LONG g_cRefDll;
