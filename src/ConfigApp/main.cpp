@@ -113,40 +113,40 @@ void ApplyThemeToWindow(HWND hwnd) {
 }
 
 struct ComboOption {
-  const wchar_t* label;
+  UINT labelId;
   const char* value;
 };
 
 struct CtrlEnterOption {
-  const wchar_t* label;
+  UINT labelId;
   KeyHandlerCtrlEnter value;
 };
 
 const std::array<ComboOption, 6> kLayoutOptions = {{
-    {L"標準", "Standard"},
-    {L"倚天", "ETen"},
-    {L"許氏", "Hsu"},
-    {L"倚天 26 鍵", "ETen26"},
-    {L"漢語拼音", "HanyuPinyin"},
-    {L"IBM", "IBM"},
+    {IDS_LAYOUT_STANDARD, "Standard"},
+    {IDS_LAYOUT_ETEN, "ETen"},
+    {IDS_LAYOUT_HSU, "Hsu"},
+    {IDS_LAYOUT_ETEN26, "ETen26"},
+    {IDS_LAYOUT_HANYUPINYIN, "HanyuPinyin"},
+    {IDS_LAYOUT_IBM, "IBM"},
 }};
 
-const std::array<const wchar_t*, 2> kInputModeLabels = {{
-    L"小麥注音",
-    L"普通注音",
+const std::array<UINT, 2> kInputModeLabels = {{
+    IDS_MODE_MCBOPOMOFO,
+    IDS_MODE_PLAIN_BOPOMOFO,
 }};
 
 const std::array<ComboOption, 3> kCandidateKeyOptions = {{
-    {L"123456789", "123456789"},
-    {L"asdfghjkl", "asdfghjkl"},
-    {L"asdfzxcvb", "asdfzxcvb"},
+    {0, "123456789"}, // Not localized
+    {0, "asdfghjkl"}, // Not localized
+    {0, "asdfzxcvb"}, // Not localized
 }};
 
 const std::array<CtrlEnterOption, 4> kCtrlEnterOptions = {{
-    {L"不作用", KeyHandlerCtrlEnter::Disabled},
-    {L"輸出注音讀音", KeyHandlerCtrlEnter::OutputBpmfReadings},
-    {L"輸出 HTML Ruby 文字", KeyHandlerCtrlEnter::OutputHTMLRubyText},
-    {L"輸出漢語拼音", KeyHandlerCtrlEnter::OutputHanyuPinyin},
+    {IDS_CTRL_ENTER_DISABLED, KeyHandlerCtrlEnter::Disabled},
+    {IDS_CTRL_ENTER_BPMF_READING, KeyHandlerCtrlEnter::OutputBpmfReadings},
+    {IDS_CTRL_ENTER_HTML_RUBY, KeyHandlerCtrlEnter::OutputHTMLRubyText},
+    {IDS_CTRL_ENTER_HANYU_PINYIN, KeyHandlerCtrlEnter::OutputHanyuPinyin},
 }};
 
 HWND hLayoutCombo = nullptr;
@@ -217,10 +217,22 @@ HFONT CreateUIFont(int pointSize, int weight) {
   if (hdc) {
     ReleaseDC(nullptr, hdc);
   }
+
+  const wchar_t* fontName = L"Microsoft JhengHei UI";
+  LANGID langId = GetUserDefaultUILanguage();
+  if (PRIMARYLANGID(langId) == LANG_ENGLISH) {
+    fontName = L"Arial";
+    if (pointSize == 12) {
+      pointSize = 9;
+    } else if (pointSize == 17) {
+      pointSize = 13;
+    }
+  }
+
   return CreateFontW(-MulDiv(pointSize, dpi, 72), 0, 0, 0, weight, FALSE, FALSE,
                      FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
                      CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-                     DEFAULT_PITCH | FF_DONTCARE, L"Microsoft JhengHei UI");
+                     DEFAULT_PITCH | FF_DONTCARE, fontName);
 }
 
 void ApplyFont(HWND hwnd, HFONT font = nullptr) {
@@ -542,14 +554,14 @@ void CreateControls(HWND hwnd) {
               104, 140);
   hLayoutCombo = CreateCombo(hwnd, 210, 100, 260);
   for (const auto& option : kLayoutOptions) {
-    AddComboString(hLayoutCombo, option.label);
+    AddComboString(hLayoutCombo, LoadLocalizedStringW(hInst, option.labelId).c_str());
   }
 
   CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_INPUT_MODE).c_str(), 56, 144,
               140);
   hModeCombo = CreateCombo(hwnd, 210, 140, 260);
-  for (const auto* label : kInputModeLabels) {
-    AddComboString(hModeCombo, label);
+  for (const auto id : kInputModeLabels) {
+    AddComboString(hModeCombo, LoadLocalizedStringW(hInst, id).c_str());
   }
 
   CreateGroup(hwnd, 24, 206, 548, 284);
@@ -566,7 +578,10 @@ void CreateControls(HWND hwnd) {
               310, 140);
   hCandidateKeysCombo = CreateCombo(hwnd, 210, 306, 260);
   for (const auto& option : kCandidateKeyOptions) {
-    AddComboString(hCandidateKeysCombo, option.label);
+    // candidate key options use raw strings and don't require localization,
+    // we use Utf8ToUtf16 helper or construct wstring manually since they are ASCII.
+    std::wstring ws(option.value, option.value + strlen(option.value));
+    AddComboString(hCandidateKeysCombo, ws.c_str());
   }
 
   CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATES_PER_PAGE).c_str(),
@@ -610,7 +625,7 @@ void CreateControls(HWND hwnd) {
               140);
   hCtrlEnterCombo = CreateCombo(hwnd, 210, 662, 260);
   for (const auto& option : kCtrlEnterOptions) {
-    AddComboString(hCtrlEnterCombo, option.label);
+    AddComboString(hCtrlEnterCombo, LoadLocalizedStringW(hInst, option.labelId).c_str());
   }
 
   CreateGroup(hwnd, 24, 710, 548, 108);

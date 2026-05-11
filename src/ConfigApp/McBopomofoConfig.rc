@@ -30,6 +30,21 @@ BEGIN
     IDS_CANDIDATES_PUNCTUATION "Candidates & Punctuation"
     IDS_REPEATED_PUNCTUATION   "Choose punctuation on repeated key"
     IDS_CHOOSE_SPACE           "Use Space to choose candidate"
+
+    IDS_LAYOUT_STANDARD        "Standard"
+    IDS_LAYOUT_ETEN            "ETen"
+    IDS_LAYOUT_HSU             "Hsu"
+    IDS_LAYOUT_ETEN26          "ETen 26"
+    IDS_LAYOUT_HANYUPINYIN     "Hanyu Pinyin"
+    IDS_LAYOUT_IBM             "IBM"
+
+    IDS_MODE_MCBOPOMOFO        "McBopomofo"
+    IDS_MODE_PLAIN_BOPOMOFO    "Plain Bopomofo"
+
+    IDS_CTRL_ENTER_DISABLED       "Disabled"
+    IDS_CTRL_ENTER_BPMF_READING   "Output Bopomofo Readings"
+    IDS_CTRL_ENTER_HTML_RUBY      "Output HTML Ruby Text"
+    IDS_CTRL_ENTER_HANYU_PINYIN   "Output Hanyu Pinyin"
 END
 
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
@@ -57,6 +72,21 @@ BEGIN
     IDS_CANDIDATES_PUNCTUATION "候選字與標點"
     IDS_REPEATED_PUNCTUATION   "重複標點時選擇候選標點"
     IDS_CHOOSE_SPACE           "使用空白鍵選取候選字"
+
+    IDS_LAYOUT_STANDARD        "標準"
+    IDS_LAYOUT_ETEN            "倚天"
+    IDS_LAYOUT_HSU             "許氏"
+    IDS_LAYOUT_ETEN26          "倚天 26 鍵"
+    IDS_LAYOUT_HANYUPINYIN     "漢語拼音"
+    IDS_LAYOUT_IBM             "IBM"
+
+    IDS_MODE_MCBOPOMOFO        "小麥注音"
+    IDS_MODE_PLAIN_BOPOMOFO    "普通注音"
+
+    IDS_CTRL_ENTER_DISABLED       "不作用"
+    IDS_CTRL_ENTER_BPMF_READING   "輸出注音讀音"
+    IDS_CTRL_ENTER_HTML_RUBY      "輸出 HTML Ruby 文字"
+    IDS_CTRL_ENTER_HANYU_PINYIN   "輸出漢語拼音"
 END
 
 
