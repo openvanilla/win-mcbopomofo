@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="zh-TW" xmlns="http://wixtoolset.org/schemas/v4/wxl">
   <String Id="ProductName" Value="小麥注音" />
-  <String Id="Manufacturer" Value="小麥注音計畫" />
+  <String Id="Manufacturer" Value="OpenVanilla.org" />
   <String Id="CoreFeatureTitle" Value="小麥注音核心" />
   <String Id="ConfigShortcutName" Value="小麥注音設定" />
   <String Id="ConfigShortcutDesc" Value="設定小麥注音輸入法" />
