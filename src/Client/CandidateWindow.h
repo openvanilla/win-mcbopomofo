@@ -74,6 +74,8 @@ class CandidateWindow {
   void createDeviceIndependentResources_();
   void createDeviceResources_();
   void discardDeviceResources_();
+  void rebuildLayoutAndResize_();
+  void enableDropShadow_();
   void updateTheme_();
   float getDpiScale_();
 

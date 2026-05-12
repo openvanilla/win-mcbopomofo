@@ -25,11 +25,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <dwmapi.h>
 
 #include "UTFHelper.h"
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
+#pragma comment(lib, "dwmapi.lib")
 
 const wchar_t* const TOOLTIP_WINDOW_CLASS = L"WinMcBopomofoTooltipWindow";
 
@@ -140,12 +142,26 @@ void TooltipWindow::discardDeviceResources_() {
   }
 }
 
+void TooltipWindow::enableDropShadow_() {
+  if (!hwnd_) {
+    return;
+  }
+  BOOL enabled = FALSE;
+  if (FAILED(DwmIsCompositionEnabled(&enabled)) || !enabled) {
+    return;
+  }
+
+  const DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
+  DwmSetWindowAttribute(hwnd_, DWMWA_NCRENDERING_POLICY, &policy,
+                        sizeof(policy));
+}
+
 bool TooltipWindow::Create(HINSTANCE hInstance) {
   if (hwnd_) return true;
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = CS_DROPSHADOW | CS_IME;
+  wcex.style = CS_IME;
   wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -160,6 +176,8 @@ bool TooltipWindow::Create(HINSTANCE hInstance) {
                           WS_POPUP,       // D2D will draw the border
                           0, 0, 100, 30,  // Initial dummy size
                           nullptr, nullptr, hInstance, this);
+
+  enableDropShadow_();
 
   return hwnd_ != nullptr;
 }
@@ -181,6 +199,13 @@ void TooltipWindow::UpdateUI(const std::string& tooltipText) {
 
   dpiScale_ = getDpiScale_();
   displayString_ = McBopomofo::Utf8ToUtf16(tooltipText);
+  rebuildLayoutAndResize_();
+}
+
+void TooltipWindow::rebuildLayoutAndResize_() {
+  if (displayString_.empty()) {
+    return;
+  }
 
   if (pTextLayout_) {
     pTextLayout_->Release();
@@ -219,8 +244,15 @@ void TooltipWindow::UpdateUI(const std::string& tooltipText) {
 
 void TooltipWindow::Move(int x, int y) {
   if (hwnd_) {
+    const float oldScale = dpiScale_;
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    dpiScale_ = getDpiScale_();
+    if (std::abs(dpiScale_ - oldScale) > 0.001f) {
+      rebuildLayoutAndResize_();
+    } else {
+      InvalidateRect(hwnd_, nullptr, FALSE);
+    }
   }
 }
 
@@ -252,7 +284,7 @@ LRESULT CALLBACK TooltipWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
                    prcNewWindow->right - prcNewWindow->left,
                    prcNewWindow->bottom - prcNewWindow->top,
                    SWP_NOZORDER | SWP_NOACTIVATE);
-      InvalidateRect(hwnd, nullptr, FALSE);
+      pThis->rebuildLayoutAndResize_();
       return 0;
     } else if (uMsg == WM_DISPLAYCHANGE) {
       ::InvalidateRect(hwnd, nullptr, FALSE);

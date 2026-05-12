@@ -26,12 +26,14 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <dwmapi.h>
 
 #include "PathCompat.h"
 #include "UTFHelper.h"
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
+#pragma comment(lib, "dwmapi.lib")
 
 const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
@@ -152,6 +154,20 @@ void CandidateWindow::createDeviceResources_() {
   }
 }
 
+void CandidateWindow::enableDropShadow_() {
+  if (!hwnd_) {
+    return;
+  }
+  BOOL enabled = FALSE;
+  if (FAILED(DwmIsCompositionEnabled(&enabled)) || !enabled) {
+    return;
+  }
+
+  const DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
+  DwmSetWindowAttribute(hwnd_, DWMWA_NCRENDERING_POLICY, &policy,
+                        sizeof(policy));
+}
+
 void CandidateWindow::discardDeviceResources_() {
   if (pRenderTarget_) {
     pRenderTarget_->Release();
@@ -226,7 +242,7 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = CS_DROPSHADOW | CS_IME;
+  wcex.style = CS_IME;
   wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -243,6 +259,7 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
                           nullptr, nullptr, hInstance, this);
 
   onSettingChange_();  // Load initial settings
+  enableDropShadow_();
 
   return hwnd_ != nullptr;
 }
@@ -282,9 +299,16 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
     cursorIndex_ = 0;
   }
 
-  bool drawVertical = isVertical_ || forceVertical;
   forceVertical_ = forceVertical;
   selectionStyle_ = selectionStyle;
+  rebuildLayoutAndResize_();
+}
+
+void CandidateWindow::rebuildLayoutAndResize_() {
+  bool drawVertical = isVertical_ || forceVertical_;
+  if (candidates_.empty()) {
+    return;
+  }
 
   const int pageSize = candidateKeysCount_;
   int pageIndex = cursorIndex_ / pageSize;
@@ -423,8 +447,15 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
 
 void CandidateWindow::Move(int x, int y) {
   if (hwnd_) {
+    const float oldScale = dpiScale_;
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    dpiScale_ = getDpiScale_();
+    if (std::abs(dpiScale_ - oldScale) > 0.001f) {
+      rebuildLayoutAndResize_();
+    } else {
+      InvalidateRect(hwnd_, nullptr, FALSE);
+    }
   }
 }
 
@@ -458,7 +489,7 @@ LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
                    prcNewWindow->right - prcNewWindow->left,
                    prcNewWindow->bottom - prcNewWindow->top,
                    SWP_NOZORDER | SWP_NOACTIVATE);
-      InvalidateRect(hwnd, nullptr, FALSE);
+      pThis->rebuildLayoutAndResize_();
       return 0;
     } else if (uMsg == WM_DISPLAYCHANGE) {
       ::InvalidateRect(hwnd, nullptr, FALSE);
