@@ -23,7 +23,9 @@
 
 #include "LangBarButton.h"
 
+#include <dwmapi.h>
 #include <shellapi.h>
+#include <uxtheme.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -36,6 +38,9 @@
 #include "Register.h"
 #include "resource.h"
 #include "UTFHelper.h"
+
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "uxtheme.lib")
 
 // GUID of the IME mode icon in Windows 8/10
 extern const GUID GUID_LBI_INPUTMODE = {
@@ -73,6 +78,28 @@ struct MenuItem {
   bool checked;
   bool separator;
 };
+
+bool IsDarkModeEnabled() {
+  HKEY hKey;
+  DWORD value = 0;
+  DWORD size = sizeof(value);
+  if (RegOpenKeyExW(
+          HKEY_CURRENT_USER,
+          L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+          0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+    RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr,
+                     reinterpret_cast<LPBYTE>(&value), &size);
+    RegCloseKey(hKey);
+  }
+  return value == 0;
+}
+
+void ApplyDarkThemeToWindow(HWND hwnd) {
+  BOOL dark = IsDarkModeEnabled();
+  DwmSetWindowAttribute(hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &dark,
+                        sizeof(dark));
+  SetWindowTheme(hwnd, dark ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+}
 
 std::wstring SettingsPath() {
   std::filesystem::path path(McBopomofo::fcitx5_compat::userDirectory());
@@ -310,6 +337,8 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
                                   HWND_DESKTOP, nullptr, g_hInst, nullptr);
       if (!hwnd) {
         hwnd = GetDesktopWindow();
+      } else {
+        ApplyDarkThemeToWindow(hwnd);
       }
 
       UINT command = TrackPopupMenu(

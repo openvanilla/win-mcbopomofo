@@ -121,6 +121,8 @@ void ApplyThemeToWindow(HWND hwnd) {
   BOOL dark = g_DarkMode;
   DwmSetWindowAttribute(hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &dark,
                         sizeof(dark));
+  SetWindowTheme(hwnd, g_DarkMode ? L"DarkMode_Explorer" : L"Explorer",
+                 nullptr);
 }
 
 struct ComboOption {
@@ -201,8 +203,12 @@ std::vector<HWND> g_GroupBoxes;
 std::vector<HWND> g_CheckBoxes;
 std::vector<HWND> g_RadioButtons;
 std::vector<HWND> g_LinkLabels;
+std::vector<HWND> g_ComboBoxes;
+std::vector<HWND> g_Separators;
 
 int Scale(int value);
+bool ContainsControl(const std::vector<HWND>& controls, HWND hwnd);
+void ApplyThemeToCombo(HWND combo);
 
 int MaxScrollPos(const SCROLLINFO& si) {
   return std::max(0, si.nMax - static_cast<int>(si.nPage) + 1);
@@ -315,7 +321,11 @@ void ApplyThemeToControls() {
   const wchar_t* theme = g_DarkMode ? L"DarkMode_Explorer" : L"Explorer";
   for (HWND control : g_ThemedControls) {
     if (control && IsWindow(control)) {
-      SetWindowTheme(control, theme, nullptr);
+      if (ContainsControl(g_ComboBoxes, control)) {
+        ApplyThemeToCombo(control);
+      } else {
+        SetWindowTheme(control, theme, nullptr);
+      }
       InvalidateRect(control, nullptr, TRUE);
     }
   }
@@ -358,8 +368,9 @@ HWND CreateSectionTitle(HWND parent, const wchar_t* text, int x, int y,
 HWND CreateGroup(HWND parent, int x, int y, int width, int height) {
   TrackContentBottom(y, height);
   HWND group = CreateWindowW(
-      L"Button", L"", WS_VISIBLE | WS_CHILD | BS_GROUPBOX, Scale(x), Scale(y),
-      Scale(width), Scale(height), parent, nullptr, nullptr, nullptr);
+      L"Button", L"", WS_VISIBLE | WS_CHILD | BS_GROUPBOX | BS_OWNERDRAW,
+      Scale(x), Scale(y), Scale(width), Scale(height), parent, nullptr, nullptr,
+      nullptr);
   g_GroupBoxes.push_back(group);
   return TrackControl(group);
 }
@@ -370,14 +381,17 @@ HWND CreateCombo(HWND parent, int x, int y, int width) {
       L"ComboBox", L"", WS_VISIBLE | WS_CHILD | WS_TABSTOP | CBS_DROPDOWNLIST,
       Scale(x), Scale(y), Scale(width), Scale(180), parent, nullptr, nullptr,
       nullptr);
-  SetWindowTheme(combo, L"Explorer", nullptr);
+  g_ComboBoxes.push_back(combo);
+  ApplyThemeToCombo(combo);
   return TrackControl(combo);
 }
 
 HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
   TrackContentBottom(y, 24);
   HWND check = CreateWindowW(
-      L"Button", text, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX,
+      L"Button",
+      text,
+      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX | BS_OWNERDRAW,
       Scale(x), Scale(y), Scale(width), Scale(24), parent, nullptr, nullptr,
       nullptr);
   g_CheckBoxes.push_back(check);
@@ -387,7 +401,8 @@ HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
 HWND CreateRadio(HWND parent, const wchar_t* text, int x, int y, int width,
                  bool startsGroup) {
   TrackContentBottom(y, 24);
-  DWORD style = WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON;
+  DWORD style =
+      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON | BS_OWNERDRAW;
   if (startsGroup) {
     style |= WS_GROUP;
   }
@@ -413,13 +428,32 @@ HWND CreateLink(HWND parent, const wchar_t* text, int x, int y, int width,
 
 HWND CreateSeparator(HWND parent, int x, int y, int width) {
   TrackContentBottom(y, 8);
-  return CreateWindowW(L"Static", L"", WS_VISIBLE | WS_CHILD | SS_ETCHEDHORZ,
-                       Scale(x), Scale(y), Scale(width), Scale(8), parent,
-                       nullptr, nullptr, nullptr);
+  HWND separator = CreateWindowW(L"Static", L"",
+                                 WS_VISIBLE | WS_CHILD | SS_OWNERDRAW,
+                                 Scale(x), Scale(y), Scale(width), Scale(8),
+                                 parent, nullptr, nullptr, nullptr);
+  g_Separators.push_back(separator);
+  return separator;
 }
 
 bool ContainsControl(const std::vector<HWND>& controls, HWND hwnd) {
   return std::find(controls.begin(), controls.end(), hwnd) != controls.end();
+}
+
+void ApplyThemeToCombo(HWND combo) {
+  const wchar_t* theme = g_DarkMode ? L"DarkMode_CFD" : L"CFD";
+  SetWindowTheme(combo, theme, nullptr);
+
+  COMBOBOXINFO info = {sizeof(COMBOBOXINFO)};
+  if (!GetComboBoxInfo(combo, &info)) {
+    return;
+  }
+  if (info.hwndList) {
+    SetWindowTheme(info.hwndList, theme, nullptr);
+  }
+  if (info.hwndItem) {
+    SetWindowTheme(info.hwndItem, theme, nullptr);
+  }
 }
 
 void DrawControlText(HDC hdc, HWND hwnd, RECT rect, UINT format) {
@@ -440,6 +474,17 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
   HDC hdc = item->hDC;
   RECT rect = item->rcItem;
   FillRect(hdc, &rect, g_WindowBrush);
+
+  if (ContainsControl(g_Separators, item->hwndItem)) {
+    RECT lineRect = rect;
+    lineRect.top = rect.top + ((rect.bottom - rect.top) / 2);
+    lineRect.bottom = lineRect.top + 1;
+    HBRUSH lineBrush = CreateSolidBrush(g_DarkMode ? RGB(92, 94, 99)
+                                                   : RGB(210, 214, 220));
+    FillRect(hdc, &lineRect, lineBrush);
+    DeleteObject(lineBrush);
+    return;
+  }
 
   if (ContainsControl(g_GroupBoxes, item->hwndItem)) {
     HPEN pen = CreatePen(PS_SOLID, 1,

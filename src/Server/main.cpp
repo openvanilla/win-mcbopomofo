@@ -23,7 +23,9 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <dwmapi.h>
 #include <shellapi.h>
+#include <uxtheme.h>
 
 #include <array>
 #include <filesystem>
@@ -48,6 +50,9 @@
 #include "WindowsKeyBridge.h"
 #include "resource.h"
 
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "uxtheme.lib")
+
 using namespace McBopomofo;
 
 #define WM_USER_TRAY (WM_USER + 1)
@@ -60,6 +65,28 @@ InputController* g_Controller = nullptr;
 bool g_RestartRequested = false;
 
 namespace {
+
+bool IsDarkModeEnabled() {
+  HKEY hKey;
+  DWORD value = 0;
+  DWORD size = sizeof(value);
+  if (RegOpenKeyExW(
+          HKEY_CURRENT_USER,
+          L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+          0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+    RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr,
+                     reinterpret_cast<LPBYTE>(&value), &size);
+    RegCloseKey(hKey);
+  }
+  return value == 0;
+}
+
+void ApplyDarkThemeToWindow(HWND hwnd) {
+  BOOL dark = IsDarkModeEnabled();
+  DwmSetWindowAttribute(hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &dark,
+                        sizeof(dark));
+  SetWindowTheme(hwnd, dark ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+}
 
 void LogDataFileStatus(const char* label, const std::filesystem::path& path) {
   FCITX_MCBOPOMOFO_INFO() << label << ": " << path.string()
@@ -451,6 +478,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
                   LoadLocalizedStringW(hInst, IDS_TRACE_LOG).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_RESTART,
                   LoadLocalizedStringW(hInst, IDS_RESTART_SERVER).c_str());
+      ApplyDarkThemeToWindow(hwnd);
       SetForegroundWindow(hwnd);
       TrackPopupMenu(hMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0,
                      hwnd, NULL);
