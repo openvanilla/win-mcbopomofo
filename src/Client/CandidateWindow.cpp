@@ -183,8 +183,8 @@ void CandidateWindow::createDeviceResources_() {
       pRenderTarget_->CreateSolidColorBrush(
           isDarkMode_ ? D2D1::ColorF(0x404040) : D2D1::ColorF(0xCCCCCC),
           &pBorderBrush_);
-      pRenderTarget_->CreateSolidColorBrush(
-          highlightColor_, &pHighlightBgBrush_);
+      pRenderTarget_->CreateSolidColorBrush(highlightColor_,
+                                            &pHighlightBgBrush_);
       pRenderTarget_->CreateSolidColorBrush(
           D2D1::ColorF(0xFFFFFF),  // White text on highlight
           &pHighlightTextBrush_);
@@ -329,6 +329,10 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
                                int candidateFontSize,
                                const std::string& hint) {
   if (!hwnd_) return;
+
+  // Refresh theme right before showing so each host process can pick up the
+  // current system mode even if it missed the broadcast message.
+  updateTheme_();
 
   dpiScale_ = getDpiScale_();
 
