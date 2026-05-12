@@ -27,6 +27,10 @@
 #include <cmath>
 #include <sstream>
 #include <dwmapi.h>
+#include <roapi.h>
+#include <winrt/base.h>
+#include <winrt/Windows.UI.h>
+#include <winrt/Windows.UI.ViewManagement.h>
 
 #include "PathCompat.h"
 #include "UTFHelper.h"
@@ -34,8 +38,45 @@
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "runtimeobject.lib")
 
 const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
+
+namespace {
+
+D2D1_COLOR_F GetSystemAccentColorOrDefault() {
+  HRESULT roInit = RoInitialize(RO_INIT_MULTITHREADED);
+  if (SUCCEEDED(roInit) || roInit == RPC_E_CHANGED_MODE) {
+    try {
+      winrt::Windows::UI::ViewManagement::UISettings settings;
+      const auto color = settings.GetColorValue(
+          winrt::Windows::UI::ViewManagement::UIColorType::Accent);
+      if (SUCCEEDED(roInit)) {
+        RoUninitialize();
+      }
+      return D2D1::ColorF(static_cast<float>(color.R) / 255.0f,
+                          static_cast<float>(color.G) / 255.0f,
+                          static_cast<float>(color.B) / 255.0f, 1.0f);
+    } catch (...) {
+      if (SUCCEEDED(roInit)) {
+        RoUninitialize();
+      }
+    }
+  }
+
+  DWORD colorization = 0;
+  BOOL opaqueBlend = FALSE;
+  if (SUCCEEDED(DwmGetColorizationColor(&colorization, &opaqueBlend))) {
+    const float a = 1.0f;
+    const float r = static_cast<float>((colorization >> 16) & 0xFF) / 255.0f;
+    const float g = static_cast<float>((colorization >> 8) & 0xFF) / 255.0f;
+    const float b = static_cast<float>(colorization & 0xFF) / 255.0f;
+    return D2D1::ColorF(r, g, b, a);
+  }
+  return D2D1::ColorF(0x0078D7);
+}
+
+}  // namespace
 
 CandidateWindow::CandidateWindow()
     : hwnd_(nullptr),
@@ -47,6 +88,7 @@ CandidateWindow::CandidateWindow()
       forceVertical_(false),
       selectionStyle_(McBopomofo::IPC::CandidateSelectionStyle::kStandard),
       isDarkMode_(false),
+      highlightColor_(D2D1::ColorF(0x0078D7)),
       pD2DFactory_(nullptr),
       pRenderTarget_(nullptr),
       pDWriteFactory_(nullptr),
@@ -145,8 +187,7 @@ void CandidateWindow::createDeviceResources_() {
           isDarkMode_ ? D2D1::ColorF(0x404040) : D2D1::ColorF(0xCCCCCC),
           &pBorderBrush_);
       pRenderTarget_->CreateSolidColorBrush(
-          D2D1::ColorF(0x0078D7),  // Windows Blue
-          &pHighlightBgBrush_);
+          highlightColor_, &pHighlightBgBrush_);
       pRenderTarget_->CreateSolidColorBrush(
           D2D1::ColorF(0xFFFFFF),  // White text on highlight
           &pHighlightTextBrush_);
@@ -208,6 +249,7 @@ void CandidateWindow::updateTheme_() {
     RegCloseKey(hKey);
   }
   isDarkMode_ = (useLightTheme == 0);
+  highlightColor_ = GetSystemAccentColorOrDefault();
 
   if (pRenderTarget_) {
     discardDeviceResources_();  // Force recreate brushes
@@ -482,6 +524,9 @@ LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
       return pThis->onPaint_(hwnd);
     } else if (uMsg == WM_SETTINGCHANGE) {
       pThis->onSettingChange_();
+    } else if (uMsg == WM_DWMCOLORIZATIONCOLORCHANGED) {
+      pThis->updateTheme_();
+      return 0;
     } else if (uMsg == WM_DPICHANGED) {
       pThis->dpiScale_ = (float)LOWORD(wParam) / 96.0f;
       RECT* prcNewWindow = (RECT*)lParam;

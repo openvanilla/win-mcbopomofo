@@ -96,6 +96,7 @@ class CandidateWindow {
   bool forceVertical_;
   McBopomofo::IPC::CandidateSelectionStyle selectionStyle_;
   bool isDarkMode_;
+  D2D1_COLOR_F highlightColor_;
 
   TextRange selectedRange_;
   std::vector<TextRange> keyRanges_;
