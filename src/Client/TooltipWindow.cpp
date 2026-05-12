@@ -146,6 +146,12 @@ void TooltipWindow::enableDropShadow_() {
   if (!hwnd_) {
     return;
   }
+
+  // Ask the window manager to keep a tiny frame so borderless popup windows
+  // can still receive the standard DWM shadow.
+  const MARGINS margins = {1, 1, 1, 1};
+  DwmExtendFrameIntoClientArea(hwnd_, &margins);
+
   BOOL enabled = FALSE;
   if (FAILED(DwmIsCompositionEnabled(&enabled)) || !enabled) {
     return;
@@ -161,7 +167,7 @@ bool TooltipWindow::Create(HINSTANCE hInstance) {
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = CS_IME;
+  wcex.style = CS_IME | CS_DROPSHADOW;
   wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);

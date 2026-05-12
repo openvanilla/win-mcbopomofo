@@ -37,6 +37,7 @@ enum class Command : int {
   CMD_SELECT_CANDIDATE = 2,
   CMD_RELOAD_SETTINGS = 3,
   CMD_OPEN_SETTINGS = 4,
+  CMD_GET_SETTINGS = 5,
 };
 
 enum class CandidateSelectionStyle : int {
@@ -54,6 +55,10 @@ struct KeyEventPayload {
 
 struct SelectCandidatePayload {
   int index;
+};
+
+struct ClientSettingsPayload {
+  bool shiftToggleOpenClose = true;
 };
 
 struct StateUpdatePayload {
@@ -98,6 +103,17 @@ bool IsReloadSettingsCommand(const std::string& data);
 std::string SerializeOpenSettings();
 // Check if it is an open settings command
 bool IsOpenSettingsCommand(const std::string& data);
+
+// Serialize a get settings command
+std::string SerializeGetSettings();
+// Check if it is a get settings command
+bool IsGetSettingsCommand(const std::string& data);
+
+// Serialize a client settings response
+std::string SerializeClientSettings(const ClientSettingsPayload& payload);
+// Deserialize a client settings response
+bool DeserializeClientSettings(const std::string& data,
+                               ClientSettingsPayload& payload);
 
 // Serialize a state update to a string
 std::string SerializeStateUpdate(const StateUpdatePayload& payload);

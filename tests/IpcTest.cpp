@@ -63,3 +63,15 @@ TEST(IpcTest, RejectsTruncatedSizedStringPayload) {
     IPC::StateUpdatePayload decoded;
     EXPECT_FALSE(IPC::DeserializeStateUpdate(malformed, decoded));
 }
+
+TEST(IpcTest, ClientSettingsRoundTrip) {
+    IPC::ClientSettingsPayload payload;
+    payload.shiftToggleOpenClose = false;
+
+    std::string serialized = IPC::SerializeClientSettings(payload);
+
+    IPC::ClientSettingsPayload decoded;
+    ASSERT_TRUE(IPC::DeserializeClientSettings(serialized, decoded));
+    EXPECT_EQ(decoded.shiftToggleOpenClose, payload.shiftToggleOpenClose);
+    EXPECT_TRUE(IPC::IsGetSettingsCommand(IPC::SerializeGetSettings()));
+}

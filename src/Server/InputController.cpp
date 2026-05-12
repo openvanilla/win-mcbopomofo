@@ -1039,7 +1039,7 @@ void InputController::changeState_(std::unique_ptr<InputState> previousState,
   if (dynamic_cast<InputStates::Empty*>(newState.get()) != nullptr) {
     if (ui_) ui_->reset();
     if (auto* inputting =
-            dynamic_cast<InputStates::Inputting*>(previousState.get())) {
+            dynamic_cast<InputStates::NotEmpty*>(previousState.get())) {
       std::string text = inputting->composingBuffer;
       if (!text.empty() && ui_) {
         ui_->commitString(text);

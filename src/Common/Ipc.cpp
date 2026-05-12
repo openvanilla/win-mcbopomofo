@@ -170,6 +170,38 @@ bool IsOpenSettingsCommand(const std::string& data) {
   }
 }
 
+std::string SerializeGetSettings() {
+  std::ostringstream ss;
+  ss << (int)Command::CMD_GET_SETTINGS << "\n";
+  return ss.str();
+}
+
+bool IsGetSettingsCommand(const std::string& data) {
+  std::istringstream ss(data);
+  std::string line;
+  if (!std::getline(ss, line)) return false;
+  try {
+    return std::stoi(line) == (int)Command::CMD_GET_SETTINGS;
+  } catch (...) {
+    return false;
+  }
+}
+
+std::string SerializeClientSettings(const ClientSettingsPayload& payload) {
+  std::ostringstream ss;
+  ss << (payload.shiftToggleOpenClose ? 1 : 0) << "\n";
+  return ss.str();
+}
+
+bool DeserializeClientSettings(const std::string& data,
+                               ClientSettingsPayload& payload) {
+  std::istringstream ss(data);
+  std::string line;
+  if (!std::getline(ss, line)) return false;
+  payload.shiftToggleOpenClose = (line == "1");
+  return true;
+}
+
 // Format for StateUpdate:
 // CONSUMED(1/0)
 // CURSOR_INDEX

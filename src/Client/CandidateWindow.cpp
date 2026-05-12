@@ -25,12 +25,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <sstream>
 #include <dwmapi.h>
-#include <roapi.h>
-#include <winrt/base.h>
-#include <winrt/Windows.UI.h>
-#include <winrt/Windows.UI.ViewManagement.h>
+#include <sstream>
 
 #include "PathCompat.h"
 #include "UTFHelper.h"
@@ -38,32 +34,19 @@
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "dwmapi.lib")
-#pragma comment(lib, "runtimeobject.lib")
 
 const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
 namespace {
 
-D2D1_COLOR_F GetSystemAccentColorOrDefault() {
-  HRESULT roInit = RoInitialize(RO_INIT_MULTITHREADED);
-  if (SUCCEEDED(roInit) || roInit == RPC_E_CHANGED_MODE) {
-    try {
-      winrt::Windows::UI::ViewManagement::UISettings settings;
-      const auto color = settings.GetColorValue(
-          winrt::Windows::UI::ViewManagement::UIColorType::Accent);
-      if (SUCCEEDED(roInit)) {
-        RoUninitialize();
-      }
-      return D2D1::ColorF(static_cast<float>(color.R) / 255.0f,
-                          static_cast<float>(color.G) / 255.0f,
-                          static_cast<float>(color.B) / 255.0f, 1.0f);
-    } catch (...) {
-      if (SUCCEEDED(roInit)) {
-        RoUninitialize();
-      }
-    }
-  }
+#ifndef DWMWA_BORDER_COLOR
+#define DWMWA_BORDER_COLOR 34
+#endif
 
+constexpr COLORREF kDwmColorNone =
+    static_cast<COLORREF>(0xFFFFFFFE);
+
+D2D1_COLOR_F GetSystemAccentColorOrDefault() {
   DWORD colorization = 0;
   BOOL opaqueBlend = FALSE;
   if (SUCCEEDED(DwmGetColorizationColor(&colorization, &opaqueBlend))) {
@@ -73,7 +56,8 @@ D2D1_COLOR_F GetSystemAccentColorOrDefault() {
     const float b = static_cast<float>(colorization & 0xFF) / 255.0f;
     return D2D1::ColorF(r, g, b, a);
   }
-  return D2D1::ColorF(0x0078D7);
+
+  return D2D1::ColorF(0x0078D7);  // Default color when DWM is unavailable.
 }
 
 }  // namespace
@@ -212,6 +196,12 @@ void CandidateWindow::enableDropShadow_() {
   if (!hwnd_) {
     return;
   }
+
+  // Ask the window manager to keep a tiny frame so borderless popup windows
+  // can still receive the standard DWM shadow.
+  const MARGINS margins = {1, 1, 1, 1};
+  DwmExtendFrameIntoClientArea(hwnd_, &margins);
+
   BOOL enabled = FALSE;
   if (FAILED(DwmIsCompositionEnabled(&enabled)) || !enabled) {
     return;
@@ -220,6 +210,11 @@ void CandidateWindow::enableDropShadow_() {
   const DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
   DwmSetWindowAttribute(hwnd_, DWMWA_NCRENDERING_POLICY, &policy,
                         sizeof(policy));
+
+  // Keep the DWM shadow but suppress the compositor-drawn border/frame color
+  // that otherwise shows up as a gray rectangle around popup windows.
+  DwmSetWindowAttribute(hwnd_, DWMWA_BORDER_COLOR, &kDwmColorNone,
+                        sizeof(kDwmColorNone));
 }
 
 void CandidateWindow::discardDeviceResources_() {
@@ -297,7 +292,7 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = CS_IME;
+  wcex.style = CS_IME | CS_DROPSHADOW;
   wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
