@@ -42,6 +42,17 @@
 
 const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
+#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
+#define DWMWA_WINDOW_CORNER_PREFERENCE 33
+#endif
+
+#ifndef DWMWCP_ROUND
+#define DWMWCP_DEFAULT 0
+#define DWMWCP_DONOTROUND 1
+#define DWMWCP_ROUND 2
+#define DWMWCP_ROUNDSMALL 3
+#endif
+
 namespace {
 
 D2D1_COLOR_F GetSystemAccentColorOrDefault() {
@@ -209,6 +220,17 @@ void CandidateWindow::enableDropShadow_() {
                         sizeof(policy));
 }
 
+void CandidateWindow::enableSystemRoundedCorners_() {
+  if (!hwnd_) {
+    return;
+  }
+
+  const auto cornerPreference =
+      static_cast<DWM_WINDOW_CORNER_PREFERENCE>(DWMWCP_ROUND);
+  DwmSetWindowAttribute(hwnd_, DWMWA_WINDOW_CORNER_PREFERENCE,
+                        &cornerPreference, sizeof(cornerPreference));
+}
+
 void CandidateWindow::discardDeviceResources_() {
   if (pRenderTarget_) {
     pRenderTarget_->Release();
@@ -302,6 +324,7 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
 
   onSettingChange_();  // Load initial settings
   enableDropShadow_();
+  enableSystemRoundedCorners_();
 
   return hwnd_ != nullptr;
 }

@@ -76,6 +76,7 @@ class CandidateWindow {
   void discardDeviceResources_();
   void rebuildLayoutAndResize_();
   void enableDropShadow_();
+  void enableSystemRoundedCorners_();
   void updateTheme_();
   float getDpiScale_();
 
