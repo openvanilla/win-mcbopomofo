@@ -78,6 +78,7 @@ class CandidateWindow {
   void rebuildLayoutAndResize_();
   void enableDropShadow_();
   void enableSystemRoundedCorners_();
+  void updateRoundedRegion_();
   void updateTheme_();
   float getDpiScale_();
 

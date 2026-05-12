@@ -239,6 +239,27 @@ void CandidateWindow::enableSystemRoundedCorners_() {
                         &cornerPreference, sizeof(cornerPreference));
 }
 
+void CandidateWindow::updateRoundedRegion_() {
+  if (!hwnd_) {
+    return;
+  }
+
+  RECT rc;
+  GetClientRect(hwnd_, &rc);
+  const int width = rc.right - rc.left;
+  const int height = rc.bottom - rc.top;
+  if (width <= 0 || height <= 0) {
+    return;
+  }
+
+  const int radius = std::max(6, static_cast<int>(std::lround(8.0f * dpiScale_)));
+  HRGN region =
+      CreateRoundRectRgn(0, 0, width + 1, height + 1, radius * 2, radius * 2);
+  if (region) {
+    SetWindowRgn(hwnd_, region, TRUE);
+  }
+}
+
 void CandidateWindow::discardDeviceResources_() {
   if (pRenderTarget_) {
     pRenderTarget_->Release();
@@ -333,6 +354,7 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
   onSettingChange_();  // Load initial settings
   enableDropShadow_();
   enableSystemRoundedCorners_();
+  updateRoundedRegion_();
 
   return hwnd_ != nullptr;
 }
@@ -523,6 +545,7 @@ void CandidateWindow::rebuildLayoutAndResize_() {
 
   SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOACTIVATE);
+  updateRoundedRegion_();
   if (pRenderTarget_) {
     pRenderTarget_->Resize(D2D1::SizeU(width, height));
   }
@@ -565,6 +588,8 @@ LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
   if (pThis) {
     if (uMsg == WM_PAINT) {
       return pThis->onPaint_(hwnd);
+    } else if (uMsg == WM_ERASEBKGND) {
+      return 1;
     } else if (uMsg == WM_SETTINGCHANGE) {
       pThis->onSettingChange_();
     } else if (uMsg == WM_DWMCOLORIZATIONCOLORCHANGED) {
