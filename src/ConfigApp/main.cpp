@@ -25,20 +25,23 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <dwmapi.h>
+#include <shellapi.h>
 #include <uxtheme.h>
 
 #include <algorithm>
 #include <array>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "../Common/UTFHelper.h"
 #include "Ipc.h"
 #include "NamedPipe.h"
 #include "Settings.h"
 #include "resource.h"
-#include "../Common/UTFHelper.h"
 
 #pragma comment(lib, "comctl32.lib")
+#pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "uxtheme.lib")
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment( \
@@ -53,7 +56,14 @@ constexpr const wchar_t* kClassName = L"McBopomofoConfigClass";
 constexpr const wchar_t* kSingleInstanceMutexName =
     L"Local\\WinMcBopomofoConfigSingleInstance";
 constexpr int kReloadCommand = 1;
+constexpr int kManualLinkCommand = 2;
+constexpr int kProjectHomepageCommand = 3;
 constexpr int kScrollLineHeight = 20;  // pixels per scroll line
+constexpr const wchar_t* kManualUrl =
+    L"https://github.com/openvanilla/McBopomofo/wiki/"
+    L"%E4%BD%BF%E7%94%A8%E6%89%8B%E5%86%8A";
+constexpr const wchar_t* kProjectHomepageUrl =
+    L"https://github.com/openvanilla/win-mcbopomofo";
 
 // Light Mode Colors
 constexpr COLORREF kLightWindowColor = RGB(246, 247, 249);
@@ -73,6 +83,7 @@ HBRUSH g_ControlBrush = nullptr;
 bool g_DarkMode = false;
 int g_ScrollPos = 0;  // Current vertical scroll position
 int g_ContentHeight = 0;
+std::vector<std::pair<HWND, RECT>> g_ChildBaseRects;
 
 bool IsDarkModeEnabled() {
   HKEY hKey;
@@ -132,14 +143,14 @@ const std::array<ComboOption, 6> kLayoutOptions = {{
 }};
 
 const std::array<UINT, 2> kInputModeLabels = {{
-    IDS_MODE_MCBOPOMOFO,
-    IDS_MODE_PLAIN_BOPOMOFO,
+    IDS_MODE_MCBOPOMOFO_AUTO,
+    IDS_MODE_PLAIN_BOPOMOFO_MANUAL,
 }};
 
 const std::array<ComboOption, 3> kCandidateKeyOptions = {{
-    {0, "123456789"}, // Not localized
-    {0, "asdfghjkl"}, // Not localized
-    {0, "asdfzxcvb"}, // Not localized
+    {0, "123456789"},  // Not localized
+    {0, "asdfghjkl"},  // Not localized
+    {0, "asdfzxcvb"},  // Not localized
 }};
 
 const std::array<CtrlEnterOption, 4> kCtrlEnterOptions = {{
@@ -148,6 +159,15 @@ const std::array<CtrlEnterOption, 4> kCtrlEnterOptions = {{
     {IDS_CTRL_ENTER_HTML_RUBY, KeyHandlerCtrlEnter::OutputHTMLRubyText},
     {IDS_CTRL_ENTER_HANYU_PINYIN, KeyHandlerCtrlEnter::OutputHanyuPinyin},
 }};
+
+const std::array<ComboOption, 3> kSelectionActionOptions = {{
+    {IDS_SELECTION_ACTION_NONE, "None"},
+    {IDS_SELECTION_ACTION_JK, "JK"},
+    {IDS_SELECTION_ACTION_HL, "HL"},
+}};
+
+const std::array<int, 8> kCandidateFontSizes = {
+    {10, 12, 14, 16, 18, 20, 24, 28}};
 
 HWND hLayoutCombo = nullptr;
 HWND hModeCombo = nullptr;
@@ -164,38 +184,85 @@ HWND hShiftEnterCheck = nullptr;
 HWND hCtrlEnterCombo = nullptr;
 HWND hRepeatedPunctuationCheck = nullptr;
 HWND hChooseSpaceCheck = nullptr;
+HWND hSelectionActionCombo = nullptr;
+HWND hCandidateFontSizeCombo = nullptr;
+HWND hShiftToggleCheck = nullptr;
+HWND hErrorBeepCheck = nullptr;
+HWND hManualLink = nullptr;
+HWND hProjectHomepageLink = nullptr;
 HWND hReloadBtn = nullptr;
 HWND hCandidateKeysCountCombo = nullptr;
 HFONT hUiFont = nullptr;
 HFONT hTitleFont = nullptr;
+HFONT hLinkFont = nullptr;
 Settings settings;
 std::vector<HWND> g_ThemedControls;
 std::vector<HWND> g_GroupBoxes;
 std::vector<HWND> g_CheckBoxes;
 std::vector<HWND> g_RadioButtons;
+std::vector<HWND> g_LinkLabels;
 
 int Scale(int value);
 
 int MaxScrollPos(const SCROLLINFO& si) {
-  return std::max(0, si.nMax - static_cast<int>(si.nPage));
+  return std::max(0, si.nMax - static_cast<int>(si.nPage) + 1);
+}
+
+void CacheChildBaseRects(HWND hwnd) {
+  g_ChildBaseRects.clear();
+  for (HWND child = GetWindow(hwnd, GW_CHILD); child != nullptr;
+       child = GetWindow(child, GW_HWNDNEXT)) {
+    RECT rect{};
+    GetWindowRect(child, &rect);
+    POINT topLeft{rect.left, rect.top};
+    POINT bottomRight{rect.right, rect.bottom};
+    ScreenToClient(hwnd, &topLeft);
+    ScreenToClient(hwnd, &bottomRight);
+    rect.left = topLeft.x;
+    rect.top = topLeft.y + g_ScrollPos;
+    rect.right = bottomRight.x;
+    rect.bottom = bottomRight.y + g_ScrollPos;
+    g_ChildBaseRects.emplace_back(child, rect);
+  }
+}
+
+void ReflowChildControls(HWND hwnd, int scrollPos) {
+  HDWP hdwp = BeginDeferWindowPos(static_cast<int>(g_ChildBaseRects.size()));
+  if (!hdwp) {
+    return;
+  }
+
+  for (const auto& [child, rect] : g_ChildBaseRects) {
+    if (!IsWindow(child)) {
+      continue;
+    }
+    const int width = rect.right - rect.left;
+    const int height = rect.bottom - rect.top;
+    hdwp = DeferWindowPos(hdwp, child, nullptr, rect.left,
+                          rect.top - scrollPos, width, height,
+                          SWP_NOZORDER | SWP_NOACTIVATE);
+    if (!hdwp) {
+      return;
+    }
+  }
+
+  EndDeferWindowPos(hdwp);
 }
 
 void ApplyVerticalScroll(HWND hwnd, int requestedPos) {
   SCROLLINFO si = {sizeof(SCROLLINFO), SIF_ALL};
   GetScrollInfo(hwnd, SB_VERT, &si);
 
-  int oldPos = si.nPos;
   int newPos = std::max(0, std::min(requestedPos, MaxScrollPos(si)));
-  if (newPos == oldPos) {
+  if (newPos == g_ScrollPos) {
     return;
   }
 
   si.nPos = newPos;
   SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
   g_ScrollPos = newPos;
-
-  ScrollWindow(hwnd, 0, oldPos - newPos, nullptr, nullptr);
-  UpdateWindow(hwnd);
+  ReflowChildControls(hwnd, g_ScrollPos);
+  InvalidateRect(hwnd, nullptr, TRUE);
 }
 
 void TrackContentBottom(int y, int height) {
@@ -211,26 +278,24 @@ int Scale(int value) {
   return MulDiv(value, dpi, 96);
 }
 
-HFONT CreateUIFont(int pointSize, int weight) {
+HFONT CreateUIFont(int pointSize, int weight, bool underline = false) {
   HDC hdc = GetDC(nullptr);
   int dpi = hdc ? GetDeviceCaps(hdc, LOGPIXELSY) : 96;
   if (hdc) {
     ReleaseDC(nullptr, hdc);
   }
 
-  const wchar_t* fontName = L"Microsoft JhengHei UI";
+  const wchar_t* fontName = L"Microsoft JhengHei";
   LANGID langId = GetUserDefaultUILanguage();
   if (PRIMARYLANGID(langId) == LANG_ENGLISH) {
     fontName = L"Arial";
-    if (pointSize == 12) {
-      pointSize = 9;
-    } else if (pointSize == 17) {
-      pointSize = 13;
-    }
+    pointSize = 10;
+  } else {
+    pointSize = 11;
   }
 
-  return CreateFontW(-MulDiv(pointSize, dpi, 72), 0, 0, 0, weight, FALSE, FALSE,
-                     FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+  return CreateFontW(-MulDiv(pointSize, dpi, 72), 0, 0, 0, weight, FALSE,
+                     underline, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
                      CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
                      DEFAULT_PITCH | FF_DONTCARE, fontName);
 }
@@ -275,17 +340,18 @@ void SetChecked(HWND control, bool checked) {
 
 HWND CreateLabel(HWND parent, const wchar_t* text, int x, int y, int width) {
   TrackContentBottom(y, 26);
-  return TrackControl(CreateWindowW(L"Static", text, WS_VISIBLE | WS_CHILD,
-                                    Scale(x), Scale(y), Scale(width), Scale(26),
-                                    parent, nullptr, nullptr, nullptr));
+  return TrackControl(CreateWindowW(
+      L"Static", text, WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, Scale(x),
+      Scale(y), Scale(width), Scale(26), parent, nullptr, nullptr, nullptr));
 }
 
 HWND CreateSectionTitle(HWND parent, const wchar_t* text, int x, int y,
                         int width) {
-  TrackContentBottom(y, 34);
+  TrackContentBottom(y, 24);
   return TrackControl(
-      CreateWindowW(L"Static", text, WS_VISIBLE | WS_CHILD, Scale(x), Scale(y),
-                    Scale(width), Scale(34), parent, nullptr, nullptr, nullptr),
+      CreateWindowW(L"Static", text, WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP,
+                    Scale(x), Scale(y), Scale(width), Scale(24), parent,
+                    nullptr, nullptr, nullptr),
       hTitleFont);
 }
 
@@ -299,7 +365,7 @@ HWND CreateGroup(HWND parent, int x, int y, int width, int height) {
 }
 
 HWND CreateCombo(HWND parent, int x, int y, int width) {
-  TrackContentBottom(y, 180);
+  TrackContentBottom(y, 24);
   HWND combo = CreateWindowW(
       L"ComboBox", L"", WS_VISIBLE | WS_CHILD | WS_TABSTOP | CBS_DROPDOWNLIST,
       Scale(x), Scale(y), Scale(width), Scale(180), parent, nullptr, nullptr,
@@ -309,10 +375,10 @@ HWND CreateCombo(HWND parent, int x, int y, int width) {
 }
 
 HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
-  TrackContentBottom(y, 28);
+  TrackContentBottom(y, 24);
   HWND check = CreateWindowW(
       L"Button", text, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX,
-      Scale(x), Scale(y), Scale(width), Scale(28), parent, nullptr, nullptr,
+      Scale(x), Scale(y), Scale(width), Scale(24), parent, nullptr, nullptr,
       nullptr);
   g_CheckBoxes.push_back(check);
   return TrackControl(check);
@@ -320,16 +386,36 @@ HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
 
 HWND CreateRadio(HWND parent, const wchar_t* text, int x, int y, int width,
                  bool startsGroup) {
-  TrackContentBottom(y, 28);
+  TrackContentBottom(y, 24);
   DWORD style = WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON;
   if (startsGroup) {
     style |= WS_GROUP;
   }
   HWND radio =
       CreateWindowW(L"Button", text, style, Scale(x), Scale(y), Scale(width),
-                    Scale(28), parent, nullptr, nullptr, nullptr);
+                    Scale(24), parent, nullptr, nullptr, nullptr);
   g_RadioButtons.push_back(radio);
   return TrackControl(radio);
+}
+
+HWND CreateLink(HWND parent, const wchar_t* text, int x, int y, int width,
+                int commandId) {
+  TrackContentBottom(y, 22);
+  HWND link = CreateWindowW(
+      L"Static", text, WS_VISIBLE | WS_CHILD | WS_TABSTOP | SS_NOTIFY, Scale(x),
+      Scale(y), Scale(width), Scale(22), parent,
+      reinterpret_cast<HMENU>(static_cast<INT_PTR>(commandId)), nullptr,
+      nullptr);
+  ApplyFont(link, hLinkFont);
+  g_LinkLabels.push_back(link);
+  return link;
+}
+
+HWND CreateSeparator(HWND parent, int x, int y, int width) {
+  TrackContentBottom(y, 8);
+  return CreateWindowW(L"Static", L"", WS_VISIBLE | WS_CHILD | SS_ETCHEDHORZ,
+                       Scale(x), Scale(y), Scale(width), Scale(8), parent,
+                       nullptr, nullptr, nullptr);
 }
 
 bool ContainsControl(const std::vector<HWND>& controls, HWND hwnd) {
@@ -465,6 +551,29 @@ void SetCandidateKeysCountSelection() {
                count >= 4 && count <= 9 ? count - 4 : 5, 0);
 }
 
+void SetSelectionActionSelection() {
+  auto action = settings.selectionAction();
+  auto it = std::find_if(
+      kSelectionActionOptions.begin(), kSelectionActionOptions.end(),
+      [&](const ComboOption& option) { return action == option.value; });
+  int index = it == kSelectionActionOptions.end()
+                  ? 0
+                  : static_cast<int>(
+                        std::distance(kSelectionActionOptions.begin(), it));
+  SendMessageW(hSelectionActionCombo, CB_SETCURSEL, index, 0);
+}
+
+void SetCandidateFontSizeSelection() {
+  int fontSize = settings.candidateFontSize();
+  auto it = std::find(kCandidateFontSizes.begin(), kCandidateFontSizes.end(),
+                      fontSize);
+  int index =
+      it == kCandidateFontSizes.end()
+          ? 3
+          : static_cast<int>(std::distance(kCandidateFontSizes.begin(), it));
+  SendMessageW(hCandidateFontSizeCombo, CB_SETCURSEL, index, 0);
+}
+
 void UpdateUI() {
   settings.load();
 
@@ -477,6 +586,7 @@ void UpdateUI() {
   SetChecked(hHorizontalRadio, !candidateWindowVertical);
   SetCandidateKeysSelection();
   SetCandidateKeysCountSelection();
+  SetSelectionActionSelection();
 
   bool selectAfterCursor = settings.selectPhraseAfterCursorAsCandidate();
   SetChecked(hSelectBeforeRadio, !selectAfterCursor);
@@ -488,11 +598,13 @@ void UpdateUI() {
   SetChecked(hLowercaseRadio, putLowercase);
 
   SetChecked(hEscClearCheck, settings.escKeyClearsEntireComposingBuffer());
-  SetChecked(hShiftEnterCheck, settings.shiftEnterEnabled());
   SetCtrlEnterSelection();
+  SetCandidateFontSizeSelection();
+  SetChecked(hShiftToggleCheck, settings.shiftToggleOpenClose());
   SetChecked(hRepeatedPunctuationCheck,
              settings.repeatedPunctuationToSelectCandidateEnabled());
   SetChecked(hChooseSpaceCheck, settings.chooseCandidateUsingSpace());
+  SetChecked(hErrorBeepCheck, settings.beepOnError());
 }
 
 void NotifyServer() {
@@ -516,12 +628,17 @@ void SaveAndNotify() {
   settings.setCandidateKeys(kCandidateKeyOptions[candidateKeysIdx].value);
   settings.setCandidateKeysCount(ComboSelection(hCandidateKeysCountCombo, 5) +
                                  4);
+  int selectionActionIdx = ComboSelection(hSelectionActionCombo, 0);
+  settings.setSelectionAction(
+      kSelectionActionOptions[selectionActionIdx].value);
 
   settings.setSelectPhraseAfterCursorAsCandidate(IsChecked(hSelectAfterRadio));
   settings.setMoveCursorAfterSelection(IsChecked(hMoveCursorCheck));
   settings.setPutLowercaseLettersToComposingBuffer(IsChecked(hLowercaseRadio));
   settings.setEscKeyClearsEntireComposingBuffer(IsChecked(hEscClearCheck));
-  settings.setShiftEnterEnabled(IsChecked(hShiftEnterCheck));
+  settings.setShiftToggleOpenClose(IsChecked(hShiftToggleCheck));
+  int candidateFontIdx = ComboSelection(hCandidateFontSizeCombo, 3);
+  settings.setCandidateFontSize(kCandidateFontSizes[candidateFontIdx]);
 
   int ctrlEnterIdx = ComboSelection(hCtrlEnterCombo, 0);
   settings.setCtrlEnterKeyBehavior(kCtrlEnterOptions[ctrlEnterIdx].value);
@@ -529,6 +646,7 @@ void SaveAndNotify() {
   settings.setRepeatedPunctuationToSelectCandidateEnabled(
       IsChecked(hRepeatedPunctuationCheck));
   settings.setChooseCandidateUsingSpace(IsChecked(hChooseSpaceCheck));
+  settings.setBeepOnError(IsChecked(hErrorBeepCheck));
 
   settings.save();
   NotifyServer();
@@ -538,110 +656,182 @@ void CreateControls(HWND hwnd) {
   g_ContentHeight = 0;
   HINSTANCE hInst = GetModuleHandle(nullptr);
 
-  CreateSectionTitle(hwnd, LoadLocalizedStringW(hInst, IDS_CONFIG_TITLE).c_str(), 28, 22, 520);
+  constexpr int kLeft = 12;
+  constexpr int kTop = 12;
+  constexpr int kWidth = 520;
+  constexpr int kLabelX = 18;
+  constexpr int kControlX = 150;
+  constexpr int kRightX = 426;
+  constexpr int kRowGap = 26;
+
+  CreateSectionTitle(hwnd,
+                     LoadLocalizedStringW(hInst, IDS_CONFIG_TITLE).c_str(),
+                     kLeft, kTop, 300);
 
   hReloadBtn = CreateWindowW(
       L"Button", LoadLocalizedStringW(hInst, IDS_RELOAD).c_str(),
-      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_OWNERDRAW, Scale(468), Scale(20),
-      Scale(104), Scale(34), hwnd,
+      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_OWNERDRAW, Scale(kRightX),
+      Scale(kTop - 1), Scale(90), Scale(24), hwnd,
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(kReloadCommand)), nullptr,
       nullptr);
   TrackControl(hReloadBtn);
-  TrackContentBottom(20, 34);
+  TrackContentBottom(kTop - 1, 24);
 
-  CreateGroup(hwnd, 24, 72, 548, 116);
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_KEYBOARD_LAYOUT).c_str(), 56,
-              104, 140);
-  hLayoutCombo = CreateCombo(hwnd, 210, 100, 260);
-  for (const auto& option : kLayoutOptions) {
-    AddComboString(hLayoutCombo, LoadLocalizedStringW(hInst, option.labelId).c_str());
-  }
+  int y = 42;
 
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_INPUT_MODE).c_str(), 56, 144,
-              140);
-  hModeCombo = CreateCombo(hwnd, 210, 140, 260);
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_INPUT_MODE).c_str(),
+              kLabelX, y, 124);
+  hModeCombo = CreateCombo(hwnd, kControlX, y - 4, 230);
   for (const auto id : kInputModeLabels) {
     AddComboString(hModeCombo, LoadLocalizedStringW(hInst, id).c_str());
   }
 
-  CreateGroup(hwnd, 24, 206, 548, 284);
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATE_WINDOW).c_str(),
-              56, 240, 140);
-  hVerticalRadio =
-      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_VERTICAL).c_str(), 210,
-                  236, 120, true);
-  hHorizontalRadio =
-      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_HORIZONTAL).c_str(), 210,
-                  268, 120, false);
+  y += kRowGap;
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_KEYBOARD_LAYOUT).c_str(),
+              kLabelX, y, 124);
+  hLayoutCombo = CreateCombo(hwnd, kControlX, y - 4, 130);
+  for (const auto& option : kLayoutOptions) {
+    AddComboString(hLayoutCombo,
+                   LoadLocalizedStringW(hInst, option.labelId).c_str());
+  }
 
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATE_KEYS).c_str(), 56,
-              310, 140);
-  hCandidateKeysCombo = CreateCombo(hwnd, 210, 306, 260);
+  y += 30;
+  CreateSeparator(hwnd, kLeft, y, kWidth - 12);
+  y += 12;
+
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATE_KEYS).c_str(),
+              kLabelX, y, 124);
+  hCandidateKeysCombo = CreateCombo(hwnd, kControlX, y - 4, 118);
   for (const auto& option : kCandidateKeyOptions) {
-    // candidate key options use raw strings and don't require localization,
-    // we use Utf8ToUtf16 helper or construct wstring manually since they are ASCII.
     std::wstring ws(option.value, option.value + strlen(option.value));
     AddComboString(hCandidateKeysCombo, ws.c_str());
   }
+  hChooseSpaceCheck =
+      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_CHOOSE_SPACE).c_str(),
+                  kControlX, y + 22, 190);
 
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATES_PER_PAGE).c_str(),
-              56, 350, 140);
-  hCandidateKeysCountCombo = CreateCombo(hwnd, 210, 346, 120);
+  y += kRowGap + 22;
+  CreateLabel(hwnd,
+              LoadLocalizedStringW(hInst, IDS_CANDIDATES_PER_PAGE).c_str(),
+              kLabelX, y, 124);
+  hCandidateKeysCountCombo = CreateCombo(hwnd, kControlX, y - 4, 56);
   for (int count = 4; count <= 9; ++count) {
     wchar_t text[4] = {};
     _itow_s(count, text, 10);
     AddComboString(hCandidateKeysCountCombo, text);
   }
 
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SELECTION_CURSOR).c_str(),
-              56, 390, 140);
-  hSelectBeforeRadio = CreateRadio(
-      hwnd, LoadLocalizedStringW(hInst, IDS_SELECT_BEFORE).c_str(), 210, 386,
-      310, true);
-  hSelectAfterRadio = CreateRadio(
-      hwnd, LoadLocalizedStringW(hInst, IDS_SELECT_AFTER).c_str(), 210, 418, 310,
-      false);
-  hMoveCursorCheck =
-      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_MOVE_CURSOR).c_str(),
-                  210, 450, 280);
-
-  CreateGroup(hwnd, 24, 508, 548, 184);
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_INPUT_BEHAVIOR).c_str(), 56,
-              542, 140);
-  hUppercaseRadio = CreateRadio(
-      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER_UPPER).c_str(), 210,
-      538, 320, true);
-  hLowercaseRadio = CreateRadio(
-      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER_LOWER).c_str(), 210,
-      570, 320, false);
-  hEscClearCheck =
-      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_ESC_CLEAR).c_str(), 210,
-                  602, 320);
-  hShiftEnterCheck =
-      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_ENTER).c_str(),
-                  210, 634, 320);
-
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CTRL_ENTER).c_str(), 56, 666,
-              140);
-  hCtrlEnterCombo = CreateCombo(hwnd, 210, 662, 260);
-  for (const auto& option : kCtrlEnterOptions) {
-    AddComboString(hCtrlEnterCombo, LoadLocalizedStringW(hInst, option.labelId).c_str());
+  y += kRowGap;
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SELECTION_ACTION).c_str(),
+              kLabelX, y, 124);
+  hSelectionActionCombo = CreateCombo(hwnd, kControlX, y - 4, 190);
+  for (const auto& option : kSelectionActionOptions) {
+    AddComboString(hSelectionActionCombo,
+                   LoadLocalizedStringW(hInst, option.labelId).c_str());
   }
 
-  CreateGroup(hwnd, 24, 710, 548, 108);
+  y += kRowGap;
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SELECTION_CURSOR).c_str(),
+              kLabelX, y, 124);
+  hSelectBeforeRadio =
+      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_SELECT_BEFORE).c_str(),
+                  kControlX, y - 2, 270, true);
+  hSelectAfterRadio =
+      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_SELECT_AFTER).c_str(),
+                  kControlX, y + 20, 270, false);
+  hMoveCursorCheck =
+      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_MOVE_CURSOR).c_str(),
+                  kControlX, y + 44, 200);
+
+  y += 78;
+  CreateSeparator(hwnd, kLeft, y, kWidth - 12);
+  y += 12;
+
+  CreateLabel(hwnd,
+              LoadLocalizedStringW(hInst, IDS_CANDIDATE_PRESENTATION).c_str(),
+              kLabelX, y, 124);
+  hVerticalRadio =
+      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_VERTICAL).c_str(),
+                  kControlX, y - 2, 100, true);
+  hHorizontalRadio =
+      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_HORIZONTAL).c_str(),
+                  kControlX, y + 20, 100, false);
+
+  y += 54;
+  CreateLabel(hwnd,
+              LoadLocalizedStringW(hInst, IDS_CANDIDATE_FONT_SIZE).c_str(),
+              kLabelX, y, 124);
+  hCandidateFontSizeCombo = CreateCombo(hwnd, kControlX, y - 4, 56);
+  for (int fontSize : kCandidateFontSizes) {
+    wchar_t text[4] = {};
+    _itow_s(fontSize, text, 10);
+    AddComboString(hCandidateFontSizeCombo, text);
+  }
+
+  y += 34;
+  CreateSeparator(hwnd, kLeft, y, kWidth - 12);
+  y += 12;
+
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_TOGGLE).c_str(),
+              kLabelX, y, 124);
+  hShiftToggleCheck = CreateCheck(
+      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_TOGGLE_OPEN_CLOSE).c_str(),
+      kControlX, y - 2, 240);
+
+  y += kRowGap;
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER).c_str(),
+              kLabelX, y, 124);
+  hUppercaseRadio = CreateRadio(
+      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER_UPPER).c_str(),
+      kControlX, y - 2, 250, true);
+  hLowercaseRadio = CreateRadio(
+      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER_LOWER).c_str(),
+      kControlX, y + 20, 260, false);
+
+  y += 50;
+  CreateLabel(hwnd, L"ESC", kLabelX, y, 124);
+  hEscClearCheck =
+      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_ESC_CLEAR).c_str(),
+                  kControlX, y - 2, 250);
+
+  y += kRowGap;
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CTRL_ENTER).c_str(),
+              kLabelX, y, 124);
+  hCtrlEnterCombo = CreateCombo(hwnd, kControlX, y - 4, 170);
+  for (const auto& option : kCtrlEnterOptions) {
+    AddComboString(hCtrlEnterCombo,
+                   LoadLocalizedStringW(hInst, option.labelId).c_str());
+  }
+
+  y += 30;
   CreateLabel(hwnd,
               LoadLocalizedStringW(hInst, IDS_CANDIDATES_PUNCTUATION).c_str(),
-              56, 744, 140);
+              kLabelX, y, 124);
   hRepeatedPunctuationCheck = CreateCheck(
-      hwnd, LoadLocalizedStringW(hInst, IDS_REPEATED_PUNCTUATION).c_str(), 210,
-      740, 330);
-  hChooseSpaceCheck =
-      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_CHOOSE_SPACE).c_str(),
-                  210, 772, 320);
+      hwnd, LoadLocalizedStringW(hInst, IDS_REPEATED_PUNCTUATION).c_str(),
+      kControlX, y - 2, 280);
+
+  y += kRowGap;
+  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_ERROR_BEEP).c_str(),
+              kLabelX, y, 124);
+  hErrorBeepCheck =
+      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_ERROR_BEEP).c_str(),
+                  kControlX, y - 2, 180);
+
+  y += 34;
+  hManualLink =
+      CreateLink(hwnd, LoadLocalizedStringW(hInst, IDS_MANUAL_LINK).c_str(),
+                 kControlX, y, 200, kManualLinkCommand);
+  y += 20;
+  hProjectHomepageLink = CreateLink(
+      hwnd, LoadLocalizedStringW(hInst, IDS_PROJECT_HOMEPAGE).c_str(),
+      kControlX, y, 120, kProjectHomepageCommand);
 
   UpdateUI();
   ApplyThemeToControls();
-  g_ContentHeight += Scale(24);
+  g_ContentHeight += Scale(20);
+  CacheChildBaseRects(hwnd);
+  ReflowChildControls(hwnd, g_ScrollPos);
 }
 
 bool HandleOwnerDrawClick(HWND control) {
@@ -660,16 +850,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_GETMINMAXINFO: {
       MINMAXINFO* pMinMaxInfo = reinterpret_cast<MINMAXINFO*>(lParam);
       // Fix window width - cannot be resized horizontally
-      int fixedWidth = Scale(620);
+      int fixedWidth = Scale(550);
       pMinMaxInfo->ptMinTrackSize.x = fixedWidth;
       pMinMaxInfo->ptMaxTrackSize.x = fixedWidth;
-      // Allow height adjustment, with minimum of 300px and maximum of 800px
-      pMinMaxInfo->ptMinTrackSize.y = Scale(300);
-      pMinMaxInfo->ptMaxTrackSize.y = Scale(800);
+      // Allow height adjustment while keeping the layout usable on smaller
+      // laptops.
+      pMinMaxInfo->ptMinTrackSize.y = Scale(460);
+      pMinMaxInfo->ptMaxTrackSize.y = Scale(760);
       break;
     }
     case WM_SIZE: {
-      // Update scrollbar when window is resized
       RECT rect;
       GetClientRect(hwnd, &rect);
       int visibleHeight = rect.bottom - rect.top;
@@ -677,11 +867,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
       SCROLLINFO si = {sizeof(SCROLLINFO), SIF_RANGE | SIF_PAGE | SIF_POS};
       si.nMin = 0;
-      si.nMax = totalHeight;
+      si.nMax = std::max(0, totalHeight - 1);
       si.nPage = visibleHeight;
-      si.nPos = g_ScrollPos;
+      si.nPos = std::min(g_ScrollPos, std::max(0, totalHeight - visibleHeight));
       SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
-      ApplyVerticalScroll(hwnd, g_ScrollPos);
+      ShowScrollBar(hwnd, SB_HORZ, FALSE);
+      g_ScrollPos = si.nPos;
+      ReflowChildControls(hwnd, g_ScrollPos);
+      InvalidateRect(hwnd, nullptr, TRUE);
       break;
     }
     case WM_MOUSEWHEEL: {
@@ -731,7 +924,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_CTLCOLORSTATIC: {
       HDC hdc = reinterpret_cast<HDC>(wParam);
       SetBkMode(hdc, TRANSPARENT);
-      SetTextColor(hdc, g_TextColor);
+      HWND control = reinterpret_cast<HWND>(lParam);
+      if (ContainsControl(g_LinkLabels, control)) {
+        SetTextColor(hdc, RGB(0, 102, 204));
+      } else {
+        SetTextColor(hdc, g_TextColor);
+      }
       return reinterpret_cast<LRESULT>(g_WindowBrush);
     }
     case WM_CTLCOLORBTN: {
@@ -760,6 +958,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_COMMAND:
       if (LOWORD(wParam) == kReloadCommand) {
         UpdateUI();
+      } else if (HIWORD(wParam) == STN_CLICKED &&
+                 LOWORD(wParam) == kManualLinkCommand) {
+        ShellExecuteW(hwnd, L"open", kManualUrl, nullptr, nullptr,
+                      SW_SHOWNORMAL);
+      } else if (HIWORD(wParam) == STN_CLICKED &&
+                 LOWORD(wParam) == kProjectHomepageCommand) {
+        ShellExecuteW(hwnd, L"open", kProjectHomepageUrl, nullptr, nullptr,
+                      SW_SHOWNORMAL);
       } else if (HIWORD(wParam) == BN_CLICKED ||
                  HIWORD(wParam) == CBN_SELCHANGE) {
         if (HIWORD(wParam) == BN_CLICKED) {
@@ -771,6 +977,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_DESTROY:
       DeleteObject(hUiFont);
       DeleteObject(hTitleFont);
+      DeleteObject(hLinkFont);
       DeleteObject(g_WindowBrush);
       DeleteObject(g_ControlBrush);
       PostQuitMessage(0);
@@ -800,8 +1007,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
 
   UpdateThemeColors();
 
-  hUiFont = CreateUIFont(12, FW_NORMAL);
-  hTitleFont = CreateUIFont(17, FW_SEMIBOLD);
+  hUiFont = CreateUIFont(11, FW_NORMAL);
+  hTitleFont = CreateUIFont(11, FW_BOLD);
+  hLinkFont = CreateUIFont(11, FW_NORMAL, true);
 
   WNDCLASSEXW wcex = {sizeof(WNDCLASSEXW)};
   wcex.lpfnWndProc = WndProc;
@@ -817,7 +1025,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
   HWND hwnd =
       CreateWindowExW(WS_EX_CONTROLPARENT, kClassName, windowTitle.c_str(),
                       WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX | WS_VSCROLL,
-                      CW_USEDEFAULT, CW_USEDEFAULT, Scale(620), Scale(640),
+                      CW_USEDEFAULT, CW_USEDEFAULT, Scale(650), Scale(560),
                       nullptr, nullptr, hInstance, nullptr);
   ShowWindow(hwnd, nCmdShow);
 

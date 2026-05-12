@@ -175,6 +175,30 @@ bool IsStandaloneModifierKey(WPARAM wParam) {
   }
 }
 
+bool IsShiftKey(WPARAM wParam) {
+  switch (wParam) {
+    case VK_SHIFT:
+    case VK_LSHIFT:
+    case VK_RSHIFT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool IsAltPressed(const BYTE keyboardState[256]) {
+  return (keyboardState[VK_MENU] & 0x80) != 0 ||
+         (keyboardState[VK_LMENU] & 0x80) != 0 ||
+         (keyboardState[VK_RMENU] & 0x80) != 0 ||
+         IsVirtualKeyDown(VK_MENU) || IsVirtualKeyDown(VK_LMENU) ||
+         IsVirtualKeyDown(VK_RMENU);
+}
+
+bool IsOnlyShiftKeyEvent(WPARAM wParam, const BYTE keyboardState[256]) {
+  return IsShiftKey(wParam) && !IsCtrlPressed(keyboardState) &&
+         !IsAltPressed(keyboardState);
+}
+
 bool GetFocusedContext(ITfThreadMgr* threadMgr, ITfContext** context) {
   if (!threadMgr || !context) {
     return false;
@@ -474,6 +498,7 @@ STDAPI McBopomofoTIP::Deactivate() {
 }
 
 STDAPI McBopomofoTIP::OnSetFocus(BOOL fForeground) {
+  shiftToggleKeyPending_ = false;
   if (!fForeground) {
     resetServerState_();
   }
@@ -536,6 +561,11 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
 
   BYTE keyboardState[256];
   GetKeyboardState(keyboardState);
+
+  if (handleStandaloneShiftKeyDown_(wParam, keyboardState)) {
+    *pfEaten = FALSE;
+    return S_OK;
+  }
 
   if (!IsOpen()) {
     *pfEaten = FALSE;
@@ -609,11 +639,18 @@ STDAPI McBopomofoTIP::OnTestKeyUp(ITfContext* pic, WPARAM wParam, LPARAM lParam,
 STDAPI McBopomofoTIP::OnKeyUp(ITfContext* pic, WPARAM wParam, LPARAM lParam,
                               BOOL* pfEaten) {
   UNREFERENCED_PARAMETER(pic);
-  UNREFERENCED_PARAMETER(wParam);
   UNREFERENCED_PARAMETER(lParam);
   if (pfEaten == nullptr) {
     return E_INVALIDARG;
   }
+
+  BYTE keyboardState[256];
+  GetKeyboardState(keyboardState);
+  if (handleStandaloneShiftKeyUp_(wParam, keyboardState)) {
+    *pfEaten = TRUE;
+    return S_OK;
+  }
+
   *pfEaten = FALSE;
   return S_OK;
 }
@@ -706,6 +743,7 @@ STDAPI McBopomofoTIP::OnUninitDocumentMgr(ITfDocumentMgr* pDocMgr) {
 STDAPI McBopomofoTIP::OnSetFocus(ITfDocumentMgr* pDocMgrFocus,
                                  ITfDocumentMgr* pDocMgrPrevFocus) {
   UNREFERENCED_PARAMETER(pDocMgrPrevFocus);
+  shiftToggleKeyPending_ = false;
   if (pDocMgrFocus == nullptr) {
     resetServerState_();
   }
@@ -723,10 +761,12 @@ STDAPI McBopomofoTIP::OnPopContext(ITfContext* pic) {
 }
 
 STDAPI McBopomofoTIP::OnSetThreadFocus() {
+  shiftToggleKeyPending_ = false;
   return S_OK;
 }
 
 STDAPI McBopomofoTIP::OnKillThreadFocus() {
+  shiftToggleKeyPending_ = false;
   candidateWindow_.Hide();
   tooltipWindow_.Hide();
   resetServerState_();
@@ -815,6 +855,48 @@ void McBopomofoTIP::RefreshLangBar() {
     LogMessage("Refreshing settings button");
     pSettingsButton_->Update();
   }
+}
+
+bool McBopomofoTIP::shouldToggleOpenCloseWithShift_() const {
+  McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
+  std::string response;
+  if (!pipe.Call(McBopomofo::IPC::SerializeGetSettings(), response)) {
+    LogMessage("GET_SETTINGS IPC Call failed, fallback to enabled");
+    return true;
+  }
+
+  McBopomofo::IPC::ClientSettingsPayload payload;
+  if (!McBopomofo::IPC::DeserializeClientSettings(response, payload)) {
+    LogMessage("GET_SETTINGS response deserialize failed, fallback to enabled");
+    return true;
+  }
+
+  return payload.shiftToggleOpenClose;
+}
+
+bool McBopomofoTIP::handleStandaloneShiftKeyDown_(
+    WPARAM wParam, const BYTE keyboardState[256]) {
+  if (IsOnlyShiftKeyEvent(wParam, keyboardState)) {
+    shiftToggleKeyPending_ = true;
+    return true;
+  }
+
+  shiftToggleKeyPending_ = false;
+  return false;
+}
+
+bool McBopomofoTIP::handleStandaloneShiftKeyUp_(
+    WPARAM wParam, const BYTE keyboardState[256]) {
+  const bool shouldToggle =
+      IsOnlyShiftKeyEvent(wParam, keyboardState) && shiftToggleKeyPending_ &&
+      shouldToggleOpenCloseWithShift_();
+  shiftToggleKeyPending_ = false;
+  if (!shouldToggle) {
+    return false;
+  }
+
+  ToggleOpenClose();
+  return true;
 }
 
 void McBopomofoTIP::ToggleOpenClose() {

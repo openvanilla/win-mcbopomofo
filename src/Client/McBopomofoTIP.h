@@ -108,6 +108,11 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
                             const McBopomofo::IPC::StateUpdatePayload& state,
                             const char* logPrefix);
   void resetServerState_();
+  bool shouldToggleOpenCloseWithShift_() const;
+  bool handleStandaloneShiftKeyDown_(WPARAM wParam,
+                                     const BYTE keyboardState[256]);
+  bool handleStandaloneShiftKeyUp_(WPARAM wParam,
+                                   const BYTE keyboardState[256]);
 
   LONG cRef_;
   ITfThreadMgr* ptim_;
@@ -135,6 +140,8 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
 
   // Settings menu button that appears in the legacy Windows Language Bar.
   class CLangBarButton* pSettingsButton_;
+
+  bool shiftToggleKeyPending_ = false;
 
  public:
   void ToggleOpenClose();

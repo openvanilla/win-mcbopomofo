@@ -11,6 +11,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     payload.composingBuffer = "compose\nbuffer";
     payload.cursorIndex = 3;
     payload.candidateIndex = 2;
+    payload.candidateFontSize = 20;
     payload.markStart = 1;
     payload.markEnd = 4;
     payload.forceVertical = true;
@@ -32,6 +33,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     EXPECT_EQ(decoded.composingBuffer, payload.composingBuffer);
     EXPECT_EQ(decoded.cursorIndex, payload.cursorIndex);
     EXPECT_EQ(decoded.candidateIndex, payload.candidateIndex);
+    EXPECT_EQ(decoded.candidateFontSize, payload.candidateFontSize);
     EXPECT_EQ(decoded.markStart, payload.markStart);
     EXPECT_EQ(decoded.markEnd, payload.markEnd);
     EXPECT_EQ(decoded.forceVertical, payload.forceVertical);
@@ -60,4 +62,16 @@ TEST(IpcTest, RejectsTruncatedSizedStringPayload) {
 
     IPC::StateUpdatePayload decoded;
     EXPECT_FALSE(IPC::DeserializeStateUpdate(malformed, decoded));
+}
+
+TEST(IpcTest, ClientSettingsRoundTrip) {
+    IPC::ClientSettingsPayload payload;
+    payload.shiftToggleOpenClose = false;
+
+    std::string serialized = IPC::SerializeClientSettings(payload);
+
+    IPC::ClientSettingsPayload decoded;
+    ASSERT_TRUE(IPC::DeserializeClientSettings(serialized, decoded));
+    EXPECT_EQ(decoded.shiftToggleOpenClose, payload.shiftToggleOpenClose);
+    EXPECT_TRUE(IPC::IsGetSettingsCommand(IPC::SerializeGetSettings()));
 }

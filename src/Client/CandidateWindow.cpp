@@ -25,12 +25,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <sstream>
 #include <dwmapi.h>
-#include <roapi.h>
-#include <winrt/base.h>
-#include <winrt/Windows.UI.h>
-#include <winrt/Windows.UI.ViewManagement.h>
+#include <sstream>
 
 #include "PathCompat.h"
 #include "UTFHelper.h"
@@ -38,7 +34,6 @@
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "dwmapi.lib")
-#pragma comment(lib, "runtimeobject.lib")
 
 const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
@@ -55,26 +50,14 @@ const wchar_t* const CANDIDATE_WINDOW_CLASS = L"WinMcBopomofoCandidateWindow";
 
 namespace {
 
-D2D1_COLOR_F GetSystemAccentColorOrDefault() {
-  HRESULT roInit = RoInitialize(RO_INIT_MULTITHREADED);
-  if (SUCCEEDED(roInit) || roInit == RPC_E_CHANGED_MODE) {
-    try {
-      winrt::Windows::UI::ViewManagement::UISettings settings;
-      const auto color = settings.GetColorValue(
-          winrt::Windows::UI::ViewManagement::UIColorType::Accent);
-      if (SUCCEEDED(roInit)) {
-        RoUninitialize();
-      }
-      return D2D1::ColorF(static_cast<float>(color.R) / 255.0f,
-                          static_cast<float>(color.G) / 255.0f,
-                          static_cast<float>(color.B) / 255.0f, 1.0f);
-    } catch (...) {
-      if (SUCCEEDED(roInit)) {
-        RoUninitialize();
-      }
-    }
-  }
+#ifndef DWMWA_BORDER_COLOR
+#define DWMWA_BORDER_COLOR 34
+#endif
 
+constexpr COLORREF kDwmColorNone =
+    static_cast<COLORREF>(0xFFFFFFFE);
+
+D2D1_COLOR_F GetSystemAccentColorOrDefault() {
   DWORD colorization = 0;
   BOOL opaqueBlend = FALSE;
   if (SUCCEEDED(DwmGetColorizationColor(&colorization, &opaqueBlend))) {
@@ -84,7 +67,8 @@ D2D1_COLOR_F GetSystemAccentColorOrDefault() {
     const float b = static_cast<float>(colorization & 0xFF) / 255.0f;
     return D2D1::ColorF(r, g, b, a);
   }
-  return D2D1::ColorF(0x0078D7);
+
+  return D2D1::ColorF(0x0078D7);  // Default color when DWM is unavailable.
 }
 
 }  // namespace
@@ -98,6 +82,7 @@ CandidateWindow::CandidateWindow()
       isVertical_(false),
       forceVertical_(false),
       selectionStyle_(McBopomofo::IPC::CandidateSelectionStyle::kStandard),
+      candidateFontSize_(16),
       isDarkMode_(false),
       highlightColor_(D2D1::ColorF(0x0078D7)),
       pD2DFactory_(nullptr),
@@ -163,12 +148,24 @@ void CandidateWindow::createDeviceIndependentResources_() {
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory_);
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
                         reinterpret_cast<IUnknown**>(&pDWriteFactory_));
+  }
 
+  if (pTextFormat_) {
+    pTextFormat_->Release();
+    pTextFormat_ = nullptr;
+  }
+  if (pHintFormat_) {
+    pHintFormat_->Release();
+    pHintFormat_ = nullptr;
+  }
+
+  if (pDWriteFactory_) {
     pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI",  // Good UI font for Traditional Chinese with
                                    // Emoji support
         NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"zh-TW", &pTextFormat_);
+        DWRITE_FONT_STRETCH_NORMAL, static_cast<FLOAT>(candidateFontSize_),
+        L"zh-TW", &pTextFormat_);
 
     pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI", NULL, DWRITE_FONT_WEIGHT_NORMAL,
@@ -197,8 +194,8 @@ void CandidateWindow::createDeviceResources_() {
       pRenderTarget_->CreateSolidColorBrush(
           isDarkMode_ ? D2D1::ColorF(0x404040) : D2D1::ColorF(0xCCCCCC),
           &pBorderBrush_);
-      pRenderTarget_->CreateSolidColorBrush(
-          highlightColor_, &pHighlightBgBrush_);
+      pRenderTarget_->CreateSolidColorBrush(highlightColor_,
+                                            &pHighlightBgBrush_);
       pRenderTarget_->CreateSolidColorBrush(
           D2D1::ColorF(0xFFFFFF),  // White text on highlight
           &pHighlightTextBrush_);
@@ -210,6 +207,12 @@ void CandidateWindow::enableDropShadow_() {
   if (!hwnd_) {
     return;
   }
+
+  // Ask the window manager to keep a tiny frame so borderless popup windows
+  // can still receive the standard DWM shadow.
+  const MARGINS margins = {1, 1, 1, 1};
+  DwmExtendFrameIntoClientArea(hwnd_, &margins);
+
   BOOL enabled = FALSE;
   if (FAILED(DwmIsCompositionEnabled(&enabled)) || !enabled) {
     return;
@@ -218,6 +221,11 @@ void CandidateWindow::enableDropShadow_() {
   const DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
   DwmSetWindowAttribute(hwnd_, DWMWA_NCRENDERING_POLICY, &policy,
                         sizeof(policy));
+
+  // Keep the DWM shadow but suppress the compositor-drawn border/frame color
+  // that otherwise shows up as a gray rectangle around popup windows.
+  DwmSetWindowAttribute(hwnd_, DWMWA_BORDER_COLOR, &kDwmColorNone,
+                        sizeof(kDwmColorNone));
 }
 
 void CandidateWindow::enableSystemRoundedCorners_() {
@@ -306,7 +314,7 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = CS_IME;
+  wcex.style = CS_IME | CS_DROPSHADOW;
   wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -339,9 +347,15 @@ void CandidateWindow::Destroy() {
 
 void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
                                int cursorIndex, bool forceVertical,
-                               McBopomofo::IPC::CandidateSelectionStyle selectionStyle,
+                               McBopomofo::IPC::CandidateSelectionStyle
+                                   selectionStyle,
+                               int candidateFontSize,
                                const std::string& hint) {
   if (!hwnd_) return;
+
+  // Refresh theme right before showing so each host process can pick up the
+  // current system mode even if it missed the broadcast message.
+  updateTheme_();
 
   dpiScale_ = getDpiScale_();
 
@@ -366,6 +380,10 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
 
   forceVertical_ = forceVertical;
   selectionStyle_ = selectionStyle;
+  if (candidateFontSize_ != candidateFontSize) {
+    candidateFontSize_ = candidateFontSize;
+    createDeviceIndependentResources_();
+  }
   rebuildLayoutAndResize_();
 }
 
@@ -460,7 +478,9 @@ void CandidateWindow::rebuildLayoutAndResize_() {
       for (const auto& range : keyRanges_) {
         DWRITE_TEXT_RANGE dwriteRange = {range.start, range.length};
         pTextLayout_->SetFontFamilyName(L"Segoe UI", dwriteRange);
-        pTextLayout_->SetFontSize(15.0f, dwriteRange);
+        pTextLayout_->SetFontSize(
+            std::max(10.0f, static_cast<float>(candidateFontSize_) - 3.0f),
+            dwriteRange);
       }
     }
   }

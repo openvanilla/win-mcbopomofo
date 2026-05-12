@@ -43,6 +43,7 @@ class CandidateWindow {
                 bool forceVertical = false,
                 McBopomofo::IPC::CandidateSelectionStyle selectionStyle =
                     McBopomofo::IPC::CandidateSelectionStyle::kStandard,
+                int candidateFontSize = 16,
                 const std::string& hint = "");
   void Move(int x, int y);
   void Hide();
@@ -96,6 +97,7 @@ class CandidateWindow {
   bool isVertical_;
   bool forceVertical_;
   McBopomofo::IPC::CandidateSelectionStyle selectionStyle_;
+  int candidateFontSize_;
   bool isDarkMode_;
   D2D1_COLOR_F highlightColor_;
 

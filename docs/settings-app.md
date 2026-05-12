@@ -52,5 +52,5 @@
   . | <color:blue><u>小麥注音使用手冊</u></color>
   . | <color:blue><u>專案首頁</u></color>
 }
-@endsal
+@endsalt
 ```

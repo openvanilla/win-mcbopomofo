@@ -170,6 +170,38 @@ bool IsOpenSettingsCommand(const std::string& data) {
   }
 }
 
+std::string SerializeGetSettings() {
+  std::ostringstream ss;
+  ss << (int)Command::CMD_GET_SETTINGS << "\n";
+  return ss.str();
+}
+
+bool IsGetSettingsCommand(const std::string& data) {
+  std::istringstream ss(data);
+  std::string line;
+  if (!std::getline(ss, line)) return false;
+  try {
+    return std::stoi(line) == (int)Command::CMD_GET_SETTINGS;
+  } catch (...) {
+    return false;
+  }
+}
+
+std::string SerializeClientSettings(const ClientSettingsPayload& payload) {
+  std::ostringstream ss;
+  ss << (payload.shiftToggleOpenClose ? 1 : 0) << "\n";
+  return ss.str();
+}
+
+bool DeserializeClientSettings(const std::string& data,
+                               ClientSettingsPayload& payload) {
+  std::istringstream ss(data);
+  std::string line;
+  if (!std::getline(ss, line)) return false;
+  payload.shiftToggleOpenClose = (line == "1");
+  return true;
+}
+
 // Format for StateUpdate:
 // CONSUMED(1/0)
 // CURSOR_INDEX
@@ -185,6 +217,7 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
   ss << (payload.consumed ? 1 : 0) << "\n"
      << payload.cursorIndex << "\n"
      << payload.candidateIndex << "\n"
+     << payload.candidateFontSize << "\n"
      << (payload.forceVertical ? 1 : 0) << "\n"
      << static_cast<int>(payload.selectionStyle) << "\n"
      << payload.markStart << "\n"
@@ -216,6 +249,9 @@ bool DeserializeStateUpdate(const std::string& data,
 
   if (!std::getline(ss, line)) return false;
   payload.candidateIndex = std::stoi(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.candidateFontSize = std::stoi(line);
 
   if (!std::getline(ss, line)) return false;
   payload.forceVertical = (line == "1");

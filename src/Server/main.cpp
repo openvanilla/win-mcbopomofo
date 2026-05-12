@@ -674,6 +674,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       return IPC::SerializeStateUpdate(ui.currentState);
     }
 
+    if (IPC::IsGetSettingsCommand(req)) {
+      FCITX_MCBOPOMOFO_INFO() << "IPC Recv: GET_SETTINGS";
+      IPC::ClientSettingsPayload payload;
+      payload.shiftToggleOpenClose = settings.shiftToggleOpenClose();
+      return IPC::SerializeClientSettings(payload);
+    }
+
     FCITX_MCBOPOMOFO_WARN() << "IPC Failed to deserialize request.";
     return std::string();
   });

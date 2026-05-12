@@ -27,9 +27,9 @@ BEGIN
     IDS_ESC_CLEAR              "Esc clears entire buffer"
     IDS_SHIFT_ENTER            "Shift + Enter for associated phrases"
     IDS_CTRL_ENTER             "Ctrl + Enter"
-    IDS_CANDIDATES_PUNCTUATION "Candidates & Punctuation"
+    IDS_CANDIDATES_PUNCTUATION "Punctuation"
     IDS_REPEATED_PUNCTUATION   "Choose punctuation on repeated key"
-    IDS_CHOOSE_SPACE           "Use Space to choose candidate"
+    IDS_CHOOSE_SPACE           "Space key chooses candidate"
 
     IDS_LAYOUT_STANDARD        "Standard"
     IDS_LAYOUT_ETEN            "ETen"
@@ -40,11 +40,25 @@ BEGIN
 
     IDS_MODE_MCBOPOMOFO        "McBopomofo"
     IDS_MODE_PLAIN_BOPOMOFO    "Plain Bopomofo"
+    IDS_MODE_MCBOPOMOFO_AUTO   "McBopomofo (Auto-select)"
+    IDS_MODE_PLAIN_BOPOMOFO_MANUAL "Traditional Bopomofo (Manual-select)"
 
     IDS_CTRL_ENTER_DISABLED       "Disabled"
     IDS_CTRL_ENTER_BPMF_READING   "Output Bopomofo Readings"
     IDS_CTRL_ENTER_HTML_RUBY      "Output HTML Ruby Text"
     IDS_CTRL_ENTER_HANYU_PINYIN   "Output Hanyu Pinyin"
+    IDS_SELECTION_ACTION          "When Selecting"
+    IDS_SELECTION_ACTION_NONE     "Do not move cursor"
+    IDS_SELECTION_ACTION_JK       "Move cursor using J / K"
+    IDS_SELECTION_ACTION_HL       "Move cursor using H / L"
+    IDS_CANDIDATE_PRESENTATION    "Candidate Presentation"
+    IDS_CANDIDATE_FONT_SIZE       "Candidate Font Size"
+    IDS_SHIFT_TOGGLE              "Shift"
+    IDS_SHIFT_TOGGLE_OPEN_CLOSE   "Use Shift to switch Chinese / English"
+    IDS_ERROR_BEEP                "Beep on error"
+    IDS_MANUAL_LINK               "McBopomofo User Manual"
+    IDS_PROJECT_HOMEPAGE          "Project Homepage"
+    IDS_SHIFT_LETTER              "Shift + Letter"
 END
 
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
@@ -60,8 +74,8 @@ BEGIN
     IDS_CANDIDATE_KEYS         "選字按鍵"
     IDS_CANDIDATES_PER_PAGE    "每頁候選字"
     IDS_SELECTION_CURSOR       "選字游標"
-    IDS_SELECT_BEFORE          "以游標前方字詞為候選字"
-    IDS_SELECT_AFTER           "以游標後方字詞為候選字"
+    IDS_SELECT_BEFORE          "游標前方(像漢音輸入法)"
+    IDS_SELECT_AFTER           "游標後方(像微軟新注音輸入法)"
     IDS_MOVE_CURSOR            "選字後移動游標"
     IDS_INPUT_BEHAVIOR         "輸入行為"
     IDS_SHIFT_LETTER_UPPER     "Shift + 字母輸出大寫字母"
@@ -82,12 +96,24 @@ BEGIN
 
     IDS_MODE_MCBOPOMOFO        "小麥注音"
     IDS_MODE_PLAIN_BOPOMOFO    "普通注音"
+    IDS_MODE_MCBOPOMOFO_AUTO   "小麥注音（自動選字）"
+    IDS_MODE_PLAIN_BOPOMOFO_MANUAL "傳統注音（手動選字）"
 
     IDS_CTRL_ENTER_DISABLED       "不作用"
     IDS_CTRL_ENTER_BPMF_READING   "輸出注音讀音"
     IDS_CTRL_ENTER_HTML_RUBY      "輸出 HTML Ruby 文字"
     IDS_CTRL_ENTER_HANYU_PINYIN   "輸出漢語拼音"
+    IDS_SELECTION_ACTION          "選字時"
+    IDS_SELECTION_ACTION_NONE     "不移動游標"
+    IDS_SELECTION_ACTION_JK       "JK 按鍵移動游標"
+    IDS_SELECTION_ACTION_HL       "HL 按鍵移動游標"
+    IDS_CANDIDATE_PRESENTATION    "候選詞呈現方式"
+    IDS_CANDIDATE_FONT_SIZE       "選字窗字體大小"
+    IDS_SHIFT_TOGGLE              "Shift"
+    IDS_SHIFT_TOGGLE_OPEN_CLOSE   "使用 Shift 切換中英文"
+    IDS_ERROR_BEEP                "錯誤時發出嗶聲"
+    IDS_MANUAL_LINK               "小麥注音使用手冊"
+    IDS_PROJECT_HOMEPAGE          "專案首頁"
+    IDS_SHIFT_LETTER              "Shift + 字母"
 END
-
-
 

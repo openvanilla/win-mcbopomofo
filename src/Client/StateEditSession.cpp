@@ -389,7 +389,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         if (!state_.candidates.empty()) {
           pTIP_->GetCandidateWindow()->UpdateUI(
               state_.candidates, state_.candidateIndex, state_.forceVertical,
-              state_.selectionStyle, state_.hint);
+              state_.selectionStyle, state_.candidateFontSize, state_.hint);
         } else {
           pTIP_->GetCandidateWindow()->Hide();
         }
@@ -437,7 +437,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     if (!state_.candidates.empty()) {
       pTIP_->GetCandidateWindow()->UpdateUI(
           state_.candidates, state_.candidateIndex, state_.forceVertical,
-          state_.selectionStyle, state_.hint);
+          state_.selectionStyle, state_.candidateFontSize, state_.hint);
     } else {
       pTIP_->GetCandidateWindow()->Hide();
     }

@@ -192,6 +192,7 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   payload.markStart = -1;
   payload.markEnd = -1;
   payload.candidateIndex = candidateIndex_;
+  payload.candidateFontSize = candidateFontSize_;
 
   auto* state = currentState_.get();
   if (auto* notEmptyState = dynamic_cast<InputStates::NotEmpty*>(state)) {
@@ -366,6 +367,12 @@ void InputController::setChineseConversionEnabled(bool enabled) {
                           << keyHandler_->chineseConversionEnabled();
 }
 
+void InputController::handleError_() const {
+  if (beepOnError_) {
+    MessageBeep(MB_ICONHAND);
+  }
+}
+
 bool InputController::handleKey(const Key& key) {
   if (auto* numberInput =
           dynamic_cast<InputStates::NumberInput*>(currentState_.get())) {
@@ -374,7 +381,7 @@ bool InputController::handleKey(const Key& key) {
             [this](std::unique_ptr<InputState> state) {
               changeState_(std::move(currentState_), std::move(state));
             },
-            []() {})) {
+            [this]() { handleError_(); })) {
       return true;
     }
   }
@@ -431,9 +438,7 @@ bool InputController::handleKey(const Key& key) {
       [this](std::unique_ptr<InputState> state) {
         this->changeState_(std::move(currentState_), std::move(state));
       },
-      []() {
-        // Error callback (e.g. beep)
-      });
+      [this]() { handleError_(); });
 
   return consumed;
 }
@@ -558,7 +563,7 @@ bool InputController::handleCandidateKey_(const Key& key) {
             [this](std::unique_ptr<InputState> state) {
               changeState_(std::move(currentState_), std::move(state));
             },
-            []() {});
+            [this]() { handleError_(); });
     if (handled) {
       return true;
     }
@@ -1034,7 +1039,7 @@ void InputController::changeState_(std::unique_ptr<InputState> previousState,
   if (dynamic_cast<InputStates::Empty*>(newState.get()) != nullptr) {
     if (ui_) ui_->reset();
     if (auto* inputting =
-            dynamic_cast<InputStates::Inputting*>(previousState.get())) {
+            dynamic_cast<InputStates::NotEmpty*>(previousState.get())) {
       std::string text = inputting->composingBuffer;
       if (!text.empty() && ui_) {
         ui_->commitString(text);
