@@ -920,7 +920,6 @@ bool KeyHandler::handleAssociatedPhrases(InputStates::Inputting* state,
         return true;
       }
     }
-    errorCallback();
   }
 
   if (!autoTriggered) {

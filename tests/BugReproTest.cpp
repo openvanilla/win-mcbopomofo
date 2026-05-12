@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <memory>
+#include "ParselessPhraseDB.h"
 #include "InputController.h"
 #include "KeyHandler.h"
 #include "McBopomofoLM.h"
@@ -204,6 +205,29 @@ TEST_F(BugReproTest, AssociatedPhrasesCancelRestoresChoosingCandidateState) {
     ASSERT_EQ(choosing->candidates.size(), 2u);
     EXPECT_EQ(choosing->candidates[0].value, "名");
     EXPECT_EQ(choosing->candidates[1].value, "明");
+}
+
+TEST_F(BugReproTest, PunctuationWithoutAssociatedPhrasesDoesNotTriggerError) {
+    constexpr char kPunctuationOnlyLm[] = R"(
+# format org.openvanilla.mcbopomofo.sorted
+_punctuation_, ， -1.0
+)";
+
+    lm->loadLanguageModel(std::make_unique<ParselessPhraseDB>(
+        kPunctuationOnlyLm, sizeof(kPunctuationOnlyLm)));
+    keyHandler->setAssociatedPhrasesEnabled(true);
+
+    InputStates::Empty state;
+    int errorCount = 0;
+    int stateCount = 0;
+
+    EXPECT_TRUE(keyHandler->handle(
+        Key::asciiKey(',', false, false), &state,
+        [&stateCount](std::unique_ptr<InputState>) { stateCount++; },
+        [&errorCount]() { errorCount++; }));
+
+    EXPECT_EQ(errorCount, 0);
+    EXPECT_GE(stateCount, 1);
 }
 
 int main(int argc, char **argv) {
