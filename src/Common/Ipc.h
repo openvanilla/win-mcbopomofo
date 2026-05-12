@@ -39,6 +39,12 @@ enum class Command : int {
   CMD_OPEN_SETTINGS = 4,
 };
 
+enum class CandidateSelectionStyle : int {
+  kStandard = 0,
+  kShiftDigits = 1,
+  kShiftReturn = 2,
+};
+
 struct KeyEventPayload {
   unsigned int vk;
   unsigned int ascii;
@@ -59,7 +65,8 @@ struct StateUpdatePayload {
   int markStart = -1;       // -1 means no mark
   int markEnd = -1;
   bool forceVertical = false;  // Add flag to force vertical layout
-  bool useShiftKeySelection = false;
+  CandidateSelectionStyle selectionStyle =
+      CandidateSelectionStyle::kStandard;
   std::string tooltip;
   std::string hint;
   std::vector<std::string> candidates;

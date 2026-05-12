@@ -817,7 +817,7 @@ void KeyHandler::setChineseConversionEnabled(bool enabled) {
 bool KeyHandler::handleAssociatedPhrases(InputStates::Inputting* state,
                                          StateCallback stateCallback,
                                          ErrorCallback errorCallback,
-                                         bool useShiftKey) {
+                                         bool autoTriggered) {
   size_t cursor = grid_.cursor();
 
   // We need to find the node *before* the cursor, so cursor must be >= 1.
@@ -914,7 +914,7 @@ bool KeyHandler::handleAssociatedPhrases(InputStates::Inputting* state,
       auto associatedPhrasesState = buildAssociatedPhrasesState(
           buildInputtingState(), prefixCursorIndex,
           AssociatedPhrasesV2::CombineReadings(rdSlice), value.str(),
-          /*selectedCandidateIndex=*/0, useShiftKey);
+          /*selectedCandidateIndex=*/0, autoTriggered);
       if (associatedPhrasesState != nullptr) {
         stateCallback(std::move(associatedPhrasesState));
         return true;
@@ -923,7 +923,7 @@ bool KeyHandler::handleAssociatedPhrases(InputStates::Inputting* state,
     errorCallback();
   }
 
-  if (!useShiftKey) {
+  if (!autoTriggered) {
     errorCallback();
   }
 
@@ -1641,7 +1641,8 @@ std::unique_ptr<InputStates::AssociatedPhrases>
 KeyHandler::buildAssociatedPhrasesState(
     std::unique_ptr<InputStates::NotEmpty> previousState,
     size_t prefixCursorIndex, std::string prefixCombinedReading,
-    std::string prefixValue, size_t selectedCandidateIndex, bool useShiftKey) {
+    std::string prefixValue, size_t selectedCandidateIndex,
+    bool autoTriggered) {
   McBopomofoLM* lm = dynamic_cast<McBopomofoLM*>(lm_.get());
   if (lm == nullptr) {
     return nullptr;
@@ -1661,7 +1662,7 @@ KeyHandler::buildAssociatedPhrasesState(
 
     return std::make_unique<InputStates::AssociatedPhrases>(
         std::move(previousState), prefixCursorIndex, prefixCombinedReading,
-        prefixValue, selectedCandidateIndex, cs, useShiftKey);
+        prefixValue, selectedCandidateIndex, cs, autoTriggered);
   }
   return nullptr;
 }

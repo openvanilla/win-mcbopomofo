@@ -186,7 +186,7 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
      << payload.cursorIndex << "\n"
      << payload.candidateIndex << "\n"
      << (payload.forceVertical ? 1 : 0) << "\n"
-     << (payload.useShiftKeySelection ? 1 : 0) << "\n"
+     << static_cast<int>(payload.selectionStyle) << "\n"
      << payload.markStart << "\n"
      << payload.markEnd << "\n";
 
@@ -221,7 +221,8 @@ bool DeserializeStateUpdate(const std::string& data,
   payload.forceVertical = (line == "1");
 
   if (!std::getline(ss, line)) return false;
-  payload.useShiftKeySelection = (line == "1");
+  payload.selectionStyle =
+      static_cast<CandidateSelectionStyle>(std::stoi(line));
 
   if (!std::getline(ss, line)) return false;
   payload.markStart = std::stoi(line);

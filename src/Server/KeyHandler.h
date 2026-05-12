@@ -85,7 +85,8 @@ class KeyHandler {
 
   bool handleAssociatedPhrases(InputStates::Inputting* state,
                                StateCallback stateCallback,
-                               ErrorCallback errorCallback, bool useShiftKey);
+                               ErrorCallback errorCallback,
+                               bool autoTriggered);
 
   bool handleNumberInput(Key key, InputStates::NumberInput* state,
                          StateCallback stateCallback,
@@ -172,7 +173,8 @@ class KeyHandler {
   std::unique_ptr<InputStates::AssociatedPhrases> buildAssociatedPhrasesState(
       std::unique_ptr<InputStates::NotEmpty> previousState,
       size_t prefixCursorIndex, std::string prefixCombinedReading,
-      std::string prefixValue, size_t selectedCandidateIndex, bool useShiftKey);
+      std::string prefixValue, size_t selectedCandidateIndex,
+      bool autoTriggered);
 
   std::unique_ptr<InputStates::AssociatedPhrases>
   buildAssociatedPhrasesStateFromCandidateChoosingState(

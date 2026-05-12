@@ -93,7 +93,8 @@ int test_shift_key_selection_keycaps() {
     window.SetVertical(false);
 
     std::vector<std::string> candidates = {"A", "B", "C"};
-    window.UpdateUI(candidates, 0, false, true);
+    window.UpdateUI(candidates, 0, false,
+                    McBopomofo::IPC::CandidateSelectionStyle::kShiftDigits);
 
     std::wstring result = window.GetDisplayString();
     std::wstring expected = L"\u21e71. A   \u21e72. B   \u21e73. C";

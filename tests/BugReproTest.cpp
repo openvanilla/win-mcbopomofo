@@ -157,22 +157,53 @@ TEST_F(BugReproTest, BackspaceInSelectingFeatureReturnsToEmpty) {
     EXPECT_NE(dynamic_cast<InputStates::Empty*>(controller->currentState()), nullptr);
 }
 
-TEST_F(BugReproTest, ShiftKeyAssociatedPhrasesDismissOnNonSelectionKey) {
+TEST_F(BugReproTest, AutoTriggeredAssociatedPhrasesTabExpandsCandidateList) {
     controller->setStateForTesting(
         std::make_unique<InputStates::AssociatedPhrases>(
             std::make_unique<InputStates::Inputting>("", 0), 0, "ㄇㄧㄥˊ", "名",
             0,
             std::vector<InputStates::ChoosingCandidate::Candidate>{
+                {"ㄇㄧㄥˊ-ㄗˋ", "名字", "名字"},
                 {"ㄇㄧㄥˊ-ㄘˊ", "名詞", "名詞"}},
             true),
         0);
 
-    EXPECT_TRUE(controller->handleKey(Key::asciiKey(Key::BACKSPACE, false, false)));
-    EXPECT_NE(dynamic_cast<InputStates::Inputting*>(controller->currentState()),
-              nullptr);
-    EXPECT_EQ(
-        dynamic_cast<InputStates::AssociatedPhrases*>(controller->currentState()),
-        nullptr);
+    EXPECT_TRUE(controller->handleKey(Key::asciiKey(Key::TAB, false, false)));
+
+    auto* associated =
+        dynamic_cast<InputStates::AssociatedPhrases*>(controller->currentState());
+    ASSERT_NE(associated, nullptr);
+    EXPECT_FALSE(associated->autoTriggered);
+    ASSERT_EQ(associated->candidates.size(), 2u);
+    EXPECT_EQ(associated->candidates[0].value, "名字");
+    EXPECT_EQ(associated->candidates[1].value, "名詞");
+}
+
+TEST_F(BugReproTest, AssociatedPhrasesCancelRestoresChoosingCandidateState) {
+    std::vector<InputStates::ChoosingCandidate::Candidate> baseCandidates{
+        {"ㄇㄧㄥˊ", "名", "名"},
+        {"ㄇㄧㄥˊ", "明", "明"},
+    };
+    std::vector<InputStates::ChoosingCandidate::Candidate> associatedCandidates{
+        {"ㄇㄧㄥˊ-ㄘˊ", "名詞", "名詞"},
+    };
+
+    controller->setStateForTesting(
+        std::make_unique<InputStates::AssociatedPhrases>(
+            std::make_unique<InputStates::ChoosingCandidate>(
+                "名", 1, 0, baseCandidates),
+            0, "ㄇㄧㄥˊ", "名", 0, associatedCandidates, false),
+        0);
+
+    EXPECT_TRUE(
+        controller->handleKey(Key::asciiKey(Key::ESC, false, false)));
+
+    auto* choosing =
+        dynamic_cast<InputStates::ChoosingCandidate*>(controller->currentState());
+    ASSERT_NE(choosing, nullptr);
+    ASSERT_EQ(choosing->candidates.size(), 2u);
+    EXPECT_EQ(choosing->candidates[0].value, "名");
+    EXPECT_EQ(choosing->candidates[1].value, "明");
 }
 
 int main(int argc, char **argv) {

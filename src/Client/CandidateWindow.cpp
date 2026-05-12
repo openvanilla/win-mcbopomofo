@@ -43,7 +43,7 @@ CandidateWindow::CandidateWindow()
       candidateKeysCount_(9),
       isVertical_(false),
       forceVertical_(false),
-      useShiftKeySelection_(false),
+      selectionStyle_(McBopomofo::IPC::CandidateSelectionStyle::kStandard),
       isDarkMode_(false),
       pD2DFactory_(nullptr),
       pRenderTarget_(nullptr),
@@ -257,7 +257,7 @@ void CandidateWindow::Destroy() {
 
 void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
                                int cursorIndex, bool forceVertical,
-                               bool useShiftKeySelection,
+                               McBopomofo::IPC::CandidateSelectionStyle selectionStyle,
                                const std::string& hint) {
   if (!hwnd_) return;
 
@@ -284,7 +284,7 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
 
   bool drawVertical = isVertical_ || forceVertical;
   forceVertical_ = forceVertical;
-  useShiftKeySelection_ = useShiftKeySelection;
+  selectionStyle_ = selectionStyle;
 
   const int pageSize = candidateKeysCount_;
   int pageIndex = cursorIndex_ / pageSize;
@@ -299,7 +299,11 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
   for (int i = startIndex; i < endIndex; ++i) {
     int displayIndex = i - startIndex;
     std::wstring keyStr;
-    if (useShiftKeySelection_) {
+    if (selectionStyle_ ==
+        McBopomofo::IPC::CandidateSelectionStyle::kShiftReturn) {
+      keyStr = L"\u21e7\u23ce ";
+    } else if (selectionStyle_ ==
+               McBopomofo::IPC::CandidateSelectionStyle::kShiftDigits) {
       keyStr = L"\u21e7";
       keyStr += static_cast<wchar_t>(L'1' + displayIndex);
       keyStr += L". ";

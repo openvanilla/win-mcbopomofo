@@ -53,7 +53,9 @@ int CandidateCount(InputState* state) {
     return 2;
   }
   if (auto* associated = dynamic_cast<InputStates::AssociatedPhrases*>(state)) {
-    return static_cast<int>(associated->candidates.size());
+    return associated->autoTriggered
+               ? std::min(1, static_cast<int>(associated->candidates.size()))
+               : static_cast<int>(associated->candidates.size());
   }
   if (auto* associatedPlain =
           dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state)) {
@@ -115,9 +117,6 @@ bool IsForcedVerticalCandidateState(InputState* state) {
 }
 
 bool IsShiftKeySelectionCandidateState(InputState* state) {
-  if (auto* associated = dynamic_cast<InputStates::AssociatedPhrases*>(state)) {
-    return associated->useShiftKey;
-  }
   return dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state) != nullptr;
 }
 
@@ -189,7 +188,7 @@ void InputController::notifyUI_() {
 IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   IPC::StateUpdatePayload payload;
   payload.forceVertical = false;
-  payload.useShiftKeySelection = false;
+  payload.selectionStyle = IPC::CandidateSelectionStyle::kStandard;
   payload.markStart = -1;
   payload.markEnd = -1;
   payload.candidateIndex = candidateIndex_;
@@ -246,14 +245,22 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
                  dynamic_cast<InputStates::AssociatedPhrases*>(state)) {
     payload.composingBuffer = assoc->composingBuffer;
     payload.cursorIndex = static_cast<int>(assoc->cursorIndex);
-    payload.useShiftKeySelection = assoc->useShiftKey;
     payload.hint = assoc->prefixValue;
-    for (const auto& c : assoc->candidates) {
-      payload.candidates.push_back(c.value);
+    payload.selectionStyle = assoc->autoTriggered
+                                 ? IPC::CandidateSelectionStyle::kShiftReturn
+                                 : IPC::CandidateSelectionStyle::kStandard;
+    if (assoc->autoTriggered) {
+      if (!assoc->candidates.empty()) {
+        payload.candidates.push_back(assoc->candidates.front().value);
+      }
+    } else {
+      for (const auto& c : assoc->candidates) {
+        payload.candidates.push_back(c.value);
+      }
     }
   } else if (auto* assocPlain =
                  dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state)) {
-    payload.useShiftKeySelection = true;
+    payload.selectionStyle = IPC::CandidateSelectionStyle::kShiftDigits;
     for (const auto& c : assocPlain->candidates) {
       payload.candidates.push_back(c.value);
     }
@@ -372,6 +379,27 @@ bool InputController::handleKey(const Key& key) {
     }
   }
 
+  if (auto* associated = dynamic_cast<InputStates::AssociatedPhrases*>(
+          currentState_.get())) {
+    if (associated->autoTriggered) {
+      if (key.ascii == Key::TAB) {
+        auto expanded = std::make_unique<InputStates::AssociatedPhrases>(
+            std::move(associated->previousState), associated->prefixCursorIndex,
+            associated->prefixReading, associated->prefixValue,
+            associated->selectedCandidateIndex, associated->candidates, false);
+        changeState_(std::move(currentState_), std::move(expanded));
+        return true;
+      }
+
+      if (key.ascii == Key::RETURN && key.shiftPressed) {
+        selectCandidate(candidateIndex_ >= 0 ? candidateIndex_ : 0);
+        return true;
+      }
+
+      changeState_(std::move(currentState_), keyHandler_->buildInputtingState());
+    }
+  }
+
   if (IsShiftKeySelectionCandidateState(currentState_.get())) {
     int selectionIndex =
         SelectionIndexFromKey(key, true, candidateKeys_, candidateKeysCount_);
@@ -435,8 +463,7 @@ bool InputController::handleCandidateKey_(const Key& key) {
       dynamic_cast<InputStates::AssociatedPhrasesPlain*>(currentState_.get());
   auto* numberInput =
       dynamic_cast<InputStates::NumberInput*>(currentState_.get());
-  bool useShiftKey = numberInput != nullptr || associatedPlain != nullptr ||
-                     (associated != nullptr && associated->useShiftKey);
+  bool useShiftKey = numberInput != nullptr || associatedPlain != nullptr;
 
   int selectionIndex = SelectionIndexFromKey(key, useShiftKey, candidateKeys_,
                                              candidateKeysCount_);
@@ -465,9 +492,6 @@ bool InputController::handleCandidateKey_(const Key& key) {
   }
 
   if (key.ascii == Key::ESC || key.ascii == Key::BACKSPACE) {
-    if (associated != nullptr && associated->useShiftKey) {
-      return false;
-    }
     cancelCandidatePanel_();
     return true;
   }
@@ -483,9 +507,6 @@ bool InputController::handleCandidateKey_(const Key& key) {
   }
 
   if (key.ascii == Key::SPACE) {
-    if (associated != nullptr && associated->useShiftKey) {
-      return false;
-    }
     moveCandidatePage_(true);
     notifyUI_();
     return true;
@@ -654,9 +675,6 @@ void InputController::cancelCandidatePanel_() {
 
   if (auto* associated =
           dynamic_cast<InputStates::AssociatedPhrases*>(currentState_.get())) {
-    if (associated->useShiftKey) {
-      return;
-    }
     if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(
             associated->previousState.get())) {
       changeState_(std::move(currentState_),

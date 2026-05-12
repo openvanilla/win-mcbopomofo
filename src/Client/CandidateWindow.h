@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include "Ipc.h"
+
 class CandidateWindow {
  public:
   CandidateWindow();
@@ -38,7 +40,9 @@ class CandidateWindow {
   void Destroy();
 
   void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex,
-                bool forceVertical = false, bool useShiftKeySelection = false,
+                bool forceVertical = false,
+                McBopomofo::IPC::CandidateSelectionStyle selectionStyle =
+                    McBopomofo::IPC::CandidateSelectionStyle::kStandard,
                 const std::string& hint = "");
   void Move(int x, int y);
   void Hide();
@@ -88,7 +92,7 @@ class CandidateWindow {
   int candidateKeysCount_;
   bool isVertical_;
   bool forceVertical_;
-  bool useShiftKeySelection_;
+  McBopomofo::IPC::CandidateSelectionStyle selectionStyle_;
   bool isDarkMode_;
 
   TextRange selectedRange_;
