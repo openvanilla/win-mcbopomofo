@@ -125,6 +125,18 @@ class Settings {
   bool candidateWindowVertical() const { return candidateWindowVertical_; }
   void setCandidateWindowVertical(bool v) { candidateWindowVertical_ = v; }
 
+  std::string selectionAction() const { return selectionAction_; }
+  void setSelectionAction(const std::string& v) { selectionAction_ = v; }
+
+  int candidateFontSize() const { return candidateFontSize_; }
+  void setCandidateFontSize(int v) { candidateFontSize_ = v; }
+
+  bool shiftToggleOpenClose() const { return shiftToggleOpenClose_; }
+  void setShiftToggleOpenClose(bool v) { shiftToggleOpenClose_ = v; }
+
+  bool beepOnError() const { return beepOnError_; }
+  void setBeepOnError(bool v) { beepOnError_ = v; }
+
  private:
   std::wstring iniFilePath_() const;
   std::wstring readString_(const wchar_t* section, const wchar_t* key,
@@ -155,6 +167,10 @@ class Settings {
   std::string candidateKeys_ = "123456789";
   int candidateKeysCount_ = 9;
   bool candidateWindowVertical_ = false;
+  std::string selectionAction_ = "None";
+  int candidateFontSize_ = 16;
+  bool shiftToggleOpenClose_ = true;
+  bool beepOnError_ = true;
 };
 
 }  // namespace McBopomofo

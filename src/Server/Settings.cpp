@@ -25,6 +25,7 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <filesystem>
 
 #include "Log.h"
@@ -119,6 +120,21 @@ void Settings::load() {
   }
   candidateWindowVertical_ =
       readBool_(L"UI", L"CandidateWindowVertical", false);
+  selectionAction_ =
+      Utf16ToUtf8(readString_(L"UI", L"SelectionAction", L"None"));
+  if (selectionAction_ != "None" && selectionAction_ != "JK" &&
+      selectionAction_ != "HL") {
+    selectionAction_ = "None";
+  }
+  candidateFontSize_ = readInt_(L"UI", L"CandidateFontSize", 16);
+  const int kFontSizes[] = {10, 12, 14, 16, 18, 20, 24, 28};
+  if (std::find(std::begin(kFontSizes), std::end(kFontSizes),
+                candidateFontSize_) == std::end(kFontSizes)) {
+    candidateFontSize_ = 16;
+  }
+  shiftToggleOpenClose_ =
+      readBool_(L"General", L"ShiftToggleOpenClose", true);
+  beepOnError_ = readBool_(L"General", L"BeepOnError", true);
 }
 
 void Settings::save() {
@@ -149,6 +165,10 @@ void Settings::save() {
   writeString_(L"General", L"CandidateKeys", Utf8ToUtf16(candidateKeys_));
   writeInt_(L"General", L"CandidateKeysCount", candidateKeysCount_);
   writeBool_(L"UI", L"CandidateWindowVertical", candidateWindowVertical_);
+  writeString_(L"UI", L"SelectionAction", Utf8ToUtf16(selectionAction_));
+  writeInt_(L"UI", L"CandidateFontSize", candidateFontSize_);
+  writeBool_(L"General", L"ShiftToggleOpenClose", shiftToggleOpenClose_);
+  writeBool_(L"General", L"BeepOnError", beepOnError_);
 }
 
 void Settings::applyTo(InputController& controller) {
