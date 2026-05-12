@@ -75,6 +75,7 @@ class InputController {
   void setCandidateKeysCount(int count);
   void setCandidateWindowVertical(bool vertical);
   void setChineseConversionEnabled(bool enabled);
+  void setCandidateFontSize(int size) { candidateFontSize_ = size; }
   void setBeepOnError(bool enabled) { beepOnError_ = enabled; }
 
   void setDataDirectory(const std::filesystem::path& dataDir);
@@ -114,6 +115,7 @@ class InputController {
   std::string candidateKeys_ = "123456789";
   int candidateKeysCount_ = 9;
   bool candidateWindowVertical_ = false;
+  int candidateFontSize_ = 16;
   bool beepOnError_ = true;
 
   std::unique_ptr<opencc::SimpleConverter> openccConverter_;

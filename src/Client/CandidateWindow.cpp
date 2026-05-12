@@ -87,6 +87,7 @@ CandidateWindow::CandidateWindow()
       isVertical_(false),
       forceVertical_(false),
       selectionStyle_(McBopomofo::IPC::CandidateSelectionStyle::kStandard),
+      candidateFontSize_(16),
       isDarkMode_(false),
       highlightColor_(D2D1::ColorF(0x0078D7)),
       pD2DFactory_(nullptr),
@@ -152,12 +153,24 @@ void CandidateWindow::createDeviceIndependentResources_() {
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory_);
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
                         reinterpret_cast<IUnknown**>(&pDWriteFactory_));
+  }
 
+  if (pTextFormat_) {
+    pTextFormat_->Release();
+    pTextFormat_ = nullptr;
+  }
+  if (pHintFormat_) {
+    pHintFormat_->Release();
+    pHintFormat_ = nullptr;
+  }
+
+  if (pDWriteFactory_) {
     pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI",  // Good UI font for Traditional Chinese with
                                    // Emoji support
         NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"zh-TW", &pTextFormat_);
+        DWRITE_FONT_STRETCH_NORMAL, static_cast<FLOAT>(candidateFontSize_),
+        L"zh-TW", &pTextFormat_);
 
     pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI", NULL, DWRITE_FONT_WEIGHT_NORMAL,
@@ -316,7 +329,9 @@ void CandidateWindow::Destroy() {
 
 void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
                                int cursorIndex, bool forceVertical,
-                               McBopomofo::IPC::CandidateSelectionStyle selectionStyle,
+                               McBopomofo::IPC::CandidateSelectionStyle
+                                   selectionStyle,
+                               int candidateFontSize,
                                const std::string& hint) {
   if (!hwnd_) return;
 
@@ -343,6 +358,10 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
 
   forceVertical_ = forceVertical;
   selectionStyle_ = selectionStyle;
+  if (candidateFontSize_ != candidateFontSize) {
+    candidateFontSize_ = candidateFontSize;
+    createDeviceIndependentResources_();
+  }
   rebuildLayoutAndResize_();
 }
 
@@ -437,7 +456,9 @@ void CandidateWindow::rebuildLayoutAndResize_() {
       for (const auto& range : keyRanges_) {
         DWRITE_TEXT_RANGE dwriteRange = {range.start, range.length};
         pTextLayout_->SetFontFamilyName(L"Segoe UI", dwriteRange);
-        pTextLayout_->SetFontSize(15.0f, dwriteRange);
+        pTextLayout_->SetFontSize(
+            std::max(10.0f, static_cast<float>(candidateFontSize_) - 3.0f),
+            dwriteRange);
       }
     }
   }

@@ -11,6 +11,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     payload.composingBuffer = "compose\nbuffer";
     payload.cursorIndex = 3;
     payload.candidateIndex = 2;
+    payload.candidateFontSize = 20;
     payload.markStart = 1;
     payload.markEnd = 4;
     payload.forceVertical = true;
@@ -32,6 +33,7 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     EXPECT_EQ(decoded.composingBuffer, payload.composingBuffer);
     EXPECT_EQ(decoded.cursorIndex, payload.cursorIndex);
     EXPECT_EQ(decoded.candidateIndex, payload.candidateIndex);
+    EXPECT_EQ(decoded.candidateFontSize, payload.candidateFontSize);
     EXPECT_EQ(decoded.markStart, payload.markStart);
     EXPECT_EQ(decoded.markEnd, payload.markEnd);
     EXPECT_EQ(decoded.forceVertical, payload.forceVertical);

@@ -209,6 +209,7 @@ void Settings::applyTo(InputController& controller) {
   controller.setCandidateKeys(candidateKeys_);
   controller.setCandidateKeysCount(candidateKeysCount_);
   controller.setCandidateWindowVertical(candidateWindowVertical_);
+  controller.setCandidateFontSize(candidateFontSize_);
   controller.setBeepOnError(beepOnError_);
   FCITX_MCBOPOMOFO_INFO() << "Settings applied: ChineseConversionEnabled="
                           << chineseConversionEnabled_;

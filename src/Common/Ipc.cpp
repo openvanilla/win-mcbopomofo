@@ -185,6 +185,7 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
   ss << (payload.consumed ? 1 : 0) << "\n"
      << payload.cursorIndex << "\n"
      << payload.candidateIndex << "\n"
+     << payload.candidateFontSize << "\n"
      << (payload.forceVertical ? 1 : 0) << "\n"
      << static_cast<int>(payload.selectionStyle) << "\n"
      << payload.markStart << "\n"
@@ -216,6 +217,9 @@ bool DeserializeStateUpdate(const std::string& data,
 
   if (!std::getline(ss, line)) return false;
   payload.candidateIndex = std::stoi(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.candidateFontSize = std::stoi(line);
 
   if (!std::getline(ss, line)) return false;
   payload.forceVertical = (line == "1");

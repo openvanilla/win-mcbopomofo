@@ -192,6 +192,7 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   payload.markStart = -1;
   payload.markEnd = -1;
   payload.candidateIndex = candidateIndex_;
+  payload.candidateFontSize = candidateFontSize_;
 
   auto* state = currentState_.get();
   if (auto* notEmptyState = dynamic_cast<InputStates::NotEmpty*>(state)) {
