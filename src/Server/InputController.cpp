@@ -366,6 +366,12 @@ void InputController::setChineseConversionEnabled(bool enabled) {
                           << keyHandler_->chineseConversionEnabled();
 }
 
+void InputController::handleError_() const {
+  if (beepOnError_) {
+    MessageBeep(MB_ICONHAND);
+  }
+}
+
 bool InputController::handleKey(const Key& key) {
   if (auto* numberInput =
           dynamic_cast<InputStates::NumberInput*>(currentState_.get())) {
@@ -374,7 +380,7 @@ bool InputController::handleKey(const Key& key) {
             [this](std::unique_ptr<InputState> state) {
               changeState_(std::move(currentState_), std::move(state));
             },
-            []() {})) {
+            [this]() { handleError_(); })) {
       return true;
     }
   }
@@ -431,9 +437,7 @@ bool InputController::handleKey(const Key& key) {
       [this](std::unique_ptr<InputState> state) {
         this->changeState_(std::move(currentState_), std::move(state));
       },
-      []() {
-        // Error callback (e.g. beep)
-      });
+      [this]() { handleError_(); });
 
   return consumed;
 }
@@ -558,7 +562,7 @@ bool InputController::handleCandidateKey_(const Key& key) {
             [this](std::unique_ptr<InputState> state) {
               changeState_(std::move(currentState_), std::move(state));
             },
-            []() {});
+            [this]() { handleError_(); });
     if (handled) {
       return true;
     }

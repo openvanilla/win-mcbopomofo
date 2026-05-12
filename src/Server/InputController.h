@@ -75,6 +75,7 @@ class InputController {
   void setCandidateKeysCount(int count);
   void setCandidateWindowVertical(bool vertical);
   void setChineseConversionEnabled(bool enabled);
+  void setBeepOnError(bool enabled) { beepOnError_ = enabled; }
 
   void setDataDirectory(const std::filesystem::path& dataDir);
   void toggleChineseConversion();
@@ -91,6 +92,7 @@ class InputController {
  private:
   void changeState_(std::unique_ptr<InputState> previousState,
                     std::unique_ptr<InputState> newState);
+  void handleError_() const;
   void notifyUI_();
   IPC::StateUpdatePayload buildStateUpdatePayload_() const;
   bool handleCandidateKey_(const Key& key);
@@ -112,6 +114,7 @@ class InputController {
   std::string candidateKeys_ = "123456789";
   int candidateKeysCount_ = 9;
   bool candidateWindowVertical_ = false;
+  bool beepOnError_ = true;
 
   std::unique_ptr<opencc::SimpleConverter> openccConverter_;
   std::unique_ptr<LocalizedStrings> localizedStrings_;
