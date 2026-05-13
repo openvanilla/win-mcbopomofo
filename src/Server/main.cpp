@@ -631,6 +631,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         << (std::filesystem::path(userDir) / "mcbopomofo.ini").string();
     settings.load();
     settings.applyTo(controller);
+    controller.refreshUI();
   };
 
   auto reloadUserPhrases = [&]() {

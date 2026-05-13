@@ -20,6 +20,7 @@ $OpenCCDir = "$X64BuildRoot\third_party\OpenCC\data"
 $GeneratedDir = "build_msi_generated"
 $LicenseTxtPath = "LICENSE.txt"
 $LicenseRtfPath = Join-Path $GeneratedDir "LICENSE.rtf"
+$RequiredWixExtensionVersion = "7.0.0"
 
 # Detect current platform
 function Get-CurrentPlatform {
@@ -126,17 +127,25 @@ function Find-WixExecutable {
     return $null
 }
 
+function Add-WixExtension([string]$WixExe, [string]$ExtensionId) {
+    $extensionRef = "$ExtensionId/$RequiredWixExtensionVersion"
+    & $WixExe extension add -g $extensionRef
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to install WiX extension: $extensionRef"
+    }
+}
+
 function Invoke-WixBuild([string]$WixExe, [string]$OutDir, [string]$OutputName, [string]$X64BinDir, [string]$X86BinDir, [string]$Arm64BinDir, [string]$OpenCCDir) {
     $MsiPath = Join-Path $OutDir $OutputName
 
     Write-Host "Installing required WiX extensions..." -ForegroundColor Cyan
-    & $WixExe extension add -g WixToolset.UI.wixext
-    & $WixExe extension add -g WixToolset.Util.wixext
+    Add-WixExtension $WixExe "WixToolset.UI.wixext"
+    Add-WixExtension $WixExe "WixToolset.Util.wixext"
 
     Write-Host "Building MSI installer (zh-TW)..." -ForegroundColor Cyan
     # We use zh-TW as the primary culture for the installer UI.
     # We still provide both .wxl files to the build process.
-    & $WixExe build -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext `
+    & $WixExe build -ext "WixToolset.UI.wixext/$RequiredWixExtensionVersion" -ext "WixToolset.Util.wixext/$RequiredWixExtensionVersion" `
         installer\installer.wxs installer\zh-TW.wxl installer\en-US.wxl `
         -culture zh-TW -o $MsiPath `
         -b "X64BinDir=$X64BinDir" -b "X86BinDir=$X86BinDir" -b "Arm64BinDir=$Arm64BinDir" -b "OpenCCDir=$OpenCCDir"

@@ -23,6 +23,7 @@
 
 #include "Settings.h"
 
+#include <dwmapi.h>
 #include <windows.h>
 
 #include <algorithm>
@@ -35,6 +36,34 @@
 namespace McBopomofo {
 
 Settings::Settings() { load(); }
+
+IPC::CandidateWindowColors Settings::readCandidateWindowColors_() const {
+  DWORD useLightTheme = 1;
+  DWORD size = sizeof(useLightTheme);
+  HKEY hKey = nullptr;
+  if (RegOpenKeyExW(
+          HKEY_CURRENT_USER,
+          L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+          0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+    RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr,
+                     reinterpret_cast<LPBYTE>(&useLightTheme), &size);
+    RegCloseKey(hKey);
+  }
+
+  IPC::CandidateWindowColors colors;
+  if (useLightTheme == 0) {
+    colors.text = 0xF0F0F0;
+    colors.background = 0x202020;
+    colors.border = 0x404040;
+  }
+
+  DWORD colorization = 0;
+  BOOL opaqueBlend = FALSE;
+  if (SUCCEEDED(DwmGetColorizationColor(&colorization, &opaqueBlend))) {
+    colors.highlightBackground = colorization & 0x00FFFFFF;
+  }
+  return colors;
+}
 
 std::wstring Settings::iniFilePath_() const {
   std::string dir = fcitx5_compat::userDirectory();
@@ -132,6 +161,7 @@ void Settings::load() {
                 candidateFontSize_) == std::end(kFontSizes)) {
     candidateFontSize_ = 16;
   }
+  candidateWindowColors_ = readCandidateWindowColors_();
   shiftToggleOpenClose_ =
       readBool_(L"General", L"ShiftToggleOpenClose", true);
   beepOnError_ = readBool_(L"General", L"BeepOnError", true);
@@ -210,6 +240,7 @@ void Settings::applyTo(InputController& controller) {
   controller.setCandidateKeysCount(candidateKeysCount_);
   controller.setCandidateWindowVertical(candidateWindowVertical_);
   controller.setCandidateFontSize(candidateFontSize_);
+  controller.setCandidateWindowColors(candidateWindowColors_);
   controller.setBeepOnError(beepOnError_);
   FCITX_MCBOPOMOFO_INFO() << "Settings applied: ChineseConversionEnabled="
                           << chineseConversionEnabled_;

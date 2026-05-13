@@ -28,7 +28,6 @@
 #include <dwmapi.h>
 #include <sstream>
 
-#include "PathCompat.h"
 #include "UTFHelper.h"
 
 #pragma comment(lib, "d2d1.lib")
@@ -57,18 +56,8 @@ namespace {
 constexpr COLORREF kDwmColorNone =
     static_cast<COLORREF>(0xFFFFFFFE);
 
-D2D1_COLOR_F GetSystemAccentColorOrDefault() {
-  DWORD colorization = 0;
-  BOOL opaqueBlend = FALSE;
-  if (SUCCEEDED(DwmGetColorizationColor(&colorization, &opaqueBlend))) {
-    const float a = 1.0f;
-    const float r = static_cast<float>((colorization >> 16) & 0xFF) / 255.0f;
-    const float g = static_cast<float>((colorization >> 8) & 0xFF) / 255.0f;
-    const float b = static_cast<float>(colorization & 0xFF) / 255.0f;
-    return D2D1::ColorF(r, g, b, a);
-  }
-
-  return D2D1::ColorF(0x0078D7);  // Default color when DWM is unavailable.
+D2D1_COLOR_F D2DColorFromRgb(uint32_t rgb) {
+  return D2D1::ColorF(rgb);
 }
 
 }  // namespace
@@ -83,8 +72,6 @@ CandidateWindow::CandidateWindow()
       forceVertical_(false),
       selectionStyle_(McBopomofo::IPC::CandidateSelectionStyle::kStandard),
       candidateFontSize_(16),
-      isDarkMode_(false),
-      highlightColor_(D2D1::ColorF(0x0078D7)),
       pD2DFactory_(nullptr),
       pRenderTarget_(nullptr),
       pDWriteFactory_(nullptr),
@@ -97,7 +84,6 @@ CandidateWindow::CandidateWindow()
       pBorderBrush_(nullptr),
       pHighlightBgBrush_(nullptr),
       pHighlightTextBrush_(nullptr) {
-  updateTheme_();
   createDeviceIndependentResources_();
 }
 
@@ -186,18 +172,15 @@ void CandidateWindow::createDeviceResources_() {
 
     if (pRenderTarget_) {
       pRenderTarget_->CreateSolidColorBrush(
-          isDarkMode_ ? D2D1::ColorF(0xF0F0F0) : D2D1::ColorF(0x101010),
-          &pTextBrush_);
+          D2DColorFromRgb(colors_.text), &pTextBrush_);
       pRenderTarget_->CreateSolidColorBrush(
-          isDarkMode_ ? D2D1::ColorF(0x202020) : D2D1::ColorF(0xFFFFFF),
-          &pBgBrush_);
+          D2DColorFromRgb(colors_.background), &pBgBrush_);
       pRenderTarget_->CreateSolidColorBrush(
-          isDarkMode_ ? D2D1::ColorF(0x404040) : D2D1::ColorF(0xCCCCCC),
-          &pBorderBrush_);
-      pRenderTarget_->CreateSolidColorBrush(highlightColor_,
-                                            &pHighlightBgBrush_);
+          D2DColorFromRgb(colors_.border), &pBorderBrush_);
       pRenderTarget_->CreateSolidColorBrush(
-          D2D1::ColorF(0xFFFFFF),  // White text on highlight
+          D2DColorFromRgb(colors_.highlightBackground), &pHighlightBgBrush_);
+      pRenderTarget_->CreateSolidColorBrush(
+          D2DColorFromRgb(colors_.highlightText),
           &pHighlightTextBrush_);
     }
   }
@@ -287,46 +270,31 @@ void CandidateWindow::discardDeviceResources_() {
   }
 }
 
-void CandidateWindow::updateTheme_() {
-  DWORD useLightTheme = 1;
-  DWORD size = sizeof(useLightTheme);
-  HKEY hKey;
-  if (RegOpenKeyExW(
-          HKEY_CURRENT_USER,
-          L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-          0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-    RegQueryValueExW(hKey, L"AppsUseLightTheme", NULL, NULL,
-                     (LPBYTE)&useLightTheme, &size);
-    RegCloseKey(hKey);
-  }
-  isDarkMode_ = (useLightTheme == 0);
-  highlightColor_ = GetSystemAccentColorOrDefault();
-
-  if (pRenderTarget_) {
-    discardDeviceResources_();  // Force recreate brushes
-    InvalidateRect(hwnd_, nullptr, FALSE);
-  }
+void CandidateWindow::onSettingChange_() {
+  InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
-void CandidateWindow::onSettingChange_() {
-  updateTheme_();
-  // Re-trigger layout read
-  std::string dir = McBopomofo::fcitx5_compat::userDirectory();
-  std::wstring iniPath = McBopomofo::Utf8ToUtf16(dir) + L"\\mcbopomofo.ini";
-  isVertical_ = GetPrivateProfileIntW(L"UI", L"CandidateWindowVertical", 0,
-                                      iniPath.c_str()) != 0;
-  wchar_t keys[32] = {};
-  GetPrivateProfileStringW(L"General", L"CandidateKeys", L"123456789", keys, 32,
-                           iniPath.c_str());
-  candidateKeys_ = keys;
-  if (candidateKeys_ != L"123456789" && candidateKeys_ != L"asdfghjkl" &&
-      candidateKeys_ != L"asdfzxcvb") {
-    candidateKeys_ = L"123456789";
+void CandidateWindow::applyCandidateWindowSettings_(
+    bool vertical, const std::string& candidateKeys, int candidateKeysCount,
+    const McBopomofo::IPC::CandidateWindowColors& colors) {
+  isVertical_ = vertical;
+
+  std::wstring keys = McBopomofo::Utf8ToUtf16(candidateKeys);
+  if (keys != L"123456789" && keys != L"asdfghjkl" && keys != L"asdfzxcvb") {
+    keys = L"123456789";
   }
-  candidateKeysCount_ = GetPrivateProfileIntW(L"General", L"CandidateKeysCount",
-                                              9, iniPath.c_str());
-  if (candidateKeysCount_ < 4 || candidateKeysCount_ > 9) {
-    candidateKeysCount_ = 9;
+  candidateKeys_ = keys;
+
+  candidateKeysCount_ =
+      candidateKeysCount >= 4 && candidateKeysCount <= 9 ? candidateKeysCount
+                                                         : 9;
+
+  if (colors_.text != colors.text || colors_.background != colors.background ||
+      colors_.border != colors.border ||
+      colors_.highlightBackground != colors.highlightBackground ||
+      colors_.highlightText != colors.highlightText) {
+    colors_ = colors;
+    discardDeviceResources_();
   }
 }
 
@@ -351,7 +319,6 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
                           0, 0, 100, 30,  // Initial dummy size
                           nullptr, nullptr, hInstance, this);
 
-  onSettingChange_();  // Load initial settings
   enableDropShadow_();
   enableSystemRoundedCorners_();
   updateRoundedRegion_();
@@ -372,12 +339,16 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
                                McBopomofo::IPC::CandidateSelectionStyle
                                    selectionStyle,
                                int candidateFontSize,
-                               const std::string& hint) {
+                               const std::string& hint,
+                               bool candidateWindowVertical,
+                               const std::string& candidateKeys,
+                               int candidateKeysCount,
+                               const McBopomofo::IPC::CandidateWindowColors&
+                                   colors) {
   if (!hwnd_) return;
 
-  // Refresh theme right before showing so each host process can pick up the
-  // current system mode even if it missed the broadcast message.
-  updateTheme_();
+  applyCandidateWindowSettings_(candidateWindowVertical, candidateKeys,
+                                candidateKeysCount, colors);
 
   dpiScale_ = getDpiScale_();
 
@@ -593,7 +564,7 @@ LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
     } else if (uMsg == WM_SETTINGCHANGE) {
       pThis->onSettingChange_();
     } else if (uMsg == WM_DWMCOLORIZATIONCOLORCHANGED) {
-      pThis->updateTheme_();
+      pThis->onSettingChange_();
       return 0;
     } else if (uMsg == WM_DPICHANGED) {
       pThis->dpiScale_ = (float)LOWORD(wParam) / 96.0f;

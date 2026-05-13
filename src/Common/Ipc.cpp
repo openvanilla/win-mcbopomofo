@@ -233,6 +233,15 @@ std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
   for (const auto& cand : payload.candidates) {
     WriteSizedString(ss, cand);
   }
+
+  WriteSizedString(ss, payload.candidateKeys);
+  ss << (payload.candidateWindowVertical ? 1 : 0) << "\n"
+     << payload.candidateKeysCount << "\n"
+     << payload.candidateWindowColors.text << "\n"
+     << payload.candidateWindowColors.background << "\n"
+     << payload.candidateWindowColors.border << "\n"
+     << payload.candidateWindowColors.highlightBackground << "\n"
+     << payload.candidateWindowColors.highlightText << "\n";
   return ss.str();
 }
 
@@ -279,6 +288,32 @@ bool DeserializeStateUpdate(const std::string& data,
     std::string candidate;
     if (!ReadSizedString(ss, candidate)) return false;
     payload.candidates.push_back(std::move(candidate));
+  }
+
+  std::string parsedCandidateKeys;
+  if (ReadSizedString(ss, parsedCandidateKeys)) {
+    payload.candidateKeys = std::move(parsedCandidateKeys);
+
+    if (!std::getline(ss, line)) return false;
+    payload.candidateWindowVertical = (line == "1");
+
+    if (!std::getline(ss, line)) return false;
+    payload.candidateKeysCount = std::stoi(line);
+
+    if (!std::getline(ss, line)) return false;
+    payload.candidateWindowColors.text = std::stoul(line);
+
+    if (!std::getline(ss, line)) return false;
+    payload.candidateWindowColors.background = std::stoul(line);
+
+    if (!std::getline(ss, line)) return false;
+    payload.candidateWindowColors.border = std::stoul(line);
+
+    if (!std::getline(ss, line)) return false;
+    payload.candidateWindowColors.highlightBackground = std::stoul(line);
+
+    if (!std::getline(ss, line)) return false;
+    payload.candidateWindowColors.highlightText = std::stoul(line);
   }
 
   return true;

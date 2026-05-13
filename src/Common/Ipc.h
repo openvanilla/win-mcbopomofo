@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -61,6 +62,14 @@ struct ClientSettingsPayload {
   bool shiftToggleOpenClose = true;
 };
 
+struct CandidateWindowColors {
+  uint32_t text = 0x101010;
+  uint32_t background = 0xFFFFFF;
+  uint32_t border = 0xCCCCCC;
+  uint32_t highlightBackground = 0x0078D7;
+  uint32_t highlightText = 0xFFFFFF;
+};
+
 struct StateUpdatePayload {
   bool consumed = false;
   std::string commitString;
@@ -75,6 +84,10 @@ struct StateUpdatePayload {
       CandidateSelectionStyle::kStandard;
   std::string tooltip;
   std::string hint;
+  bool candidateWindowVertical = false;
+  std::string candidateKeys = "123456789";
+  int candidateKeysCount = 9;
+  CandidateWindowColors candidateWindowColors;
   std::vector<std::string> candidates;
 };
 

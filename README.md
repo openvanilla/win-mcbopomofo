@@ -32,6 +32,10 @@ winget install Microsoft.WindowsTerminal
 
 # Accept WiX v7 EULA (required for build)
 wix eula accept wix7
+
+# Install the WiX extensions required by installer/installer.wxs
+wix extension add -g WixToolset.UI.wixext/7.0.0
+wix extension add -g WixToolset.Util.wixext/7.0.0
 ```
 
 *Note: After installing Visual Studio via `winget`, you must open the Visual Studio Installer to manually select the "Desktop development with C++" workload and the specific ARM64 build tools.*
@@ -93,6 +97,17 @@ To generate the final MSI installer, run:
 ```
 
 The output will be located in `dist/Win-McBopomofo-Installer.msi`.
+
+The installer build uses WiX v7 with these extensions:
+
+- `WixToolset.UI.wixext/7.0.0`
+- `WixToolset.Util.wixext/7.0.0`
+
+`build_msi.ps1` installs the extensions automatically, but WiX v7 still requires the EULA to be accepted once per user before the extension cache can be used:
+
+```powershell
+wix eula accept wix7
+```
 
 ## Core Concept and Design Philosophy
 

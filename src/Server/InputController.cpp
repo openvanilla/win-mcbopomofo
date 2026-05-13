@@ -193,6 +193,10 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   payload.markEnd = -1;
   payload.candidateIndex = candidateIndex_;
   payload.candidateFontSize = candidateFontSize_;
+  payload.candidateWindowVertical = candidateWindowVertical_;
+  payload.candidateKeys = candidateKeys_;
+  payload.candidateKeysCount = candidateKeysCount_;
+  payload.candidateWindowColors = candidateWindowColors_;
 
   auto* state = currentState_.get();
   if (auto* notEmptyState = dynamic_cast<InputStates::NotEmpty*>(state)) {
@@ -1010,6 +1014,15 @@ void InputController::setCandidateKeysCount(int count) {
 
 void InputController::setCandidateWindowVertical(bool vertical) {
   candidateWindowVertical_ = vertical;
+}
+
+void InputController::setCandidateWindowColors(
+    const IPC::CandidateWindowColors& candidateWindowColors) {
+  candidateWindowColors_ = candidateWindowColors;
+}
+
+void InputController::refreshUI() {
+  notifyUI_();
 }
 
 void InputController::changeState_(std::unique_ptr<InputState> previousState,

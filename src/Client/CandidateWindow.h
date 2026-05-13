@@ -44,7 +44,12 @@ class CandidateWindow {
                 McBopomofo::IPC::CandidateSelectionStyle selectionStyle =
                     McBopomofo::IPC::CandidateSelectionStyle::kStandard,
                 int candidateFontSize = 16,
-                const std::string& hint = "");
+                const std::string& hint = "",
+                bool candidateWindowVertical = false,
+                const std::string& candidateKeys = "123456789",
+                int candidateKeysCount = 9,
+                const McBopomofo::IPC::CandidateWindowColors& colors =
+                    McBopomofo::IPC::CandidateWindowColors());
   void Move(int x, int y);
   void Hide();
 
@@ -79,7 +84,9 @@ class CandidateWindow {
   void enableDropShadow_();
   void enableSystemRoundedCorners_();
   void updateRoundedRegion_();
-  void updateTheme_();
+  void applyCandidateWindowSettings_(
+      bool vertical, const std::string& candidateKeys, int candidateKeysCount,
+      const McBopomofo::IPC::CandidateWindowColors& colors);
   float getDpiScale_();
 
   struct TextRange {
@@ -99,8 +106,7 @@ class CandidateWindow {
   bool forceVertical_;
   McBopomofo::IPC::CandidateSelectionStyle selectionStyle_;
   int candidateFontSize_;
-  bool isDarkMode_;
-  D2D1_COLOR_F highlightColor_;
+  McBopomofo::IPC::CandidateWindowColors colors_;
 
   TextRange selectedRange_;
   std::vector<TextRange> keyRanges_;

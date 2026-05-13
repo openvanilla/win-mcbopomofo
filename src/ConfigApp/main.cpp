@@ -59,6 +59,8 @@ constexpr int kReloadCommand = 1;
 constexpr int kManualLinkCommand = 2;
 constexpr int kProjectHomepageCommand = 3;
 constexpr int kScrollLineHeight = 20;  // pixels per scroll line
+constexpr const wchar_t* kCheckedStateProp =
+    L"McBopomofoConfigCheckedState";
 constexpr const wchar_t* kManualUrl =
     L"https://github.com/openvanilla/McBopomofo/wiki/"
     L"%E4%BD%BF%E7%94%A8%E6%89%8B%E5%86%8A";
@@ -341,11 +343,16 @@ int ComboSelection(HWND combo, int fallback) {
 }
 
 bool IsChecked(HWND control) {
-  return SendMessageW(control, BM_GETCHECK, 0, 0) == BST_CHECKED;
+  return GetPropW(control, kCheckedStateProp) != nullptr;
 }
 
 void SetChecked(HWND control, bool checked) {
-  SendMessageW(control, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
+  if (checked) {
+    SetPropW(control, kCheckedStateProp, reinterpret_cast<HANDLE>(1));
+  } else {
+    RemovePropW(control, kCheckedStateProp);
+  }
+  InvalidateRect(control, nullptr, TRUE);
 }
 
 HWND CreateLabel(HWND parent, const wchar_t* text, int x, int y, int width) {
@@ -470,6 +477,66 @@ void DrawControlText(HDC hdc, HWND hwnd, RECT rect, UINT format) {
   }
 }
 
+void DrawCheckGlyph(HDC hdc, RECT rect, bool checked) {
+  COLORREF fillColor = g_DarkMode ? RGB(45, 46, 50) : RGB(255, 255, 255);
+  COLORREF borderColor = g_DarkMode ? RGB(154, 160, 166) : RGB(95, 99, 104);
+  COLORREF checkColor = g_DarkMode ? RGB(138, 180, 248) : RGB(0, 102, 204);
+
+  HBRUSH fillBrush = CreateSolidBrush(fillColor);
+  FillRect(hdc, &rect, fillBrush);
+  DeleteObject(fillBrush);
+
+  HPEN borderPen = CreatePen(PS_SOLID, Scale(1), borderColor);
+  HGDIOBJ oldPen = SelectObject(hdc, borderPen);
+  HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+  Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
+  SelectObject(hdc, oldBrush);
+  SelectObject(hdc, oldPen);
+  DeleteObject(borderPen);
+
+  if (!checked) {
+    return;
+  }
+
+  HPEN checkPen = CreatePen(PS_SOLID, std::max(Scale(2), 2), checkColor);
+  oldPen = SelectObject(hdc, checkPen);
+  MoveToEx(hdc, rect.left + Scale(4), rect.top + Scale(8), nullptr);
+  LineTo(hdc, rect.left + Scale(7), rect.top + Scale(11));
+  LineTo(hdc, rect.right - Scale(4), rect.top + Scale(4));
+  SelectObject(hdc, oldPen);
+  DeleteObject(checkPen);
+}
+
+void DrawRadioGlyph(HDC hdc, RECT rect, bool checked) {
+  COLORREF fillColor = g_DarkMode ? RGB(45, 46, 50) : RGB(255, 255, 255);
+  COLORREF borderColor = g_DarkMode ? RGB(154, 160, 166) : RGB(95, 99, 104);
+  COLORREF dotColor = g_DarkMode ? RGB(138, 180, 248) : RGB(0, 102, 204);
+
+  HBRUSH fillBrush = CreateSolidBrush(fillColor);
+  HPEN borderPen = CreatePen(PS_SOLID, Scale(1), borderColor);
+  HGDIOBJ oldBrush = SelectObject(hdc, fillBrush);
+  HGDIOBJ oldPen = SelectObject(hdc, borderPen);
+  Ellipse(hdc, rect.left, rect.top, rect.right, rect.bottom);
+  SelectObject(hdc, oldPen);
+  SelectObject(hdc, oldBrush);
+  DeleteObject(borderPen);
+  DeleteObject(fillBrush);
+
+  if (!checked) {
+    return;
+  }
+
+  RECT dotRect = rect;
+  InflateRect(&dotRect, -Scale(5), -Scale(5));
+  HBRUSH dotBrush = CreateSolidBrush(dotColor);
+  HGDIOBJ oldDotBrush = SelectObject(hdc, dotBrush);
+  HGDIOBJ oldDotPen = SelectObject(hdc, GetStockObject(NULL_PEN));
+  Ellipse(hdc, dotRect.left, dotRect.top, dotRect.right, dotRect.bottom);
+  SelectObject(hdc, oldDotPen);
+  SelectObject(hdc, oldDotBrush);
+  DeleteObject(dotBrush);
+}
+
 void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
   HDC hdc = item->hDC;
   RECT rect = item->rcItem;
@@ -500,7 +567,7 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
 
   bool pushed = (item->itemState & ODS_SELECTED) != 0;
   bool focused = (item->itemState & ODS_FOCUS) != 0;
-  bool checked = SendMessageW(item->hwndItem, BM_GETCHECK, 0, 0) == BST_CHECKED;
+  bool checked = IsChecked(item->hwndItem);
   bool isRadio = ContainsControl(g_RadioButtons, item->hwndItem);
   bool isCheck = ContainsControl(g_CheckBoxes, item->hwndItem);
 
@@ -510,13 +577,11 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
                       rect.top + (rect.bottom - rect.top - glyph) / 2,
                       rect.left + Scale(2) + glyph,
                       rect.top + (rect.bottom - rect.top + glyph) / 2};
-    UINT state = 0;
     if (isRadio) {
-      state = checked ? DFCS_BUTTONRADIO | DFCS_CHECKED : DFCS_BUTTONRADIO;
+      DrawRadioGlyph(hdc, glyphRect, checked);
     } else {
-      state = checked ? DFCS_BUTTONCHECK | DFCS_CHECKED : DFCS_BUTTONCHECK;
+      DrawCheckGlyph(hdc, glyphRect, checked);
     }
-    DrawFrameControl(hdc, &glyphRect, DFC_BUTTON, state);
 
     RECT textRect = rect;
     textRect.left += Scale(26);
@@ -880,8 +945,32 @@ void CreateControls(HWND hwnd) {
 }
 
 bool HandleOwnerDrawClick(HWND control) {
-  UNREFERENCED_PARAMETER(control);
-  return false;
+  if (ContainsControl(g_CheckBoxes, control)) {
+    SetChecked(control, !IsChecked(control));
+    return true;
+  }
+
+  if (!ContainsControl(g_RadioButtons, control)) {
+    return false;
+  }
+
+  const std::vector<std::vector<HWND>> groups = {
+      {hVerticalRadio, hHorizontalRadio},
+      {hSelectBeforeRadio, hSelectAfterRadio},
+      {hUppercaseRadio, hLowercaseRadio},
+  };
+  for (const auto& group : groups) {
+    if (!ContainsControl(group, control)) {
+      continue;
+    }
+    for (HWND radio : group) {
+      SetChecked(radio, radio == control);
+    }
+    return true;
+  }
+
+  SetChecked(control, true);
+  return true;
 }
 
 }  // namespace

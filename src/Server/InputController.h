@@ -76,7 +76,10 @@ class InputController {
   void setCandidateWindowVertical(bool vertical);
   void setChineseConversionEnabled(bool enabled);
   void setCandidateFontSize(int size) { candidateFontSize_ = size; }
+  void setCandidateWindowColors(
+      const IPC::CandidateWindowColors& candidateWindowColors);
   void setBeepOnError(bool enabled) { beepOnError_ = enabled; }
+  void refreshUI();
 
   void setDataDirectory(const std::filesystem::path& dataDir);
   void toggleChineseConversion();
@@ -116,6 +119,7 @@ class InputController {
   int candidateKeysCount_ = 9;
   bool candidateWindowVertical_ = false;
   int candidateFontSize_ = 16;
+  IPC::CandidateWindowColors candidateWindowColors_;
   bool beepOnError_ = true;
 
   std::unique_ptr<opencc::SimpleConverter> openccConverter_;

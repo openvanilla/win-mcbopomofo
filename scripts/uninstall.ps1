@@ -17,7 +17,7 @@ if (!(Test-Path $installDir)) {
 }
 
 Write-Host "`n1. Stopping McBopomofo processes..."
-Stop-Process -Name "McBopomofoServer" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "McBopomofoServer*" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "McBopomofoConfig" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
