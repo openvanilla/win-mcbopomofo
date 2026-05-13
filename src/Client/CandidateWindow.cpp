@@ -25,10 +25,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cwchar>
 #include <dwmapi.h>
 #include <sstream>
 
 #include "UTFHelper.h"
+#include "NamedPipe.h"
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
@@ -298,6 +300,25 @@ void CandidateWindow::applyCandidateWindowSettings_(
   }
 }
 
+void CandidateWindow::reloadServerControlledSettings_() {
+  McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
+  std::string response;
+  if (!pipe.Call(McBopomofo::IPC::SerializeReloadSettings(), response)) {
+    return;
+  }
+
+  McBopomofo::IPC::StateUpdatePayload state;
+  if (!McBopomofo::IPC::DeserializeStateUpdate(response, state)) {
+    return;
+  }
+
+  applyCandidateWindowSettings_(state.candidateWindowVertical,
+                                state.candidateKeys,
+                                state.candidateKeysCount,
+                                state.candidateWindowColors);
+  InvalidateRect(hwnd_, nullptr, FALSE);
+}
+
 bool CandidateWindow::Create(HINSTANCE hInstance) {
   if (hwnd_) return true;
 
@@ -562,9 +583,15 @@ LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
     } else if (uMsg == WM_ERASEBKGND) {
       return 1;
     } else if (uMsg == WM_SETTINGCHANGE) {
+      if (lParam != 0 &&
+          wcscmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") ==
+              0) {
+        pThis->reloadServerControlledSettings_();
+        return 0;
+      }
       pThis->onSettingChange_();
     } else if (uMsg == WM_DWMCOLORIZATIONCOLORCHANGED) {
-      pThis->onSettingChange_();
+      pThis->reloadServerControlledSettings_();
       return 0;
     } else if (uMsg == WM_DPICHANGED) {
       pThis->dpiScale_ = (float)LOWORD(wParam) / 96.0f;

@@ -28,6 +28,7 @@
 #include <uxtheme.h>
 
 #include <array>
+#include <cwchar>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -63,6 +64,7 @@ constexpr const wchar_t* kServerSingleInstanceMutexName =
     L"Local\\WinMcBopomofoServerSingleInstance";
 InputController* g_Controller = nullptr;
 bool g_RestartRequested = false;
+std::function<void()> g_ReloadSettingsCallback;
 
 namespace {
 
@@ -173,6 +175,16 @@ static void RelaunchCurrentProcess() {
 }
 
 }  // namespace
+
+static bool IsSystemColorSettingsChange(UINT msg, LPARAM lParam) {
+  if (msg == WM_DWMCOLORIZATIONCOLORCHANGED) {
+    return true;
+  }
+  if (msg != WM_SETTINGCHANGE || lParam == 0) {
+    return false;
+  }
+  return wcscmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") == 0;
+}
 
 class WinUserPhraseAdder : public UserPhraseAdder {
  public:
@@ -516,6 +528,13 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
       RestartServer();
     }
     return 0;
+  } else if (IsSystemColorSettingsChange(msg, lParam)) {
+    if (g_ReloadSettingsCallback) {
+      FCITX_MCBOPOMOFO_INFO()
+          << "System color settings changed; reloading settings.";
+      g_ReloadSettingsCallback();
+    }
+    return 0;
   }
   return DefWindowProc(hwnd, msg, wParam, lParam);
 }
@@ -632,6 +651,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     settings.load();
     settings.applyTo(controller);
     controller.refreshUI();
+  };
+  g_ReloadSettingsCallback = [&]() {
+    std::lock_guard<std::mutex> lock(reloadMutex);
+    reloadSettings();
   };
 
   auto reloadUserPhrases = [&]() {
@@ -771,6 +794,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     ReleaseMutex(hSingleInstanceMutex);
     CloseHandle(hSingleInstanceMutex);
   }
+
+  g_ReloadSettingsCallback = nullptr;
 
   if (g_RestartRequested) {
     RelaunchCurrentProcess();

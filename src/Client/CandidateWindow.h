@@ -87,6 +87,7 @@ class CandidateWindow {
   void applyCandidateWindowSettings_(
       bool vertical, const std::string& candidateKeys, int candidateKeysCount,
       const McBopomofo::IPC::CandidateWindowColors& colors);
+  void reloadServerControlledSettings_();
   float getDpiScale_();
 
   struct TextRange {

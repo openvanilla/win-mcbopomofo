@@ -818,7 +818,7 @@ void CreateControls(HWND hwnd) {
   }
   hChooseSpaceCheck =
       CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_CHOOSE_SPACE).c_str(),
-                  kControlX, y + 22, 190);
+                  kControlX, y + 22, 280);
 
   y += kRowGap + 22;
   CreateLabel(hwnd,
@@ -886,7 +886,7 @@ void CreateControls(HWND hwnd) {
               kLabelX, y, 124);
   hShiftToggleCheck = CreateCheck(
       hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_TOGGLE_OPEN_CLOSE).c_str(),
-      kControlX, y - 2, 240);
+      kControlX, y - 2, 320);
 
   y += kRowGap;
   CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER).c_str(),
