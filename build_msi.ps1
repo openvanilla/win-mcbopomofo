@@ -110,8 +110,14 @@ function Check-AndBuildMissingArtifacts {
 
 function Convert-LicenseTextToRtf([string]$InputPath, [string]$OutputPath) {
     if (-not (Test-Path $GeneratedDir)) { New-Item -ItemType Directory -Path $GeneratedDir | Out-Null }
-    $content = Get-Content -LiteralPath $InputPath -Raw
-    $escaped = $content -replace '\\', '\\\\' -replace '\{', '\{' -replace '\}', '\}' -replace "`r`n", "\par`n" -replace "`n", "\par`n" -replace "`r", "\par`n"
+    $content = (Get-Content -LiteralPath $InputPath -Raw) -replace "`r`n", "`n" -replace "`r", "`n"
+    $content = $content.TrimEnd("`n")
+    $paragraphs = $content -split "`n[ `t]*`n+"
+    $escapedParagraphs = $paragraphs | ForEach-Object {
+        $paragraph = ($_ -split "`n" | ForEach-Object { $_.Trim() }) -join " "
+        $paragraph.Replace('\', '\\').Replace('{', '\{').Replace('}', '\}')
+    }
+    $escaped = $escapedParagraphs -join "\par`n\par`n"
     $rtf = "{\rtf1\ansi\deff0{\fonttbl{\f0 Arial;}}\viewkind4\uc1\pard\f0\fs20 " + $escaped + "}"
     Set-Content -LiteralPath $OutputPath -Value $rtf -Encoding ASCII
 }
