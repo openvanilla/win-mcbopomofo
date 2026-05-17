@@ -449,5 +449,12 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     MoveAuxiliaryWindows(ec, pContext_, nullptr, pTIP_);
   }
 
+  if (state_.candidates.empty()) {
+    pTIP_->GetCandidateWindow()->Hide();
+  }
+  if (state_.tooltip.empty()) {
+    pTIP_->GetTooltipWindow()->Hide();
+  }
+
   return S_OK;
 }
