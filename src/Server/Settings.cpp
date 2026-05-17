@@ -24,8 +24,6 @@
 #include "Settings.h"
 
 #include <windows.h>
-#include <winrt/Windows.UI.ViewManagement.h>
-#include <winrt/base.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -37,71 +35,6 @@
 namespace McBopomofo {
 
 Settings::Settings() { load(); }
-
-namespace {
-
-uint32_t ToRgb(const winrt::Windows::UI::Color& color) {
-  return (static_cast<uint32_t>(color.R) << 16) |
-         (static_cast<uint32_t>(color.G) << 8) |
-         static_cast<uint32_t>(color.B);
-}
-
-bool EnsureWinrtApartmentInitialized() {
-  static thread_local bool initialized = false;
-  if (initialized) {
-    return true;
-  }
-
-  try {
-    winrt::init_apartment(winrt::apartment_type::multi_threaded);
-    initialized = true;
-    return true;
-  } catch (const winrt::hresult_error& e) {
-    if (e.code() == RPC_E_CHANGED_MODE) {
-      initialized = true;
-      return true;
-    }
-    return false;
-  }
-}
-
-}  // namespace
-
-IPC::CandidateWindowColors Settings::readCandidateWindowColors_() const {
-  DWORD useLightTheme = 1;
-  DWORD size = sizeof(useLightTheme);
-  HKEY hKey = nullptr;
-  if (RegOpenKeyExW(
-          HKEY_CURRENT_USER,
-          L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-          0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-    RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr,
-                     reinterpret_cast<LPBYTE>(&useLightTheme), &size);
-    RegCloseKey(hKey);
-  }
-
-  IPC::CandidateWindowColors colors;
-  if (useLightTheme == 0) {
-    colors.text = 0xF0F0F0;
-    colors.background = 0x202020;
-    colors.border = 0x404040;
-  }
-
-  if (EnsureWinrtApartmentInitialized()) {
-    try {
-      using namespace winrt::Windows::UI::ViewManagement;
-      UISettings uiSettings;
-      colors.highlightBackground =
-          ToRgb(uiSettings.GetColorValue(UIColorType::Accent));
-    } catch (const winrt::hresult_error& e) {
-      FCITX_MCBOPOMOFO_WARN()
-          << "Failed to read system accent color from UISettings: "
-          << Utf16ToUtf8(std::wstring(e.message().c_str()));
-    }
-  }
-
-  return colors;
-}
 
 std::wstring Settings::iniFilePath_() const {
   std::string dir = fcitx5_compat::userDirectory();
@@ -199,7 +132,6 @@ void Settings::load() {
                 candidateFontSize_) == std::end(kFontSizes)) {
     candidateFontSize_ = 16;
   }
-  candidateWindowColors_ = readCandidateWindowColors_();
   shiftToggleOpenClose_ =
       readBool_(L"General", L"ShiftToggleOpenClose", true);
   beepOnError_ = readBool_(L"General", L"BeepOnError", true);
@@ -278,7 +210,6 @@ void Settings::applyTo(InputController& controller) {
   controller.setCandidateKeysCount(candidateKeysCount_);
   controller.setCandidateWindowVertical(candidateWindowVertical_);
   controller.setCandidateFontSize(candidateFontSize_);
-  controller.setCandidateWindowColors(candidateWindowColors_);
   controller.setBeepOnError(beepOnError_);
   FCITX_MCBOPOMOFO_INFO() << "Settings applied: ChineseConversionEnabled="
                           << chineseConversionEnabled_;

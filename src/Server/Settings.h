@@ -138,7 +138,6 @@ class Settings {
   void setBeepOnError(bool v) { beepOnError_ = v; }
 
  private:
-  IPC::CandidateWindowColors readCandidateWindowColors_() const;
   std::wstring iniFilePath_() const;
   std::wstring readString_(const wchar_t* section, const wchar_t* key,
                            const wchar_t* defaultVal);
@@ -170,7 +169,6 @@ class Settings {
   bool candidateWindowVertical_ = false;
   std::string selectionAction_ = "None";
   int candidateFontSize_ = 16;
-  IPC::CandidateWindowColors candidateWindowColors_;
   bool shiftToggleOpenClose_ = true;
   bool beepOnError_ = true;
 };

@@ -34,6 +34,7 @@
 #include <functional>
 #include <mutex>
 
+#include "CandidateWindowColors.h"
 #include "InputController.h"
 #include "InputMacro.h"
 #include "KeyHandler.h"
@@ -648,6 +649,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
 
   Settings settings;
   settings.applyTo(controller);
+  controller.setCandidateWindowColors(ReadCandidateWindowColors());
   std::mutex reloadMutex;
 
   auto reloadSettings = [&]() {
@@ -656,6 +658,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         << (std::filesystem::path(userDir) / "mcbopomofo.ini").string();
     settings.load();
     settings.applyTo(controller);
+    controller.setCandidateWindowColors(ReadCandidateWindowColors());
     controller.refreshUI();
   };
   g_ReloadSettingsCallback = [&]() {

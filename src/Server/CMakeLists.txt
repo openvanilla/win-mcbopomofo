@@ -56,6 +56,7 @@ add_executable(McBopomofoServer
     main.cpp
     resource.h
     McBopomofoServer.rc
+    CandidateWindowColors.cpp
     InputController.cpp
     WindowsKeyBridge.cpp
     Settings.cpp
