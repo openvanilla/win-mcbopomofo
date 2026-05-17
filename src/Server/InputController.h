@@ -94,7 +94,7 @@ class InputController {
   }
 
  private:
-  void changeState_(std::unique_ptr<InputState> previousState,
+  void enterNewState_(std::unique_ptr<InputState> previousState,
                     std::unique_ptr<InputState> newState);
   void handleError_() const;
   void notifyUI_();

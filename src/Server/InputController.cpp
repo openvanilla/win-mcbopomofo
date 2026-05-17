@@ -116,9 +116,6 @@ bool IsForcedVerticalCandidateState(InputState* state) {
   return false;
 }
 
-bool IsShiftKeySelectionCandidateState(InputState* state) {
-  return dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state) != nullptr;
-}
 
 int SelectionIndexFromKey(const Key& key, bool useShiftKey,
                           const std::string& candidateKeys,
@@ -383,22 +380,45 @@ bool InputController::handleKey(const Key& key) {
     if (keyHandler_->handleNumberInput(
             key, numberInput,
             [this](std::unique_ptr<InputState> state) {
-              changeState_(std::move(currentState_), std::move(state));
+              enterNewState_(std::move(currentState_), std::move(state));
             },
             [this]() { handleError_(); })) {
       return true;
     }
   }
 
-  if (auto* associated = dynamic_cast<InputStates::AssociatedPhrases*>(
-          currentState_.get())) {
+  if (IsCandidateState(currentState_.get())) {
+    bool result = handleCandidateKey_(key);
+    if (result) {
+      return true;
+    }
+  }
+
+  bool consumed = keyHandler_->handle(
+      key, currentState_.get(),
+      [this](std::unique_ptr<InputState> state) {
+        this->enterNewState_(std::move(currentState_), std::move(state));
+      },
+      [this]() { handleError_(); });
+
+  return consumed;
+}
+
+bool InputController::handleCandidateKey_(const Key& key) {
+  auto* associated =
+      dynamic_cast<InputStates::AssociatedPhrases*>(currentState_.get());
+  auto* associatedPlain =
+      dynamic_cast<InputStates::AssociatedPhrasesPlain*>(currentState_.get());
+
+
+  if (associated) {
     if (associated->autoTriggered) {
       if (key.ascii == Key::TAB) {
         auto expanded = std::make_unique<InputStates::AssociatedPhrases>(
             std::move(associated->previousState), associated->prefixCursorIndex,
             associated->prefixReading, associated->prefixValue,
             associated->selectedCandidateIndex, associated->candidates, false);
-        changeState_(std::move(currentState_), std::move(expanded));
+        enterNewState_(std::move(currentState_), std::move(expanded));
         return true;
       }
 
@@ -407,11 +427,12 @@ bool InputController::handleKey(const Key& key) {
         return true;
       }
 
-      changeState_(std::move(currentState_), keyHandler_->buildInputtingState());
+      enterNewState_(std::move(currentState_),
+                     keyHandler_->buildInputtingState());
     }
   }
 
-  if (IsShiftKeySelectionCandidateState(currentState_.get())) {
+  if (associatedPlain) {
     int selectionIndex =
         SelectionIndexFromKey(key, true, candidateKeys_, candidateKeysCount_);
     if (selectionIndex == -1) {
@@ -419,39 +440,25 @@ bool InputController::handleKey(const Key& key) {
               currentState_.get())) {
         if (auto* inputting = dynamic_cast<InputStates::Inputting*>(
                 associated->previousState.get())) {
-          changeState_(std::move(currentState_),
-                       std::make_unique<InputStates::Inputting>(*inputting));
+          enterNewState_(std::move(currentState_),
+                         std::make_unique<InputStates::Inputting>(*inputting));
         } else {
-          changeState_(std::move(currentState_),
-                       std::make_unique<InputStates::EmptyIgnoringPrevious>());
+          enterNewState_(
+              std::move(currentState_),
+              std::make_unique<InputStates::EmptyIgnoringPrevious>());
         }
       } else if (dynamic_cast<InputStates::AssociatedPhrasesPlain*>(
                      currentState_.get()) != nullptr) {
-        changeState_(std::move(currentState_),
-                     std::make_unique<InputStates::EmptyIgnoringPrevious>());
+        enterNewState_(std::move(currentState_),
+                       std::make_unique<InputStates::EmptyIgnoringPrevious>());
       }
     }
   }
 
-  if (IsCandidateState(currentState_.get())) {
-    return handleCandidateKey_(key);
-  }
-
-  bool consumed = keyHandler_->handle(
-      key, currentState_.get(),
-      [this](std::unique_ptr<InputState> state) {
-        this->changeState_(std::move(currentState_), std::move(state));
-      },
-      [this]() { handleError_(); });
-
-  return consumed;
-}
-
-bool InputController::handleCandidateKey_(const Key& key) {
   int count = CandidateCount(currentState_.get());
   if (count == 0) {
     if (key.ascii == Key::ESC || key.ascii == Key::BACKSPACE) {
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::make_unique<InputStates::EmptyIgnoringPrevious>());
       return true;
     }
@@ -466,10 +473,6 @@ bool InputController::handleCandidateKey_(const Key& key) {
       dynamic_cast<InputStates::ChoosingPunctuationList*>(currentState_.get());
   auto* choosing =
       dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get());
-  auto* associated =
-      dynamic_cast<InputStates::AssociatedPhrases*>(currentState_.get());
-  auto* associatedPlain =
-      dynamic_cast<InputStates::AssociatedPhrasesPlain*>(currentState_.get());
   auto* numberInput =
       dynamic_cast<InputStates::NumberInput*>(currentState_.get());
   bool useShiftKey = numberInput != nullptr || associatedPlain != nullptr;
@@ -509,7 +512,7 @@ bool InputController::handleCandidateKey_(const Key& key) {
     if (keyHandler_->candidatePanelPunctuationMaybeEntered(
             key, choosingPunctuation->originalCursor,
             [this](std::unique_ptr<InputState> state) {
-              changeState_(std::move(currentState_), std::move(state));
+              enterNewState_(std::move(currentState_), std::move(state));
             })) {
       return true;
     }
@@ -521,11 +524,13 @@ bool InputController::handleCandidateKey_(const Key& key) {
     return true;
   }
 
+  // Note: implement JK/HL key
   if (key.name == Key::KeyName::LEFT && key.shiftPressed &&
       choosing != nullptr && choosingPunctuation == nullptr) {
     moveReadingCursorInCandidatePanel_(false);
     return true;
   }
+  // Note: implement JK/HL key
   if (key.name == Key::KeyName::RIGHT && key.shiftPressed &&
       choosing != nullptr && choosingPunctuation == nullptr) {
     moveReadingCursorInCandidatePanel_(true);
@@ -555,7 +560,7 @@ bool InputController::handleCandidateKey_(const Key& key) {
   }
 
   if (associatedPlain != nullptr && !key.shiftPressed) {
-    changeState_(std::move(currentState_),
+    enterNewState_(std::move(currentState_),
                  std::make_unique<InputStates::Empty>());
     return false;
   }
@@ -565,7 +570,7 @@ bool InputController::handleCandidateKey_(const Key& key) {
         keyHandler_->handleCandidateKeyForTraditionalBopomofoIfRequired(
             key, [this]() { selectCandidate(candidateIndex_); },
             [this](std::unique_ptr<InputState> state) {
-              changeState_(std::move(currentState_), std::move(state));
+              enterNewState_(std::move(currentState_), std::move(state));
             },
             [this]() { handleError_(); });
     if (handled) {
@@ -652,19 +657,19 @@ void InputController::moveReadingCursorInCandidatePanel_(bool forward) {
   auto inputting = keyHandler_->buildInputtingState();
   auto choosing = keyHandler_->buildChoosingCandidateState(
       inputting.get(), keyHandler_->candidateCursorIndex());
-  changeState_(std::move(currentState_), std::move(choosing));
+  enterNewState_(std::move(currentState_), std::move(choosing));
 }
 
 void InputController::cancelCandidatePanel_() {
   if (auto* selecting = dynamic_cast<InputStates::SelectingDictionary*>(
           currentState_.get())) {
-    changeState_(std::move(currentState_), std::move(selecting->previousState));
+    enterNewState_(std::move(currentState_), std::move(selecting->previousState));
     return;
   }
 
   if (auto* showingCharInfo =
           dynamic_cast<InputStates::ShowingCharInfo*>(currentState_.get())) {
-    changeState_(std::move(currentState_),
+    enterNewState_(std::move(currentState_),
                  std::move(showingCharInfo->previousState));
     return;
   }
@@ -673,10 +678,10 @@ void InputController::cancelCandidatePanel_() {
           dynamic_cast<InputStates::CustomMenu*>(currentState_.get())) {
     if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(
             customMenu->previousState.get())) {
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::make_unique<InputStates::ChoosingCandidate>(*choosing));
     } else {
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::make_unique<InputStates::EmptyIgnoringPrevious>());
     }
     return;
@@ -686,14 +691,14 @@ void InputController::cancelCandidatePanel_() {
           dynamic_cast<InputStates::AssociatedPhrases*>(currentState_.get())) {
     if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(
             associated->previousState.get())) {
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::make_unique<InputStates::ChoosingCandidate>(*choosing));
     } else if (auto* inputting = dynamic_cast<InputStates::Inputting*>(
                    associated->previousState.get())) {
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::make_unique<InputStates::Inputting>(*inputting));
     } else {
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::make_unique<InputStates::EmptyIgnoringPrevious>());
     }
     return;
@@ -703,7 +708,7 @@ void InputController::cancelCandidatePanel_() {
           currentState_.get())) {
     keyHandler_->candidatePanelPunctuationListCancelled(
         punctuation->originalCursor, [this](std::unique_ptr<InputState> state) {
-          changeState_(std::move(currentState_), std::move(state));
+          enterNewState_(std::move(currentState_), std::move(state));
         });
     return;
   }
@@ -715,7 +720,7 @@ void InputController::cancelCandidatePanel_() {
   }
   keyHandler_->candidatePanelCancelled(
       originalCursor, [this](std::unique_ptr<InputState> state) {
-        changeState_(std::move(currentState_), std::move(state));
+        enterNewState_(std::move(currentState_), std::move(state));
       });
 }
 
@@ -733,7 +738,7 @@ void InputController::buildAssociatedPhrasesForCurrentCandidate_(
           std::move(copy), choosing.originalCursor, candidate.reading,
           candidate.value, static_cast<size_t>(candidateIndex_));
   if (associated != nullptr) {
-    changeState_(std::move(currentState_), std::move(associated));
+    enterNewState_(std::move(currentState_), std::move(associated));
   }
 }
 
@@ -756,7 +761,7 @@ void InputController::enterDictionaryState_(
   auto copy = std::make_unique<InputStates::ChoosingCandidate>(choosing);
   auto newState = keyHandler_->buildSelectingDictionaryState(
       std::move(copy), candidate.value, static_cast<size_t>(candidateIndex_));
-  changeState_(std::move(currentState_), std::move(newState));
+  enterNewState_(std::move(currentState_), std::move(newState));
 }
 
 void InputController::enterPhraseActionMenu_(
@@ -779,7 +784,7 @@ void InputController::enterPhraseActionMenu_(
                          [this, reading = candidate.reading,
                           value = candidate.value]() {
                            keyHandler_->boostPhrase(reading, value);
-                           changeState_(std::move(currentState_),
+                           enterNewState_(std::move(currentState_),
                                         keyHandler_->buildInputtingState());
                          });
   } else {
@@ -787,7 +792,7 @@ void InputController::enterPhraseActionMenu_(
                          [this, reading = candidate.reading,
                           value = candidate.value]() {
                            keyHandler_->excludePhrase(reading, value);
-                           changeState_(std::move(currentState_),
+                           enterNewState_(std::move(currentState_),
                                         keyHandler_->buildInputtingState());
                          });
   }
@@ -795,8 +800,8 @@ void InputController::enterPhraseActionMenu_(
     auto inputting = keyHandler_->buildInputtingState();
     auto choosing = keyHandler_->buildChoosingCandidateState(
         inputting.get(), keyHandler_->candidateCursorIndex());
-    changeState_(std::move(currentState_), std::move(inputting));
-    changeState_(std::move(currentState_), std::move(choosing));
+    enterNewState_(std::move(currentState_), std::move(inputting));
+    enterNewState_(std::move(currentState_), std::move(choosing));
   });
 
   auto copy = std::make_unique<InputStates::ChoosingCandidate>(choosing);
@@ -805,14 +810,14 @@ void InputController::enterPhraseActionMenu_(
       boost ? localizedStrings_->boostPrompt()
             : localizedStrings_->excludePrompt(),
       std::move(entries));
-  changeState_(std::move(currentState_), std::move(menu));
+  enterNewState_(std::move(currentState_), std::move(menu));
 }
 
 void InputController::reset() {
   candidateIndex_ = -1;
   keyHandler_->reset();
   auto empty = std::make_unique<InputStates::Empty>();
-  this->changeState_(std::move(currentState_), std::move(empty));
+  this->enterNewState_(std::move(currentState_), std::move(empty));
 }
 
 void InputController::selectCandidate(int index) {
@@ -823,7 +828,7 @@ void InputController::selectCandidate(int index) {
       keyHandler_->candidateSelected(
           choosing->candidates[index], choosing->originalCursor,
           [this](std::unique_ptr<InputState> state) {
-            changeState_(std::move(currentState_), std::move(state));
+            enterNewState_(std::move(currentState_), std::move(state));
           });
     }
     return;
@@ -836,7 +841,7 @@ void InputController::selectCandidate(int index) {
       keyHandler_->candidateSelected(
           choosing->candidates[index], choosing->originalCursor,
           [this](std::unique_ptr<InputState> state) {
-            changeState_(std::move(currentState_), std::move(state));
+            enterNewState_(std::move(currentState_), std::move(state));
           });
     }
     return;
@@ -850,7 +855,7 @@ void InputController::selectCandidate(int index) {
           associated->prefixCursorIndex, associated->candidates[index],
           associated->prefixReading, associated->prefixValue,
           [this](std::unique_ptr<InputState> state) {
-            changeState_(std::move(currentState_), std::move(state));
+            enterNewState_(std::move(currentState_), std::move(state));
           });
     }
     return;
@@ -864,7 +869,7 @@ void InputController::selectCandidate(int index) {
       candidateIndex_ = -1;
       keyHandler_->candidateSelected(associatedPlain->candidates[index], 0,
                                      [this](std::unique_ptr<InputState> state) {
-                                       changeState_(std::move(currentState_),
+                                       enterNewState_(std::move(currentState_),
                                                     std::move(state));
                                      });
     }
@@ -878,11 +883,11 @@ void InputController::selectCandidate(int index) {
       if (dictionaryServices != nullptr) {
         dictionaryServices->lookup(selecting->selectedPhrase, index, selecting,
                                    [this](std::unique_ptr<InputState> state) {
-                                     changeState_(std::move(currentState_),
+                                     enterNewState_(std::move(currentState_),
                                                   std::move(state));
                                    });
       }
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::move(selecting->previousState));
     }
     return;
@@ -893,7 +898,7 @@ void InputController::selectCandidate(int index) {
     if (index >= 0 &&
         index < static_cast<int>(numberInput->candidates.size())) {
       std::string text = numberInput->candidates[index];
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::make_unique<InputStates::Committing>(text));
     }
     return;
@@ -903,7 +908,7 @@ void InputController::selectCandidate(int index) {
           dynamic_cast<InputStates::SelectingFeature*>(currentState_.get())) {
     if (index >= 0 &&
         index < static_cast<int>(selectingFeature->features.size())) {
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    selectingFeature->nextState(static_cast<size_t>(index)));
     }
     return;
@@ -914,7 +919,7 @@ void InputController::selectCandidate(int index) {
     if (index >= 0 &&
         index < static_cast<int>(selectingDateMacro->menu.size())) {
       std::string text = selectingDateMacro->menu[index];
-      changeState_(std::move(currentState_),
+      enterNewState_(std::move(currentState_),
                    std::make_unique<InputStates::Committing>(text));
     }
     return;
@@ -927,7 +932,7 @@ void InputController::selectCandidate(int index) {
       auto seq = std::make_unique<InputStates::StateSequence>();
       seq->push_back(std::make_unique<InputStates::Committing>(text));
       seq->push_back(std::make_unique<InputStates::Iroha>(""));
-      changeState_(std::move(currentState_), std::move(seq));
+      enterNewState_(std::move(currentState_), std::move(seq));
     }
     return;
   }
@@ -1025,13 +1030,13 @@ void InputController::refreshUI() {
   notifyUI_();
 }
 
-void InputController::changeState_(std::unique_ptr<InputState> previousState,
+void InputController::enterNewState_(std::unique_ptr<InputState> previousState,
                                    std::unique_ptr<InputState> newState) {
   if (auto* sequence =
           dynamic_cast<InputStates::StateSequence*>(newState.get())) {
     for (size_t i = 0; i < sequence->states.size(); ++i) {
       auto& s = sequence->states[i];
-      changeState_(std::move(previousState), std::move(s));
+      enterNewState_(std::move(previousState), std::move(s));
       if (i + 1 < sequence->states.size()) {
         previousState = std::move(currentState_);
       }
