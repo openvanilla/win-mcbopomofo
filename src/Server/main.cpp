@@ -59,6 +59,7 @@ using namespace McBopomofo;
 #define WM_USER_TRAY (WM_USER + 1)
 #define IDM_RESTART 1001
 #define IDM_EXIT 1002
+#define IDM_STOP_SERVER 1011
 
 constexpr const wchar_t* kServerSingleInstanceMutexName =
     L"Local\\WinMcBopomofoServerSingleInstance";
@@ -450,7 +451,6 @@ class ServerFileReloader {
 #define IDM_OPEN_LOG_FOLDER 1008
 #define IDM_TOGGLE_LOGGING 1009
 #define IDM_TRACE_LOG 1010
-#define IDM_EXIT 1002
 
 static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
                                     LPARAM lParam) {
@@ -488,8 +488,12 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
                   LoadLocalizedStringW(hInst, IDS_ENABLE_LOGGING).c_str());
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_TRACE_LOG,
                   LoadLocalizedStringW(hInst, IDS_TRACE_LOG).c_str());
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
       InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING, IDM_RESTART,
                   LoadLocalizedStringW(hInst, IDS_RESTART_SERVER).c_str());
+      InsertMenuW(hMenu, 0xFFFFFFFFU, MF_BYPOSITION | MF_STRING,
+                  IDM_STOP_SERVER,
+                  LoadLocalizedStringW(hInst, IDS_STOP_SERVER).c_str());
       ApplyDarkThemeToWindow(hwnd);
       SetForegroundWindow(hwnd);
       TrackPopupMenu(hMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0,
@@ -526,6 +530,8 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
       TraceLog();
     } else if (LOWORD(wParam) == IDM_RESTART) {
       RestartServer();
+    } else if (LOWORD(wParam) == IDM_STOP_SERVER) {
+      PostQuitMessage(0);
     }
     return 0;
   } else if (IsSystemColorSettingsChange(msg, lParam)) {

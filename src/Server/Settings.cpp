@@ -23,8 +23,9 @@
 
 #include "Settings.h"
 
-#include <dwmapi.h>
 #include <windows.h>
+#include <winrt/Windows.UI.ViewManagement.h>
+#include <winrt/base.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -36,6 +37,35 @@
 namespace McBopomofo {
 
 Settings::Settings() { load(); }
+
+namespace {
+
+uint32_t ToRgb(const winrt::Windows::UI::Color& color) {
+  return (static_cast<uint32_t>(color.R) << 16) |
+         (static_cast<uint32_t>(color.G) << 8) |
+         static_cast<uint32_t>(color.B);
+}
+
+bool EnsureWinrtApartmentInitialized() {
+  static thread_local bool initialized = false;
+  if (initialized) {
+    return true;
+  }
+
+  try {
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+    initialized = true;
+    return true;
+  } catch (const winrt::hresult_error& e) {
+    if (e.code() == RPC_E_CHANGED_MODE) {
+      initialized = true;
+      return true;
+    }
+    return false;
+  }
+}
+
+}  // namespace
 
 IPC::CandidateWindowColors Settings::readCandidateWindowColors_() const {
   DWORD useLightTheme = 1;
@@ -57,11 +87,19 @@ IPC::CandidateWindowColors Settings::readCandidateWindowColors_() const {
     colors.border = 0x404040;
   }
 
-  DWORD colorization = 0;
-  BOOL opaqueBlend = FALSE;
-  if (SUCCEEDED(DwmGetColorizationColor(&colorization, &opaqueBlend))) {
-    colors.highlightBackground = colorization & 0x00FFFFFF;
+  if (EnsureWinrtApartmentInitialized()) {
+    try {
+      using namespace winrt::Windows::UI::ViewManagement;
+      UISettings uiSettings;
+      colors.highlightBackground =
+          ToRgb(uiSettings.GetColorValue(UIColorType::Accent));
+    } catch (const winrt::hresult_error& e) {
+      FCITX_MCBOPOMOFO_WARN()
+          << "Failed to read system accent color from UISettings: "
+          << Utf16ToUtf8(std::wstring(e.message().c_str()));
+    }
   }
+
   return colors;
 }
 
