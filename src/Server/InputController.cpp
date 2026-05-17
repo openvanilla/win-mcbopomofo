@@ -464,7 +464,7 @@ bool InputController::handleCandidateKey_(
                                             candidateKeysCount_ +
                                         selectionIndex;
     if (actualIndex < count) {
-      selectCandidate(actualIndex);
+      selectCandidate_(actualIndex, stateCallback);
     }
     return true;
   }
@@ -474,7 +474,18 @@ bool InputController::handleCandidateKey_(
   bool shiftReturn = key.ascii == Key::RETURN && key.shiftPressed;
   if (keyHandler_->inputMode() == InputMode::McBopomofo && !useShiftKey &&
       shiftReturn && choosing != nullptr && choosingPunctuation == nullptr) {
-    buildAssociatedPhrasesForCurrentCandidate_(*choosing, stateCallback);
+    if (candidateIndex_ >= 0 &&
+        candidateIndex_ < static_cast<int>(choosing->candidates.size())) {
+      auto copy = std::make_unique<InputStates::ChoosingCandidate>(*choosing);
+      const auto& candidate = choosing->candidates[candidateIndex_];
+      auto associatedState =
+          keyHandler_->buildAssociatedPhrasesStateFromCandidateChoosingState(
+              std::move(copy), choosing->originalCursor, candidate.reading,
+              candidate.value, static_cast<size_t>(candidateIndex_));
+      if (associatedState != nullptr) {
+        stateCallback(std::move(associatedState));
+      }
+    }
     return true;
   }
 
@@ -485,7 +496,55 @@ bool InputController::handleCandidateKey_(
   }
 
   if (key.ascii == Key::ESC || key.ascii == Key::BACKSPACE) {
-    cancelCandidatePanel_(stateCallback);
+    if (auto* selecting = dynamic_cast<InputStates::SelectingDictionary*>(
+            currentState_.get())) {
+      stateCallback(std::move(selecting->previousState));
+      return true;
+    }
+
+    if (auto* showingCharInfo =
+            dynamic_cast<InputStates::ShowingCharInfo*>(currentState_.get())) {
+      stateCallback(std::move(showingCharInfo->previousState));
+      return true;
+    }
+
+    if (auto* customMenu =
+            dynamic_cast<InputStates::CustomMenu*>(currentState_.get())) {
+      if (auto* previousChoosing = dynamic_cast<InputStates::ChoosingCandidate*>(
+              customMenu->previousState.get())) {
+        stateCallback(
+            std::make_unique<InputStates::ChoosingCandidate>(*previousChoosing));
+      } else {
+        stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
+      }
+      return true;
+    }
+
+    if (associated != nullptr) {
+      if (auto* previousChoosing = dynamic_cast<InputStates::ChoosingCandidate*>(
+              associated->previousState.get())) {
+        stateCallback(
+            std::make_unique<InputStates::ChoosingCandidate>(*previousChoosing));
+      } else if (auto* inputting = dynamic_cast<InputStates::Inputting*>(
+                     associated->previousState.get())) {
+        stateCallback(std::make_unique<InputStates::Inputting>(*inputting));
+      } else {
+        stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
+      }
+      return true;
+    }
+
+    if (choosingPunctuation != nullptr) {
+      keyHandler_->candidatePanelPunctuationListCancelled(
+          choosingPunctuation->originalCursor, stateCallback);
+      return true;
+    }
+
+    size_t originalCursor = 0;
+    if (choosing != nullptr) {
+      originalCursor = choosing->originalCursor;
+    }
+    keyHandler_->candidatePanelCancelled(originalCursor, stateCallback);
     return true;
   }
 
@@ -505,13 +564,29 @@ bool InputController::handleCandidateKey_(
   // Note: implement JK/HL key
   if (key.name == Key::KeyName::LEFT && key.shiftPressed &&
       choosing != nullptr && choosingPunctuation == nullptr) {
-    moveReadingCursorInCandidatePanel_(false, stateCallback);
+    size_t cursor = keyHandler_->candidateCursorIndex();
+    if (cursor > 0) {
+      --cursor;
+    }
+    keyHandler_->setCandidateCursorIndex(cursor);
+
+    auto inputting = keyHandler_->buildInputtingState();
+    auto newChoosing = keyHandler_->buildChoosingCandidateState(
+        inputting.get(), keyHandler_->candidateCursorIndex());
+    stateCallback(std::move(newChoosing));
     return true;
   }
   // Note: implement JK/HL key
   if (key.name == Key::KeyName::RIGHT && key.shiftPressed &&
       choosing != nullptr && choosingPunctuation == nullptr) {
-    moveReadingCursorInCandidatePanel_(true, stateCallback);
+    size_t cursor = keyHandler_->candidateCursorIndex();
+    ++cursor;
+    keyHandler_->setCandidateCursorIndex(cursor);
+
+    auto inputting = keyHandler_->buildInputtingState();
+    auto newChoosing = keyHandler_->buildChoosingCandidateState(
+        inputting.get(), keyHandler_->candidateCursorIndex());
+    stateCallback(std::move(newChoosing));
     return true;
   }
 
@@ -521,7 +596,20 @@ bool InputController::handleCandidateKey_(
 
   if (keyHandler_->inputMode() == InputMode::McBopomofo && key.ascii == '?' &&
       choosing != nullptr && choosingPunctuation == nullptr) {
-    enterDictionaryState_(*choosing, stateCallback);
+    if (candidateIndex_ >= 0 &&
+        candidateIndex_ < static_cast<int>(choosing->candidates.size())) {
+      auto* dictionaryServices = keyHandler_->getDictionaryServices();
+      if (dictionaryServices != nullptr && dictionaryServices->hasServices()) {
+        const auto& candidate = choosing->candidates[candidateIndex_];
+        if (!HasInvalidDictionaryPrefix(candidate.reading)) {
+          auto copy = std::make_unique<InputStates::ChoosingCandidate>(*choosing);
+          auto newState = keyHandler_->buildSelectingDictionaryState(
+              std::move(copy), candidate.value,
+              static_cast<size_t>(candidateIndex_));
+          stateCallback(std::move(newState));
+        }
+      }
+    }
     return true;
   }
 
@@ -529,8 +617,50 @@ bool InputController::handleCandidateKey_(
       choosing != nullptr && choosingPunctuation == nullptr &&
       (key.ascii == '+' || key.ascii == '=' || key.ascii == '-' ||
        key.ascii == '_')) {
-    enterPhraseActionMenu_(*choosing, key.ascii == '+' || key.ascii == '=',
-                           stateCallback);
+    if (candidateIndex_ >= 0 &&
+        candidateIndex_ < static_cast<int>(choosing->candidates.size())) {
+      const auto candidate = choosing->candidates[candidateIndex_];
+      if (!HasInvalidDictionaryPrefix(candidate.reading) &&
+          candidate.reading.find('-') != std::string::npos &&
+          candidate.value == candidate.rawValue) {
+        std::vector<InputStates::CustomMenu::MenuEntry> entries;
+        bool boost = key.ascii == '+' || key.ascii == '=';
+        if (boost) {
+          entries.emplace_back(
+              localizedStrings_->boost(),
+              [this, reading = candidate.reading, value = candidate.value,
+               stateCallback]() {
+                keyHandler_->boostPhrase(reading, value);
+                stateCallback(keyHandler_->buildInputtingState());
+              });
+        } else {
+          entries.emplace_back(
+              localizedStrings_->exclude(),
+              [this, reading = candidate.reading, value = candidate.value,
+               stateCallback]() {
+                keyHandler_->excludePhrase(reading, value);
+                stateCallback(keyHandler_->buildInputtingState());
+              });
+        }
+        entries.emplace_back(localizedStrings_->cancel(),
+                             [this, stateCallback]() {
+                               auto inputting = keyHandler_->buildInputtingState();
+                               auto newChoosing =
+                                   keyHandler_->buildChoosingCandidateState(
+                                       inputting.get(),
+                                       keyHandler_->candidateCursorIndex());
+                               stateCallback(std::move(newChoosing));
+                             });
+
+        auto copy = std::make_unique<InputStates::ChoosingCandidate>(*choosing);
+        auto menu = std::make_unique<InputStates::CustomMenu>(
+            std::move(copy),
+            boost ? localizedStrings_->boostPrompt()
+                  : localizedStrings_->excludePrompt(),
+            std::move(entries));
+        stateCallback(std::move(menu));
+      }
+    }
     return true;
   }
 
@@ -621,167 +751,6 @@ void InputController::moveCandidatePage_(bool forward) {
     page = page > 0 ? page - 1 : totalPages - 1;
   }
   candidateIndex_ = page * candidateKeysCount_;
-}
-
-void InputController::moveReadingCursorInCandidatePanel_(
-    bool forward, const McBopomofo::KeyHandler::StateCallback& stateCallback) {
-  size_t cursor = keyHandler_->candidateCursorIndex();
-  if (forward) {
-    ++cursor;
-  } else if (cursor > 0) {
-    --cursor;
-  }
-  keyHandler_->setCandidateCursorIndex(cursor);
-
-  auto inputting = keyHandler_->buildInputtingState();
-  auto choosing = keyHandler_->buildChoosingCandidateState(
-      inputting.get(), keyHandler_->candidateCursorIndex());
-  stateCallback(std::move(choosing));
-}
-
-void InputController::cancelCandidatePanel_(
-    const McBopomofo::KeyHandler::StateCallback& stateCallback) {
-  if (auto* selecting = dynamic_cast<InputStates::SelectingDictionary*>(
-          currentState_.get())) {
-    stateCallback(std::move(selecting->previousState));
-    return;
-  }
-
-  if (auto* showingCharInfo =
-          dynamic_cast<InputStates::ShowingCharInfo*>(currentState_.get())) {
-    stateCallback(std::move(showingCharInfo->previousState));
-    return;
-  }
-
-  if (auto* customMenu =
-          dynamic_cast<InputStates::CustomMenu*>(currentState_.get())) {
-    if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(
-            customMenu->previousState.get())) {
-      stateCallback(
-          std::make_unique<InputStates::ChoosingCandidate>(*choosing));
-    } else {
-      stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
-    }
-    return;
-  }
-
-  if (auto* associated =
-          dynamic_cast<InputStates::AssociatedPhrases*>(currentState_.get())) {
-    if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(
-            associated->previousState.get())) {
-      stateCallback(
-          std::make_unique<InputStates::ChoosingCandidate>(*choosing));
-    } else if (auto* inputting = dynamic_cast<InputStates::Inputting*>(
-                   associated->previousState.get())) {
-      stateCallback(std::make_unique<InputStates::Inputting>(*inputting));
-    } else {
-      stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
-    }
-    return;
-  }
-
-  if (auto* punctuation = dynamic_cast<InputStates::ChoosingPunctuationList*>(
-          currentState_.get())) {
-    keyHandler_->candidatePanelPunctuationListCancelled(
-        punctuation->originalCursor, stateCallback);
-    return;
-  }
-
-  size_t originalCursor = 0;
-  if (auto* choosing =
-          dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get())) {
-    originalCursor = choosing->originalCursor;
-  }
-  keyHandler_->candidatePanelCancelled(originalCursor, stateCallback);
-}
-
-void InputController::buildAssociatedPhrasesForCurrentCandidate_(
-    InputStates::ChoosingCandidate& choosing,
-    const McBopomofo::KeyHandler::StateCallback& stateCallback) {
-  if (candidateIndex_ < 0 ||
-      candidateIndex_ >= static_cast<int>(choosing.candidates.size())) {
-    return;
-  }
-
-  auto copy = std::make_unique<InputStates::ChoosingCandidate>(choosing);
-  const auto& candidate = choosing.candidates[candidateIndex_];
-  auto associated =
-      keyHandler_->buildAssociatedPhrasesStateFromCandidateChoosingState(
-          std::move(copy), choosing.originalCursor, candidate.reading,
-          candidate.value, static_cast<size_t>(candidateIndex_));
-  if (associated != nullptr) {
-    stateCallback(std::move(associated));
-  }
-}
-
-void InputController::enterDictionaryState_(
-    InputStates::ChoosingCandidate& choosing,
-    const McBopomofo::KeyHandler::StateCallback& stateCallback) {
-  if (candidateIndex_ < 0 ||
-      candidateIndex_ >= static_cast<int>(choosing.candidates.size())) {
-    return;
-  }
-  auto* dictionaryServices = keyHandler_->getDictionaryServices();
-  if (dictionaryServices == nullptr || !dictionaryServices->hasServices()) {
-    return;
-  }
-
-  const auto& candidate = choosing.candidates[candidateIndex_];
-  if (HasInvalidDictionaryPrefix(candidate.reading)) {
-    return;
-  }
-
-  auto copy = std::make_unique<InputStates::ChoosingCandidate>(choosing);
-  auto newState = keyHandler_->buildSelectingDictionaryState(
-      std::move(copy), candidate.value, static_cast<size_t>(candidateIndex_));
-  stateCallback(std::move(newState));
-}
-
-void InputController::enterPhraseActionMenu_(
-    InputStates::ChoosingCandidate& choosing, bool boost,
-    const McBopomofo::KeyHandler::StateCallback& stateCallback) {
-  if (candidateIndex_ < 0 ||
-      candidateIndex_ >= static_cast<int>(choosing.candidates.size())) {
-    return;
-  }
-
-  const auto candidate = choosing.candidates[candidateIndex_];
-  if (HasInvalidDictionaryPrefix(candidate.reading) ||
-      candidate.reading.find('-') == std::string::npos ||
-      candidate.value != candidate.rawValue) {
-    return;
-  }
-
-  std::vector<InputStates::CustomMenu::MenuEntry> entries;
-  if (boost) {
-    entries.emplace_back(localizedStrings_->boost(),
-                         [this, reading = candidate.reading,
-                          value = candidate.value, stateCallback]() {
-                           keyHandler_->boostPhrase(reading, value);
-                           stateCallback(keyHandler_->buildInputtingState());
-                         });
-  } else {
-    entries.emplace_back(localizedStrings_->exclude(),
-                         [this, reading = candidate.reading,
-                          value = candidate.value, stateCallback]() {
-                           keyHandler_->excludePhrase(reading, value);
-                           stateCallback(keyHandler_->buildInputtingState());
-                         });
-  }
-  entries.emplace_back(localizedStrings_->cancel(), [this, stateCallback]() {
-    auto inputting = keyHandler_->buildInputtingState();
-    auto choosing = keyHandler_->buildChoosingCandidateState(
-        inputting.get(), keyHandler_->candidateCursorIndex());
-    stateCallback(std::move(choosing));
-  });
-
-  auto copy = std::make_unique<InputStates::ChoosingCandidate>(choosing);
-  auto menu = std::make_unique<InputStates::CustomMenu>(
-      std::move(copy),
-      boost ? localizedStrings_->boostPrompt()
-            : localizedStrings_->excludePrompt(),
-      std::move(entries));
-  stateCallback(std::move(menu));
 }
 
 void InputController::reset() {

@@ -106,20 +106,6 @@ class InputController {
   bool handleCandidateNavigation_(const Key& key);
   void moveCandidateCursor_(bool forward);
   void moveCandidatePage_(bool forward);
-  void moveReadingCursorInCandidatePanel_(
-      bool forward, const McBopomofo::KeyHandler::StateCallback& stateCallback);
-  void cancelCandidatePanel_(
-      const McBopomofo::KeyHandler::StateCallback& stateCallback);
-  void buildAssociatedPhrasesForCurrentCandidate_(
-      InputStates::ChoosingCandidate& choosing,
-      const McBopomofo::KeyHandler::StateCallback& stateCallback);
-  void enterDictionaryState_(
-      InputStates::ChoosingCandidate& choosing,
-      const McBopomofo::KeyHandler::StateCallback& stateCallback);
-  void enterPhraseActionMenu_(InputStates::ChoosingCandidate& choosing,
-                              bool boost,
-                              const McBopomofo::KeyHandler::StateCallback&
-                                  stateCallback);
   void selectCandidate_(
       int index,
       const McBopomofo::KeyHandler::StateCallback& stateCallback);
