@@ -17,6 +17,20 @@
     <ui:WixUI Id="WixUI_InstallDir" />
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <WixVariable Id="WixUILicenseRtf" Value="build_msi_generated\LICENSE.rtf" />
+    <UI>
+      <Publish Dialog="LicenseAgreementDlg"
+               Control="Next"
+               Event="NewDialog"
+               Value="VerifyReadyDlg"
+               Condition="WIX_UPGRADE_DETECTED"
+               Order="3" />
+      <Publish Dialog="VerifyReadyDlg"
+               Control="Back"
+               Event="NewDialog"
+               Value="LicenseAgreementDlg"
+               Condition="WIX_UPGRADE_DETECTED"
+               Order="3" />
+    </UI>
 
     <Property Id="INSTALLFOLDER">
       <RegistrySearch Id="SearchInstallDir" Root="HKLM" Key="SOFTWARE\McBopomofo" Name="InstallDir" Type="raw" />
@@ -29,14 +43,14 @@
     <MediaTemplate EmbedCab="yes" />
 
     <!-- Detect and close applications to prevent file locks during installation/uninstallation -->
-    <util:CloseApplication Id="CloseServerAppLegacy" Target="McBopomofoServer.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseConfigAppLegacy" Target="McBopomofoConfig.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseServerAppX86" Target="McBopomofoServer_x86.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseServerAppX64" Target="McBopomofoServer_x64.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseServerAppArm64" Target="McBopomofoServer_arm64.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseConfigAppX86" Target="McBopomofoConfig_x86.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseConfigAppX64" Target="McBopomofoConfig_x64.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseConfigAppArm64" Target="McBopomofoConfig_arm64.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseServerAppLegacy" Target="McBopomofoServer.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseConfigAppLegacy" Target="McBopomofoConfig.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseServerAppX86" Target="McBopomofoServer_x86.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseServerAppX64" Target="McBopomofoServer_x64.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseServerAppArm64" Target="McBopomofoServer_arm64.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseConfigAppX86" Target="McBopomofoConfig_x86.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseConfigAppX64" Target="McBopomofoConfig_x64.exe" CloseMessage="yes" RebootPrompt="yes" />
+    <util:CloseApplication Id="CloseConfigAppArm64" Target="McBopomofoConfig_arm64.exe" CloseMessage="yes" RebootPrompt="yes" />
 
     <!-- Check and close applications that have loaded McBopomofoTIP DLL -->
     <CustomAction Id="CheckAndCloseAppsWithTIP" 

@@ -23,6 +23,14 @@
 * **Build System**: **CMake** is used for project build management.
 * **Packaging Tool**: **WiX Toolset v7.0** is used to build the MSI installer. Note: You must first accept the license by running `wix eula accept wix7`.
 
+## Installer Conventions
+
+* **WiX Extensions**: The MSI build depends on WiX v7 extensions `WixToolset.UI.wixext/7.0.0` and `WixToolset.Util.wixext/7.0.0`. `build_msi.ps1` is responsible for installing and passing these extension references to `wix build`.
+* **Installer Verification**: After changing `installer/*.wxs`, localization `.wxl` files, or `build_msi.ps1`, verify with `.\build_msi.ps1 -SkipBuild -OutputName Win-McBopomofo-Installer-verify.msi` when the required binaries already exist.
+* **License RTF Generation**: `build_msi.ps1` converts `LICENSE.txt` to `build_msi_generated\LICENSE.rtf`. Single line breaks in the source text are treated as hard-wrapped text and must be joined with spaces inside the same paragraph. Blank lines split paragraphs, and generated RTF should use `\par\par` between paragraphs so the WiX license dialog shows one empty line between paragraphs.
+* **Upgrade UI**: Major upgrades are detected via `WIX_UPGRADE_DETECTED`. During an upgrade, the installer must not show `InstallDirDlg` or allow editing `INSTALLFOLDER`; the UI should jump from `LicenseAgreementDlg` directly to `VerifyReadyDlg`, and Back should return to the license dialog.
+* **Reboot Handling**: Do not suppress reboot prompts for application shutdown during install or upgrade. `util:CloseApplication` entries should keep `RebootPrompt="yes"` so users are prompted if a running process cannot be closed and a reboot is required. Windows Installer may also prompt at the end when locked files need replacement.
+
 ## Architecture Conventions
 
 * **Multi-Architecture Support**: This project supports `x86`, `x64`, and `ARM64`.
