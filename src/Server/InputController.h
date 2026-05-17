@@ -99,17 +99,30 @@ class InputController {
   void handleError_() const;
   void notifyUI_();
   IPC::StateUpdatePayload buildStateUpdatePayload_() const;
-  bool handleCandidateKey_(const Key& key);
+  bool handleCandidateKey_(
+      const Key& key,
+      const McBopomofo::KeyHandler::StateCallback& stateCallback,
+      const McBopomofo::KeyHandler::ErrorCallback& errorCallback);
   bool handleCandidateNavigation_(const Key& key);
   void moveCandidateCursor_(bool forward);
   void moveCandidatePage_(bool forward);
-  void moveReadingCursorInCandidatePanel_(bool forward);
-  void cancelCandidatePanel_();
+  void moveReadingCursorInCandidatePanel_(
+      bool forward, const McBopomofo::KeyHandler::StateCallback& stateCallback);
+  void cancelCandidatePanel_(
+      const McBopomofo::KeyHandler::StateCallback& stateCallback);
   void buildAssociatedPhrasesForCurrentCandidate_(
-      InputStates::ChoosingCandidate& choosing);
-  void enterDictionaryState_(InputStates::ChoosingCandidate& choosing);
+      InputStates::ChoosingCandidate& choosing,
+      const McBopomofo::KeyHandler::StateCallback& stateCallback);
+  void enterDictionaryState_(
+      InputStates::ChoosingCandidate& choosing,
+      const McBopomofo::KeyHandler::StateCallback& stateCallback);
   void enterPhraseActionMenu_(InputStates::ChoosingCandidate& choosing,
-                              bool boost);
+                              bool boost,
+                              const McBopomofo::KeyHandler::StateCallback&
+                                  stateCallback);
+  void selectCandidate_(
+      int index,
+      const McBopomofo::KeyHandler::StateCallback& stateCallback);
 
   std::shared_ptr<KeyHandler> keyHandler_;
   UIInterface* ui_;
