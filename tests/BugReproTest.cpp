@@ -207,6 +207,54 @@ TEST_F(BugReproTest, AssociatedPhrasesCancelRestoresChoosingCandidateState) {
     EXPECT_EQ(choosing->candidates[1].value, "明");
 }
 
+TEST_F(BugReproTest, SelectionActionJKMovesCandidateCursorInsteadOfSelectingCandidate) {
+    std::vector<InputStates::ChoosingCandidate::Candidate> candidates{
+        {"ㄇㄧㄥˊ", "名", "名"},
+        {"ㄇㄧㄥˊ", "明", "明"},
+        {"ㄇㄧㄥˊ", "銘", "銘"},
+    };
+
+    controller->setCandidateKeys("asdfghjkl");
+    controller->setSelectionAction("JK");
+    controller->setStateForTesting(
+        std::make_unique<InputStates::ChoosingCandidate>("名", 1, 0, candidates),
+        1);
+
+    EXPECT_TRUE(controller->handleKey(Key::asciiKey('j', false, false)));
+    EXPECT_NE(dynamic_cast<InputStates::ChoosingCandidate*>(controller->currentState()), nullptr);
+    EXPECT_EQ(controller->candidateIndex(), 0);
+    EXPECT_TRUE(ui->committedString.empty());
+
+    EXPECT_TRUE(controller->handleKey(Key::asciiKey('k', false, false)));
+    EXPECT_NE(dynamic_cast<InputStates::ChoosingCandidate*>(controller->currentState()), nullptr);
+    EXPECT_EQ(controller->candidateIndex(), 1);
+    EXPECT_TRUE(ui->committedString.empty());
+}
+
+TEST_F(BugReproTest, SelectionActionHLMovesCandidateCursorInsteadOfSelectingCandidate) {
+    std::vector<InputStates::ChoosingCandidate::Candidate> candidates{
+        {"ㄇㄧㄥˊ", "名", "名"},
+        {"ㄇㄧㄥˊ", "明", "明"},
+        {"ㄇㄧㄥˊ", "銘", "銘"},
+    };
+
+    controller->setCandidateKeys("asdfghjkl");
+    controller->setSelectionAction("HL");
+    controller->setStateForTesting(
+        std::make_unique<InputStates::ChoosingCandidate>("名", 1, 0, candidates),
+        1);
+
+    EXPECT_TRUE(controller->handleKey(Key::asciiKey('h', false, false)));
+    EXPECT_NE(dynamic_cast<InputStates::ChoosingCandidate*>(controller->currentState()), nullptr);
+    EXPECT_EQ(controller->candidateIndex(), 0);
+    EXPECT_TRUE(ui->committedString.empty());
+
+    EXPECT_TRUE(controller->handleKey(Key::asciiKey('l', false, false)));
+    EXPECT_NE(dynamic_cast<InputStates::ChoosingCandidate*>(controller->currentState()), nullptr);
+    EXPECT_EQ(controller->candidateIndex(), 1);
+    EXPECT_TRUE(ui->committedString.empty());
+}
+
 TEST_F(BugReproTest, PunctuationWithoutAssociatedPhrasesDoesNotTriggerError) {
     constexpr char kPunctuationOnlyLm[] = R"(
 # format org.openvanilla.mcbopomofo.sorted

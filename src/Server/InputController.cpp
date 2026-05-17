@@ -419,6 +419,10 @@ bool InputController::handleCandidateKey_(
       dynamic_cast<InputStates::NumberInput*>(currentState_.get());
   auto* choosingPunctuation =
       dynamic_cast<InputStates::ChoosingPunctuationList*>(currentState_.get());
+  auto* choosing =
+      dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get());
+  bool canHandleChoosingCandidate =
+      choosing != nullptr && choosingPunctuation == nullptr;
 
   if (associated) {
     if (associated->autoTriggered) {
@@ -455,6 +459,33 @@ bool InputController::handleCandidateKey_(
   }
 
   bool useShiftKey = numberInput != nullptr || associatedPlain != nullptr;
+  char ascii = static_cast<char>(std::tolower(
+      static_cast<unsigned char>(static_cast<char>(key.ascii))));
+  if (canHandleChoosingCandidate && !useShiftKey) {
+    if (selectionAction_ == "JK") {
+      if (ascii == 'j') {
+        moveCandidateCursor_(false);
+        notifyUI_();
+        return true;
+      }
+      if (ascii == 'k') {
+        moveCandidateCursor_(true);
+        notifyUI_();
+        return true;
+      }
+    } else if (selectionAction_ == "HL") {
+      if (ascii == 'h') {
+        moveCandidateCursor_(false);
+        notifyUI_();
+        return true;
+      }
+      if (ascii == 'l') {
+        moveCandidateCursor_(true);
+        notifyUI_();
+        return true;
+      }
+    }
+  }
 
   int selectionIndex = SelectionIndexFromKey(key, useShiftKey, candidateKeys_,
                                              candidateKeysCount_);
@@ -469,11 +500,9 @@ bool InputController::handleCandidateKey_(
     return true;
   }
 
-  auto* choosing =
-      dynamic_cast<InputStates::ChoosingCandidate*>(currentState_.get());
   bool shiftReturn = key.ascii == Key::RETURN && key.shiftPressed;
   if (keyHandler_->inputMode() == InputMode::McBopomofo && !useShiftKey &&
-      shiftReturn && choosing != nullptr && choosingPunctuation == nullptr) {
+      shiftReturn && canHandleChoosingCandidate) {
     if (candidateIndex_ >= 0 &&
         candidateIndex_ < static_cast<int>(choosing->candidates.size())) {
       auto copy = std::make_unique<InputStates::ChoosingCandidate>(*choosing);
@@ -561,9 +590,8 @@ bool InputController::handleCandidateKey_(
     return true;
   }
 
-  // Note: implement JK/HL key
   if (key.name == Key::KeyName::LEFT && key.shiftPressed &&
-      choosing != nullptr && choosingPunctuation == nullptr) {
+      canHandleChoosingCandidate) {
     size_t cursor = keyHandler_->candidateCursorIndex();
     if (cursor > 0) {
       --cursor;
@@ -576,9 +604,8 @@ bool InputController::handleCandidateKey_(
     stateCallback(std::move(newChoosing));
     return true;
   }
-  // Note: implement JK/HL key
   if (key.name == Key::KeyName::RIGHT && key.shiftPressed &&
-      choosing != nullptr && choosingPunctuation == nullptr) {
+      canHandleChoosingCandidate) {
     size_t cursor = keyHandler_->candidateCursorIndex();
     ++cursor;
     keyHandler_->setCandidateCursorIndex(cursor);
@@ -595,7 +622,7 @@ bool InputController::handleCandidateKey_(
   }
 
   if (keyHandler_->inputMode() == InputMode::McBopomofo && key.ascii == '?' &&
-      choosing != nullptr && choosingPunctuation == nullptr) {
+      canHandleChoosingCandidate) {
     if (candidateIndex_ >= 0 &&
         candidateIndex_ < static_cast<int>(choosing->candidates.size())) {
       auto* dictionaryServices = keyHandler_->getDictionaryServices();
@@ -614,7 +641,7 @@ bool InputController::handleCandidateKey_(
   }
 
   if (keyHandler_->inputMode() == InputMode::McBopomofo &&
-      choosing != nullptr && choosingPunctuation == nullptr &&
+      canHandleChoosingCandidate &&
       (key.ascii == '+' || key.ascii == '=' || key.ascii == '-' ||
        key.ascii == '_')) {
     if (candidateIndex_ >= 0 &&
@@ -673,7 +700,7 @@ bool InputController::handleCandidateKey_(
     return false;
   }
 
-  if (choosing != nullptr && choosingPunctuation == nullptr) {
+  if (canHandleChoosingCandidate) {
     bool handled =
         keyHandler_->handleCandidateKeyForTraditionalBopomofoIfRequired(
             key,
@@ -947,6 +974,14 @@ void InputController::setCandidateKeysCount(int count) {
 
 void InputController::setCandidateWindowVertical(bool vertical) {
   candidateWindowVertical_ = vertical;
+}
+
+void InputController::setSelectionAction(const std::string& action) {
+  if (action == "None" || action == "JK" || action == "HL") {
+    selectionAction_ = action;
+  } else {
+    selectionAction_ = "None";
+  }
 }
 
 void InputController::setCandidateWindowColors(

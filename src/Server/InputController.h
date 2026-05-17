@@ -74,6 +74,7 @@ class InputController {
   void setCandidateKeys(const std::string& keys);
   void setCandidateKeysCount(int count);
   void setCandidateWindowVertical(bool vertical);
+  void setSelectionAction(const std::string& action);
   void setChineseConversionEnabled(bool enabled);
   void setCandidateFontSize(int size) { candidateFontSize_ = size; }
   void setCandidateWindowColors(
@@ -117,6 +118,7 @@ class InputController {
   std::string candidateKeys_ = "123456789";
   int candidateKeysCount_ = 9;
   bool candidateWindowVertical_ = false;
+  std::string selectionAction_ = "None";
   int candidateFontSize_ = 16;
   IPC::CandidateWindowColors candidateWindowColors_;
   bool beepOnError_ = true;
