@@ -1,6 +1,44 @@
 # Win-McBopomofo
 
+![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white) ![CMake](https://img.shields.io/badge/CMake-%23008FBA.svg?style=for-the-badge&logo=cmake&logoColor=white) ![Visual Studio](https://img.shields.io/badge/Visual%20Studio-5C2D91.svg?style=for-the-badge&logo=visual-studio&logoColor=white) ![Wix](https://img.shields.io/badge/wix-000?style=for-the-badge&logo=wix&logoColor=white) ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white) 
+
+[![Build and Test](https://github.com/openvanilla/win-mcbopomofo/actions/workflows/build.yml/badge.svg)](https://github.com/openvanilla/win-mcbopomofo/actions/workflows/build.yml)
+
 Windows port of McBopomofo built on TSF.
+
+‼️ 請注意：本專案目前—不發行可安裝版本、不收外部 PR、不收 issue、沒有使用手冊、不處理任何問題回報、功能建議、社群回饋。僅提供專案原始程式碼。
+
+‼️ 如有需要，請自行按照下方說明編譯安裝，您也可以考慮在 GitHub 上 fork 本專案之後，讓 GitHub Action 編譯。編譯完成會產生沒有簽名的安裝程式，自行安裝。
+
+<!-- TOC -->
+
+- [Win-McBopomofo](#win-mcbopomofo)
+  - [System Requirements](#system-requirements)
+  - [Development Requirements](#development-requirements)
+    - [Quick Installation via Winget](#quick-installation-via-winget)
+  - [Repository Structure](#repository-structure)
+  - [Getting Started with Development](#getting-started-with-development)
+    - [1. Setup Environment](#1-setup-environment)
+    - [2. Build and Install Locally](#2-build-and-install-locally)
+    - [3. Debugging](#3-debugging)
+    - [4. Building the Installer](#4-building-the-installer)
+  - [Core Concept and Design Philosophy](#core-concept-and-design-philosophy)
+    - [Extending the Input Method](#extending-the-input-method)
+  - [Vocabulary and Language Model](#vocabulary-and-language-model)
+  - [Coding Style](#coding-style)
+    - [Git Commit Convention](#git-commit-convention)
+  - [Common Scripts](#common-scripts)
+  - [Basic Build](#basic-build)
+  - [Notes](#notes)
+  - [Windows Compatibility](#windows-compatibility)
+  - [Misc](#misc)
+    - [Registry Verification](#registry-verification)
+
+<!-- /TOC -->
+
+## System Requirements
+
+- Windows 10 or later (x64, x86, and ARM64)
 
 ## Development Requirements
 
@@ -11,6 +49,7 @@ To build this project, you need to install the following tools:
     - MSVC v145 - VS 2026 C++ ARM64 build tools
     - Windows SDK (latest version recommended)
 - **CMake** (included in Visual Studio or installed standalone)
+- **clang-format** (required for source formatting). You can install it either via Visual Studio C++ Clang tools or via standalone LLVM.
 - **WiX Toolset** (v7.0 or newer) - Required for building the `.msi` installer. Ensure the WiX binaries are added to your system `PATH`.
 
 ### Quick Installation via Winget
@@ -18,17 +57,20 @@ To build this project, you need to install the following tools:
 You can quickly install the base tools using Windows Package Manager (`winget`):
 
 ```powershell
+# Install Windows Terminal (Built-in on Win11, recommended for Win10)
+winget install Microsoft.WindowsTerminal
+
 # Install Visual Studio 2026 Community
 winget install Microsoft.VisualStudio.2026.Community
 
 # Install CMake
 winget install Kitware.CMake
 
+# Install LLVM (includes clang-format for code formatting. Optional.)
+winget install LLVM.LLVM
+
 # Install WiX Toolset
 winget install wixtoolset.wix
-
-# Install Windows Terminal (Built-in on Win11, recommended for Win10)
-winget install Microsoft.WindowsTerminal
 
 # Accept WiX v7 EULA (required for build)
 wix eula accept wix7
@@ -36,6 +78,13 @@ wix eula accept wix7
 # Install the WiX extensions required by installer/installer.wxs
 wix extension add -g WixToolset.UI.wixext/7.0.0
 wix extension add -g WixToolset.Util.wixext/7.0.0
+```
+
+Verify `clang-format` is available:
+
+```powershell
+where clang-format
+clang-format --version
 ```
 
 *Note: After installing Visual Studio via `winget`, you must open the Visual Studio Installer to manually select the "Desktop development with C++" workload and the specific ARM64 build tools.*
@@ -52,7 +101,7 @@ wix extension add -g WixToolset.Util.wixext/7.0.0
 - `docs/`: Technical documentation and guidelines (translated to English).
 - `scripts/`: Internal PowerShell and VBScript utilities for installation, uninstallation, and process management.
 - `tests/`: Unit tests and regression tests.
-- `third_party/`: External libraries including OpenCC and Marisa.
+- `third_party/`: External libraries including OpenCC and  Lunar-Solar-Calendar-Converter.
 
 ## Getting Started with Development
 
@@ -144,7 +193,7 @@ Because the data tables are shared across platforms, if you plan to implement ne
 This project follows a consistent coding style enforced by `clang-format`.
 
 - **Configuration**: See `.clang-format` in the root directory.
-- **Requirement**: Please ensure your code is formatted correctly before submitting any pull requests.
+- **Requirement**: Please ensure your code is formatted correctly before sharing or maintaining your own fork.
 - **Formatting Command**:
 
   ```powershell
@@ -172,7 +221,7 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 - `scripts/setup.ps1`: install a staged build to a target directory
 - `scripts/uninstall.ps1`: unregister and remove an installed build
 
-See [scripts/README.md](C:/Users/user/Works/win-mcbopomofo/scripts/README.md) for script details.
+See [scripts/README.md](scripts/README.md) for script details.
 
 ## Basic Build
 
