@@ -20,10 +20,23 @@ jobs:
         run: cmake -B build -S . -A x64
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Debug
 
-      - name: Run Tests
-        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Install OpenCppCoverage
+        run: |
+          choco install opencppcoverage -y
+          echo "C:\Program Files\OpenCppCoverage" >> $GITHUB_PATH
+
+      - name: Run Tests with Code Coverage
+        run: |
+          OpenCppCoverage.exe --sources src --export_type cobertura:coverage.xml --cover_children -- ctest.exe --test-dir build -C Debug --output-on-failure
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install WiX Toolset
         run: |
