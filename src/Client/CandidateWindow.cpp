@@ -157,8 +157,9 @@ void CandidateWindow::createDeviceIndependentResources_() {
 
     pDWriteFactory_->CreateTextFormat(
         L"Microsoft JhengHei UI", NULL, DWRITE_FONT_WEIGHT_NORMAL,
-        DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 10.0f, L"zh-TW",
-        &pHintFormat_);
+        DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+        std::max(12.0f, static_cast<float>(candidateFontSize_) - 4.0f),
+        L"zh-TW", &pHintFormat_);
   }
 }
 
