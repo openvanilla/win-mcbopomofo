@@ -5,7 +5,7 @@
 * **Core Engine Protection**: Modifying `src/Engine` and its related core algorithm code (e.g., `gramambular2`) is strictly prohibited.
 * **Adaptation and Bridging**: All adjustments for the Windows platform (TSF, Win32 API) should be implemented in the Adapter/Bridge Layer and must not intrude into the core logic.
 * **Language Standard**: Use C++20 standard.
-* **Communication Guidelines**: All conversations and documentation must be written in **English**.
+* **Communication Guidelines**: The project's code and documentation must be written in **English**.
 * **Test-Driven Development (TDD)**: Always follow Kent Beck's TDD flow.
     * Write tests before adding any feature.
     * Implement the feature.
