@@ -32,3 +32,5 @@ void DllAddRef();
 void DllRelease();
 
 void LogMessage(const char* format, ...);
+
+float GetDpiScaleForWindow(HWND hwnd);

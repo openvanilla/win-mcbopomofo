@@ -38,7 +38,7 @@ add_subdirectory(src)
 # Add tests
 set(BUILD_TESTING ON CACHE BOOL "Enable project tests" FORCE)
 enable_testing()
-add_executable(CandidateWindowTest tests/test_candidate_window.cpp src/Client/CandidateWindow.cpp src/Common/UTFHelper.cpp)
+add_executable(CandidateWindowTest tests/test_candidate_window.cpp src/Client/CandidateWindow.cpp src/Client/Globals.cpp src/Common/UTFHelper.cpp)
 target_include_directories(CandidateWindowTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Client ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/src/Server/Engine ${CMAKE_SOURCE_DIR}/src/Server)
 target_link_libraries(CandidateWindowTest PRIVATE Common user32 gdi32 d2d1 dwrite advapi32 ole32 shell32)
 add_test(NAME CandidateWindowTest COMMAND CandidateWindowTest)

@@ -23,6 +23,8 @@
 
 #include "TooltipWindow.h"
 
+#include "Globals.h"
+
 #include <algorithm>
 #include <cmath>
 #include <dwmapi.h>
@@ -74,24 +76,6 @@ TooltipWindow::~TooltipWindow() {
   if (pD2DFactory_) {
     pD2DFactory_->Release();
   }
-}
-
-float TooltipWindow::getDpiScale_() {
-  if (!hwnd_) return 1.0f;
-  UINT dpi = 96;
-  HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
-  auto pGetDpiForWindow =
-      (UINT(WINAPI*)(HWND))GetProcAddress(hUser32, "GetDpiForWindow");
-  if (pGetDpiForWindow) {
-    dpi = pGetDpiForWindow(hwnd_);
-  } else {
-    HDC hdc = GetDC(hwnd_);
-    if (hdc) {
-      dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-      ReleaseDC(hwnd_, hdc);
-    }
-  }
-  return (float)dpi / 96.0f;
 }
 
 void TooltipWindow::createDeviceIndependentResources_() {
@@ -223,7 +207,7 @@ void TooltipWindow::UpdateUI(const std::string& tooltipText) {
     return;
   }
 
-  dpiScale_ = getDpiScale_();
+  dpiScale_ = GetDpiScaleForWindow(hwnd_);
   displayString_ = McBopomofo::Utf8ToUtf16(tooltipText);
   rebuildLayoutAndResize_();
 }
@@ -273,7 +257,7 @@ void TooltipWindow::Move(int x, int y) {
     const float oldScale = dpiScale_;
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-    dpiScale_ = getDpiScale_();
+    dpiScale_ = GetDpiScaleForWindow(hwnd_);
     if (std::abs(dpiScale_ - oldScale) > 0.001f) {
       rebuildLayoutAndResize_();
     } else {

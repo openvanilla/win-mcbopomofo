@@ -48,3 +48,21 @@ void LogMessage(const char* format, ...) {
   }
 #endif
 }
+
+float GetDpiScaleForWindow(HWND hwnd) {
+  if (!hwnd) return 1.0f;
+  UINT dpi = 96;
+  HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
+  auto pGetDpiForWindow =
+      (UINT(WINAPI*)(HWND))GetProcAddress(hUser32, "GetDpiForWindow");
+  if (pGetDpiForWindow) {
+    dpi = pGetDpiForWindow(hwnd);
+  } else {
+    HDC hdc = GetDC(hwnd);
+    if (hdc) {
+      dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+      ReleaseDC(hwnd, hdc);
+    }
+  }
+  return (float)dpi / 96.0f;
+}

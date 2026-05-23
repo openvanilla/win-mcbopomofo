@@ -23,6 +23,8 @@
 
 #include "CandidateWindow.h"
 
+#include "Globals.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cwchar>
@@ -111,24 +113,6 @@ CandidateWindow::~CandidateWindow() {
   if (pD2DFactory_) {
     pD2DFactory_->Release();
   }
-}
-
-float CandidateWindow::getDpiScale_() {
-  if (!hwnd_) return 1.0f;
-  UINT dpi = 96;
-  HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
-  auto pGetDpiForWindow =
-      (UINT(WINAPI*)(HWND))GetProcAddress(hUser32, "GetDpiForWindow");
-  if (pGetDpiForWindow) {
-    dpi = pGetDpiForWindow(hwnd_);
-  } else {
-    HDC hdc = GetDC(hwnd_);
-    if (hdc) {
-      dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-      ReleaseDC(hwnd_, hdc);
-    }
-  }
-  return (float)dpi / 96.0f;
 }
 
 void CandidateWindow::createDeviceIndependentResources_() {
@@ -377,7 +361,7 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
   applyCandidateWindowSettings_(candidateWindowVertical, candidateKeys,
                                 candidateKeysCount, colors);
 
-  dpiScale_ = getDpiScale_();
+  dpiScale_ = GetDpiScaleForWindow(hwnd_);
 
   candidates_.clear();
   for (const auto& c : candidates) {
@@ -556,7 +540,7 @@ void CandidateWindow::Move(int x, int y) {
     const float oldScale = dpiScale_;
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-    dpiScale_ = getDpiScale_();
+    dpiScale_ = GetDpiScaleForWindow(hwnd_);
     if (std::abs(dpiScale_ - oldScale) > 0.001f) {
       rebuildLayoutAndResize_();
     } else {
