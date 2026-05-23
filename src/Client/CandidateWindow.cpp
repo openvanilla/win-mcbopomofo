@@ -169,7 +169,12 @@ void CandidateWindow::createDeviceResources_() {
     D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
 
     pD2DFactory_->CreateHwndRenderTarget(
-        D2D1::RenderTargetProperties(),
+        D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            D2D1::PixelFormat(),
+            96.0f,
+            96.0f
+        ),
         D2D1::HwndRenderTargetProperties(hwnd_, size), &pRenderTarget_);
 
     if (pRenderTarget_) {
