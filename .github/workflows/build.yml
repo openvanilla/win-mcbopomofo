@@ -25,7 +25,7 @@ jobs:
       - name: Install OpenCppCoverage
         run: |
           choco install opencppcoverage -y
-          echo "C:\Program Files\OpenCppCoverage" >> $GITHUB_PATH
+          echo "C:\Program Files\OpenCppCoverage" >> $env:GITHUB_PATH
 
       - name: Run Tests with Code Coverage
         run: |
