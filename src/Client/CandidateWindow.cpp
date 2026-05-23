@@ -288,7 +288,7 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = CS_IME | CS_DROPSHADOW;
+  wcex.style = 0;
   wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -583,7 +583,11 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
   if (pRenderTarget_) {
     pRenderTarget_->BeginDraw();
     pRenderTarget_->SetTransform(D2D1::Matrix3x2F::Scale(dpiScale_, dpiScale_));
-    pRenderTarget_->Clear(pBgBrush_->GetColor());
+    if (pBgBrush_) {
+      pRenderTarget_->Clear(pBgBrush_->GetColor());
+    } else {
+      pRenderTarget_->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    }
 
     if (pTextBrush_) {
       float currentY = 8.0f;
@@ -657,13 +661,16 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
     // border should be in pixels, but SetTransform is active.
     // We should probably draw the border without transform or compensate.
     pRenderTarget_->SetTransform(D2D1::Matrix3x2F::Identity());
-    pRenderTarget_->DrawRectangle(
-        D2D1::RectF(0.5f, 0.5f, size.width - 0.5f, size.height - 0.5f),
-        pBorderBrush_, 1.0f);
+    if (pBorderBrush_) {
+      pRenderTarget_->DrawRectangle(
+          D2D1::RectF(0.5f, 0.5f, size.width - 0.5f, size.height - 0.5f),
+          pBorderBrush_, 1.0f);
+    }
 
     HRESULT hr = pRenderTarget_->EndDraw();
     if (hr == D2DERR_RECREATE_TARGET) {
       discardDeviceResources_();
+      InvalidateRect(hwnd, nullptr, FALSE);
     }
   }
 

@@ -101,7 +101,7 @@ clang-format --version
 - `docs/`: Technical documentation and guidelines (translated to English).
 - `scripts/`: Internal PowerShell and VBScript utilities for installation, uninstallation, and process management.
 - `tests/`: Unit tests and regression tests.
-- `third_party/`: External libraries including OpenCC and  Lunar-Solar-Calendar-Converter.
+- `third_party/`: External libraries including OpenCC.
 
 ## Getting Started with Development
 

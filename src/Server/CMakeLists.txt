@@ -28,8 +28,6 @@ add_library(McBopomofoEngine STATIC
     ${SERVER_DIR}/NumberInputHelper.cpp
     ${SERVER_DIR}/DictionaryService.cpp
     ${SERVER_DIR}/InputMacro.cpp
-    ${SERVER_DIR}/LunarCalendarConverter.cpp
-    ${CMAKE_SOURCE_DIR}/third_party/Lunar-Solar-Calendar-Converter/C_C++/LunarSolarConverter.c
 )
 
 # Include directories for the engine
@@ -40,7 +38,6 @@ target_include_directories(McBopomofoEngine PUBLIC
     ${ENGINE_DIR}/Mandarin
     ${CMAKE_SOURCE_DIR}/src/Common
     ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src
-    ${CMAKE_SOURCE_DIR}/third_party/Lunar-Solar-Calendar-Converter/C_C++
 )
 
 # Force C++17 for the engine to maintain compatibility with std::string_view iterators
