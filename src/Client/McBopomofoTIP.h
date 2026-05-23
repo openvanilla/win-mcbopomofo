@@ -28,6 +28,7 @@
 #include "CandidateWindow.h"
 #include "Ipc.h"
 #include "TooltipWindow.h"
+#include "TsfUiElement.h"
 
 class McBopomofoTIP : public ITfTextInputProcessorEx,
                       public ITfKeyEventSink,
@@ -104,9 +105,6 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
       const McBopomofo::IPC::StateUpdatePayload& state) const;
   void hideAuxiliaryWindowsForDirectCommit_(
       const McBopomofo::IPC::StateUpdatePayload& state);
-  void applyStateToContext_(ITfContext* context,
-                            const McBopomofo::IPC::StateUpdatePayload& state,
-                            const char* logPrefix);
   void resetServerState_();
   bool shouldToggleOpenCloseWithShift_() const;
   bool handleStandaloneShiftKeyDown_(WPARAM wParam,
@@ -147,10 +145,39 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   void ToggleOpenClose();
   bool IsOpen();
   void RefreshLangBar();
+  void applyStateToContext_(ITfContext* context,
+                            const McBopomofo::IPC::StateUpdatePayload& state,
+                            const char* logPrefix);
 
  public:
   ITfComposition* GetComposition() const { return pComposition_; }
   void SetComposition(ITfComposition* pComp) { pComposition_ = pComp; }
   CandidateWindow* GetCandidateWindow() { return &candidateWindow_; }
   TooltipWindow* GetTooltipWindow() { return &tooltipWindow_; }
+
+  ITfUIElementMgr* GetUIElementMgr() const { return pUIElementMgr_; }
+  CCandidateListUIElement* GetCandidateUIElement() const { return pCandidateUIElement_; }
+  CReadingInformationUIElement* GetReadingUIElement() const { return pReadingUIElement_; }
+  
+  DWORD GetCandidateUIElementId() const { return dwCandidateUIElementId_; }
+  DWORD GetReadingUIElementId() const { return dwReadingUIElementId_; }
+  void SetCandidateUIElementId(DWORD id) { dwCandidateUIElementId_ = id; }
+  void SetReadingUIElementId(DWORD id) { dwReadingUIElementId_ = id; }
+  
+  ITfThreadMgr* GetThreadMgr() const { return ptim_; }
+  TfClientId GetClientId() const { return tid_; }
+
+  bool IsShowCustomCandidateWindow() const { return showCustomCandidateWindow_; }
+  void SetShowCustomCandidateWindow(bool show) { showCustomCandidateWindow_ = show; }
+  bool IsShowCustomTooltipWindow() const { return showCustomTooltipWindow_; }
+  void SetShowCustomTooltipWindow(bool show) { showCustomTooltipWindow_ = show; }
+
+ private:
+  ITfUIElementMgr* pUIElementMgr_ = nullptr;
+  CCandidateListUIElement* pCandidateUIElement_ = nullptr;
+  CReadingInformationUIElement* pReadingUIElement_ = nullptr;
+  DWORD dwCandidateUIElementId_ = 0;
+  DWORD dwReadingUIElementId_ = 0;
+  bool showCustomCandidateWindow_ = true;
+  bool showCustomTooltipWindow_ = true;
 };

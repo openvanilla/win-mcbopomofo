@@ -440,12 +440,43 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     pCompMgr->Release();
   }
 
+  if (SUCCEEDED(ptim_->QueryInterface(IID_ITfUIElementMgr, (void**)&pUIElementMgr_))) {
+    pCandidateUIElement_ = new CCandidateListUIElement(this);
+    pReadingUIElement_ = new CReadingInformationUIElement(this);
+    LogMessage("ITfUIElementMgr successfully acquired.");
+  } else {
+    LogMessage("Failed to acquire ITfUIElementMgr.");
+  }
+
   LogMessage("McBopomofoTIP::ActivateEx succeeded");
   return S_OK;
 }
 
 STDAPI McBopomofoTIP::Deactivate() {
   LogMessage("McBopomofoTIP::Deactivate called");
+
+  if (pUIElementMgr_) {
+    if (pCandidateUIElement_) {
+      if (dwCandidateUIElementId_ != 0) {
+        pUIElementMgr_->EndUIElement(dwCandidateUIElementId_);
+        dwCandidateUIElementId_ = 0;
+      }
+      pCandidateUIElement_->ClearTip();
+      pCandidateUIElement_->Release();
+      pCandidateUIElement_ = nullptr;
+    }
+    if (pReadingUIElement_) {
+      if (dwReadingUIElementId_ != 0) {
+        pUIElementMgr_->EndUIElement(dwReadingUIElementId_);
+        dwReadingUIElementId_ = 0;
+      }
+      pReadingUIElement_->ClearTip();
+      pReadingUIElement_->Release();
+      pReadingUIElement_ = nullptr;
+    }
+    pUIElementMgr_->Release();
+    pUIElementMgr_ = nullptr;
+  }
 
   if (pModeIconButton_ || pSwitchLangButton_ || pSettingsButton_) {
     ITfLangBarItemMgr* pLangBarItemMgr = nullptr;

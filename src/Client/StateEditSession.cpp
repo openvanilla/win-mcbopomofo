@@ -291,6 +291,27 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     if (directCommitWithoutComposition) {
       pTIP_->GetCandidateWindow()->Hide();
       pTIP_->GetTooltipWindow()->Hide();
+
+      if (pTIP_->GetUIElementMgr()) {
+        auto* pUIElementMgr = pTIP_->GetUIElementMgr();
+        DWORD dwCandId = pTIP_->GetCandidateUIElementId();
+        if (dwCandId != 0) {
+          pUIElementMgr->EndUIElement(dwCandId);
+          pTIP_->SetCandidateUIElementId(0);
+        }
+        if (pTIP_->GetCandidateUIElement()) {
+          pTIP_->GetCandidateUIElement()->SetShown(FALSE);
+        }
+
+        DWORD dwReadingId = pTIP_->GetReadingUIElementId();
+        if (dwReadingId != 0) {
+          pUIElementMgr->EndUIElement(dwReadingId);
+          pTIP_->SetReadingUIElementId(0);
+        }
+        if (pTIP_->GetReadingUIElement()) {
+          pTIP_->GetReadingUIElement()->SetShown(FALSE);
+        }
+      }
       return S_OK;
     }
   }
@@ -380,13 +401,78 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         pContext_->SetSelection(ec, 1, &sel);
 
         // Update UI content first so windows have correct sizes
-        if (!state_.tooltip.empty()) {
+        bool showCustomTooltip = true;
+        if (pTIP_->GetUIElementMgr() && pTIP_->GetReadingUIElement()) {
+          auto* pUIElementMgr = pTIP_->GetUIElementMgr();
+          auto* pReadingElement = pTIP_->GetReadingUIElement();
+          pReadingElement->SetActiveContext(pContext_);
+
+          if (!state_.tooltip.empty()) {
+            pReadingElement->UpdateData(state_.tooltip);
+            pReadingElement->SetShown(TRUE);
+
+            DWORD dwId = pTIP_->GetReadingUIElementId();
+            if (dwId == 0) {
+              BOOL bShow = TRUE;
+              if (SUCCEEDED(pUIElementMgr->BeginUIElement(pReadingElement, &bShow, &dwId))) {
+                pTIP_->SetReadingUIElementId(dwId);
+                pTIP_->SetShowCustomTooltipWindow(bShow ? true : false);
+              }
+            } else {
+              pUIElementMgr->UpdateUIElement(dwId);
+            }
+            showCustomTooltip = pTIP_->IsShowCustomTooltipWindow();
+          } else {
+            pReadingElement->SetShown(FALSE);
+            DWORD dwId = pTIP_->GetReadingUIElementId();
+            if (dwId != 0) {
+              pUIElementMgr->EndUIElement(dwId);
+              pTIP_->SetReadingUIElementId(0);
+            }
+            showCustomTooltip = false;
+          }
+        }
+
+        if (showCustomTooltip && !state_.tooltip.empty()) {
           pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
         } else {
           pTIP_->GetTooltipWindow()->Hide();
         }
 
-        if (!state_.candidates.empty()) {
+        bool showCustomCand = true;
+        if (pTIP_->GetUIElementMgr() && pTIP_->GetCandidateUIElement()) {
+          auto* pUIElementMgr = pTIP_->GetUIElementMgr();
+          auto* pCandElement = pTIP_->GetCandidateUIElement();
+          pCandElement->SetActiveContext(pContext_);
+
+          if (!state_.candidates.empty()) {
+            pCandElement->UpdateData(state_.candidates, state_.candidateIndex,
+                                     state_.candidateKeys, state_.candidateKeysCount);
+            pCandElement->SetShown(TRUE);
+
+            DWORD dwId = pTIP_->GetCandidateUIElementId();
+            if (dwId == 0) {
+              BOOL bShow = TRUE;
+              if (SUCCEEDED(pUIElementMgr->BeginUIElement(pCandElement, &bShow, &dwId))) {
+                pTIP_->SetCandidateUIElementId(dwId);
+                pTIP_->SetShowCustomCandidateWindow(bShow ? true : false);
+              }
+            } else {
+              pUIElementMgr->UpdateUIElement(dwId);
+            }
+            showCustomCand = pTIP_->IsShowCustomCandidateWindow();
+          } else {
+            pCandElement->SetShown(FALSE);
+            DWORD dwId = pTIP_->GetCandidateUIElementId();
+            if (dwId != 0) {
+              pUIElementMgr->EndUIElement(dwId);
+              pTIP_->SetCandidateUIElementId(0);
+            }
+            showCustomCand = false;
+          }
+        }
+
+        if (showCustomCand && !state_.candidates.empty()) {
           pTIP_->GetCandidateWindow()->UpdateUI(
               state_.candidates, state_.candidateIndex, state_.forceVertical,
               state_.selectionStyle, state_.candidateFontSize, state_.hint,
@@ -398,7 +484,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
 
         // Now move the auxiliary windows
         if (!directCommitWithoutComposition &&
-            (!state_.candidates.empty() || !state_.tooltip.empty())) {
+            ((showCustomCand && !state_.candidates.empty()) || (showCustomTooltip && !state_.tooltip.empty()))) {
           MoveAuxiliaryWindows(ec, pContext_, pCursorRange, pTIP_);
         }
         pCursorRange->Release();
@@ -430,13 +516,79 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
   // (e.g. from ChoosingPunctuationList triggered from Empty state)
   if (!directCommitWithoutComposition && pTIP_->GetComposition() == nullptr &&
       (!state_.candidates.empty() || !state_.tooltip.empty())) {
-    if (!state_.tooltip.empty()) {
+    
+    bool showCustomTooltip = true;
+    if (pTIP_->GetUIElementMgr() && pTIP_->GetReadingUIElement()) {
+      auto* pUIElementMgr = pTIP_->GetUIElementMgr();
+      auto* pReadingElement = pTIP_->GetReadingUIElement();
+      pReadingElement->SetActiveContext(pContext_);
+
+      if (!state_.tooltip.empty()) {
+        pReadingElement->UpdateData(state_.tooltip);
+        pReadingElement->SetShown(TRUE);
+
+        DWORD dwId = pTIP_->GetReadingUIElementId();
+        if (dwId == 0) {
+          BOOL bShow = TRUE;
+          if (SUCCEEDED(pUIElementMgr->BeginUIElement(pReadingElement, &bShow, &dwId))) {
+            pTIP_->SetReadingUIElementId(dwId);
+            pTIP_->SetShowCustomTooltipWindow(bShow ? true : false);
+          }
+        } else {
+          pUIElementMgr->UpdateUIElement(dwId);
+        }
+        showCustomTooltip = pTIP_->IsShowCustomTooltipWindow();
+      } else {
+        pReadingElement->SetShown(FALSE);
+        DWORD dwId = pTIP_->GetReadingUIElementId();
+        if (dwId != 0) {
+          pUIElementMgr->EndUIElement(dwId);
+          pTIP_->SetReadingUIElementId(0);
+        }
+        showCustomTooltip = false;
+      }
+    }
+
+    if (showCustomTooltip && !state_.tooltip.empty()) {
       pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
     } else {
       pTIP_->GetTooltipWindow()->Hide();
     }
 
-    if (!state_.candidates.empty()) {
+    bool showCustomCand = true;
+    if (pTIP_->GetUIElementMgr() && pTIP_->GetCandidateUIElement()) {
+      auto* pUIElementMgr = pTIP_->GetUIElementMgr();
+      auto* pCandElement = pTIP_->GetCandidateUIElement();
+      pCandElement->SetActiveContext(pContext_);
+
+      if (!state_.candidates.empty()) {
+        pCandElement->UpdateData(state_.candidates, state_.candidateIndex,
+                                 state_.candidateKeys, state_.candidateKeysCount);
+        pCandElement->SetShown(TRUE);
+
+        DWORD dwId = pTIP_->GetCandidateUIElementId();
+        if (dwId == 0) {
+          BOOL bShow = TRUE;
+          if (SUCCEEDED(pUIElementMgr->BeginUIElement(pCandElement, &bShow, &dwId))) {
+            pTIP_->SetCandidateUIElementId(dwId);
+            pTIP_->SetShowCustomCandidateWindow(bShow ? true : false);
+          }
+        } else {
+          pUIElementMgr->UpdateUIElement(dwId);
+        }
+        showCustomCand = pTIP_->IsShowCustomCandidateWindow();
+      } else {
+        pCandElement->SetShown(FALSE);
+        DWORD dwId = pTIP_->GetCandidateUIElementId();
+        if (dwId != 0) {
+          pUIElementMgr->EndUIElement(dwId);
+          pTIP_->SetCandidateUIElementId(0);
+        }
+        showCustomCand = false;
+      }
+    }
+
+    if (showCustomCand && !state_.candidates.empty()) {
       pTIP_->GetCandidateWindow()->UpdateUI(
           state_.candidates, state_.candidateIndex, state_.forceVertical,
           state_.selectionStyle, state_.candidateFontSize, state_.hint,
@@ -446,14 +598,32 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       pTIP_->GetCandidateWindow()->Hide();
     }
 
-    MoveAuxiliaryWindows(ec, pContext_, nullptr, pTIP_);
+    if ((showCustomCand && !state_.candidates.empty()) || (showCustomTooltip && !state_.tooltip.empty())) {
+      MoveAuxiliaryWindows(ec, pContext_, nullptr, pTIP_);
+    }
   }
 
   if (state_.candidates.empty()) {
     pTIP_->GetCandidateWindow()->Hide();
+    if (pTIP_->GetUIElementMgr() && pTIP_->GetCandidateUIElement()) {
+      DWORD dwId = pTIP_->GetCandidateUIElementId();
+      if (dwId != 0) {
+        pTIP_->GetUIElementMgr()->EndUIElement(dwId);
+        pTIP_->SetCandidateUIElementId(0);
+      }
+      pTIP_->GetCandidateUIElement()->SetShown(FALSE);
+    }
   }
   if (state_.tooltip.empty()) {
     pTIP_->GetTooltipWindow()->Hide();
+    if (pTIP_->GetUIElementMgr() && pTIP_->GetReadingUIElement()) {
+      DWORD dwId = pTIP_->GetReadingUIElementId();
+      if (dwId != 0) {
+        pTIP_->GetUIElementMgr()->EndUIElement(dwId);
+        pTIP_->SetReadingUIElementId(0);
+      }
+      pTIP_->GetReadingUIElement()->SetShown(FALSE);
+    }
   }
 
   return S_OK;
