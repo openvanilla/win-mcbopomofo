@@ -1,6 +1,3 @@
 [submodule "third_party/OpenCC"]
 	path = third_party/OpenCC
 	url = https://github.com/BYVoid/OpenCC.git
-[submodule "third_party/Lunar-Solar-Calendar-Converter"]
-	path = third_party/Lunar-Solar-Calendar-Converter
-	url = https://github.com/isee15/Lunar-Solar-Calendar-Converter.git
