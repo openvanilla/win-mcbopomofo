@@ -63,7 +63,6 @@ class TooltipWindow {
   void createDeviceResources_();
   void discardDeviceResources_();
   void rebuildLayoutAndResize_();
-  void enableDropShadow_();
 
   HWND hwnd_;
   float dpiScale_;

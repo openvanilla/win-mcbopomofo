@@ -37,15 +37,7 @@
 
 const wchar_t* const TOOLTIP_WINDOW_CLASS = L"WinMcBopomofoTooltipWindow";
 
-namespace {
 
-#ifndef DWMWA_BORDER_COLOR
-#define DWMWA_BORDER_COLOR 34
-#endif
-
-constexpr COLORREF kDwmColorNone = static_cast<COLORREF>(0xFFFFFFFE);
-
-}  // namespace
 
 TooltipWindow::TooltipWindow()
     : hwnd_(nullptr),
@@ -141,31 +133,6 @@ void TooltipWindow::discardDeviceResources_() {
   }
 }
 
-void TooltipWindow::enableDropShadow_() {
-  if (!hwnd_) {
-    return;
-  }
-
-  BOOL enabled = FALSE;
-  if (FAILED(DwmIsCompositionEnabled(&enabled)) || !enabled) {
-    return;
-  }
-
-  // Ask the window manager to keep a tiny frame so borderless popup windows
-  // can still receive the standard DWM shadow.
-  const MARGINS margins = {1, 1, 1, 1};
-  DwmExtendFrameIntoClientArea(hwnd_, &margins);
-
-  const DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
-  DwmSetWindowAttribute(hwnd_, DWMWA_NCRENDERING_POLICY, &policy,
-                        sizeof(policy));
-
-  // Keep the DWM shadow but suppress the compositor-drawn border/frame color
-  // that otherwise shows up as a gray rectangle around popup windows.
-  DwmSetWindowAttribute(hwnd_, DWMWA_BORDER_COLOR, &kDwmColorNone,
-                        sizeof(kDwmColorNone));
-}
-
 bool TooltipWindow::Create(HINSTANCE hInstance) {
   if (hwnd_) return true;
 
@@ -187,7 +154,7 @@ bool TooltipWindow::Create(HINSTANCE hInstance) {
                           0, 0, 100, 30,  // Initial dummy size
                           nullptr, nullptr, hInstance, this);
 
-  enableDropShadow_();
+  EnableWindowDropShadow(hwnd_);
 
   return hwnd_ != nullptr;
 }

@@ -25,6 +25,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <dwmapi.h>
 
 void LogMessage(const char* format, ...) {
 #ifdef _DEBUG
@@ -65,4 +66,30 @@ float GetDpiScaleForWindow(HWND hwnd) {
     }
   }
   return (float)dpi / 96.0f;
+}
+
+void EnableWindowDropShadow(HWND hwnd) {
+  if (!hwnd) {
+    return;
+  }
+
+  // Ask the window manager to keep a tiny frame so borderless popup windows
+  // can still receive the standard DWM shadow.
+  const MARGINS margins = {1, 1, 1, 1};
+  DwmExtendFrameIntoClientArea(hwnd, &margins);
+
+  BOOL enabled = FALSE;
+  if (FAILED(DwmIsCompositionEnabled(&enabled)) || !enabled) {
+    return;
+  }
+
+  const DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
+  DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &policy,
+                        sizeof(policy));
+
+  // Keep the DWM shadow but suppress the compositor-drawn border/frame color
+  // that otherwise shows up as a gray rectangle around popup windows.
+  constexpr COLORREF kDwmColorNone = static_cast<COLORREF>(0xFFFFFFFE);
+  DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &kDwmColorNone,
+                        sizeof(kDwmColorNone));
 }

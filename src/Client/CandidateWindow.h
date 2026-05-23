@@ -81,7 +81,6 @@ class CandidateWindow {
   void createDeviceResources_();
   void discardDeviceResources_();
   void rebuildLayoutAndResize_();
-  void enableDropShadow_();
   void enableSystemRoundedCorners_();
   void updateRoundedRegion_();
   void applyCandidateWindowSettings_(
