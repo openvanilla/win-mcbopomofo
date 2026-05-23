@@ -117,7 +117,7 @@ CandidateWindow::~CandidateWindow() {
 void CandidateWindow::createDeviceIndependentResources_() {
   if (!pD2DFactory_) {
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory_);
-    DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
+    DWriteCreateFactory(DWRITE_FACTORY_TYPE_ISOLATED, __uuidof(IDWriteFactory),
                         reinterpret_cast<IUnknown**>(&pDWriteFactory_));
   }
 
