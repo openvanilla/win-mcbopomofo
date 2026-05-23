@@ -1,4 +1,4 @@
-// Copyright (c) 2026 and onwards The McBopomofo Authors.
+// Copyright (c) 2023 and onwards The McBopomofo Authors.
 //
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
@@ -22,337 +22,694 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #include "InputMacro.h"
+#include "UTFHelper.h"
 
-#include <array>
-#include <chrono>
-#include <ctime>
+#include <icu.h>
 #include <functional>
-#include <iomanip>
 #include <memory>
-#include <sstream>
+#include <string>
+#include <utility>
 #include <vector>
-
-#include "ChineseNumbers/ChineseNumbers.h"
-#include "LunarCalendarConverter.h"
+#include <cmath>
 
 namespace McBopomofo {
 
 namespace {
-
-std::string GetLunarDate(int dayOffset);
-
-std::string formatChineseDigits(int number) {
-  std::string numberString = std::to_string(number);
-  std::stringstream ss;
-  for (char c : numberString) {
-    ss << ChineseNumbers::Generate(
-        std::string(1, c), "", ChineseNumbers::ChineseNumberCase::LOWERCASE);
-  }
-  return ss.str();
-}
-
-std::string formatChineseNumber(int number) {
-  std::string generated = ChineseNumbers::Generate(
-      std::to_string(number), "", ChineseNumbers::ChineseNumberCase::LOWERCASE);
-  if (generated.rfind("一十", 0) == 0) {
-    return generated.substr(std::string("一").size());
-  }
-  return generated;
-}
-
-std::string FormatDate(int dayOffset, const char* format) {
-  auto now = std::chrono::system_clock::now();
-  now += std::chrono::hours(24 * dayOffset);
-  std::time_t t = std::chrono::system_clock::to_time_t(now);
-  std::tm tm;
-  localtime_s(&tm, &t);
-  std::stringstream ss;
-  ss << std::put_time(&tm, format);
-  return ss.str();
-}
-
-std::tm GetLocalTime(int dayOffset) {
-  auto now = std::chrono::system_clock::now();
-  now += std::chrono::hours(24 * dayOffset);
-  std::time_t t = std::chrono::system_clock::to_time_t(now);
-  std::tm tm;
-  localtime_s(&tm, &t);
-  return tm;
-}
-
-std::string FormatRocDate(int dayOffset, bool includeYear, const char* format) {
-  std::tm tm = GetLocalTime(dayOffset);
-  std::stringstream ss;
-  if (includeYear) {
-    ss << "民國" << (tm.tm_year + 1900 - 1911) << "年";
-  }
-  ss << std::put_time(&tm, format);
-  return ss.str();
-}
-
-std::string FormatRocYear(int dayOffset) {
-  std::tm tm = GetLocalTime(dayOffset);
-  std::stringstream ss;
-  ss << "民國" << std::to_string(tm.tm_year + 1900 - 1911) << "年";
-  return ss.str();
-}
-
-std::string GetGanzhi(int year) {
-  static const std::array<const char*, 10> gan = {"癸", "甲", "乙", "丙", "丁",
-                                                  "戊", "己", "庚", "辛", "壬"};
-  static const std::array<const char*, 12> zhi = {
-      "亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌"};
-
-  int base = year < 4 ? 60 - ((year * -1 + 2) % 60) : (year - 3) % 60;
-  int ganBase = base % 10;
-  int zhiBase = base % 12;
-
-  return std::string(gan[ganBase]) + zhi[zhiBase] + "年";
-}
-
-std::string GetChineseZodiac(int year) {
-  static const std::array<const char*, 10> gan = {"水", "木", "木", "火", "火",
-                                                  "土", "土", "金", "金", "水"};
-  static const std::array<const char*, 12> zhi = {
-      "豬", "鼠", "牛", "虎", "兔", "龍", "蛇", "馬", "羊", "猴", "雞", "狗"};
-
-  int base = year < 4 ? 60 - ((year * -1 + 2) % 60) : (year - 3) % 60;
-  int ganBase = base % 10;
-  int zhiBase = base % 12;
-
-  return std::string(gan[ganBase]) + zhi[zhiBase] + "年";
-}
-
-std::string GetJapaneseWeekday(int dayOffset) {
-  std::tm tm = GetLocalTime(dayOffset);
-  static const std::array<const char*, 7> weekdays = {
-      "日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"};
-  return weekdays[tm.tm_wday];
-}
-
-std::string GetChineseDate(int dayOffset) {
-  std::tm tm = GetLocalTime(dayOffset);
-  int year = tm.tm_year + 1900;
-  int month = tm.tm_mon + 1;
-  int day = tm.tm_mday;
-
-  return formatChineseDigits(year) + "年" + formatChineseNumber(month) + "月" +
-         formatChineseNumber(day) + "日";
-}
-
-std::string GetJapaneseYear(int dayOffset) {
-  std::tm tm = GetLocalTime(dayOffset);
-  int year = tm.tm_year + 1900;
-  int month = tm.tm_mon + 1;
-  int day = tm.tm_mday;
-
-  if (year >= 2019) {
-    if (year > 2019 || (month > 5 || (month == 5 && day >= 1))) {
-      int reiwaYear = year - 2018;
-      std::string yearStr = (reiwaYear == 1) ? "元" : std::to_string(reiwaYear);
-      return "令和" + yearStr + "年";
-    }
-  }
-  return std::to_string(year) + "年";
-}
-
-std::string GetJapaneseDate(int dayOffset) {
-  std::tm tm = GetLocalTime(dayOffset);
-  int month = tm.tm_mon + 1;
-  int day = tm.tm_mday;
-
-  return GetJapaneseYear(dayOffset) + std::to_string(month) + "月" +
-         std::to_string(day) + "日";
-}
-
-std::string GetLunarDate(int dayOffset) {
-  std::tm tm = GetLocalTime(dayOffset);
-  LunarDate lunarDate{};
-  if (!tryConvertSolarToLunar(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                              &lunarDate)) {
-    return FormatDate(dayOffset, "%Y/%m/%d");
-  }
-  return formatLunarDate(lunarDate);
-}
-
-std::string GetChineseWeekday(int dayOffset, bool shortFormat) {
-  std::tm tm = GetLocalTime(dayOffset);
-  static const std::array<const char*, 7> weekdays = {"日", "一", "二", "三",
-                                                      "四", "五", "六"};
-  return shortFormat ? (std::string("週") + weekdays[tm.tm_wday])
-                     : (std::string("星期") + weekdays[tm.tm_wday]);
-}
-
-std::string GetChineseWeekday2(int dayOffset) {
-  std::tm tm = GetLocalTime(dayOffset);
-  static const std::array<const char*, 7> weekdays = {"日", "一", "二", "三",
-                                                      "四", "五", "六"};
-  return std::string("禮拜") + weekdays[tm.tm_wday];
-}
-
-class StaticInputMacro : public InputMacro {
- public:
-  StaticInputMacro(std::string name, std::string replacement)
-      : name_(std::move(name)), replacement_(std::move(replacement)) {}
-  std::string name() const override { return name_; }
-  std::string replacement() const override { return replacement_; }
-
- private:
-  std::string name_;
-  std::string replacement_;
-};
-
-class FuncInputMacro : public InputMacro {
- public:
-  FuncInputMacro(std::string name, std::function<std::string()> func)
-      : name_(std::move(name)), func_(std::move(func)) {}
-  std::string name() const override { return name_; }
-  std::string replacement() const override { return func_(); }
-
- private:
-  std::string name_;
-  std::function<std::string()> func_;
-};
-
+std::string FormatDate(const std::string& calendarName, int dayOffset,
+                       UDateFormatStyle dateStyle);
+std::string FormatWithPattern(const std::string& calendarName, int yearOffset,
+                              int dateOffset,
+                              const std::wstring& pattern);
+std::string FormatTime(UDateFormatStyle timeStyle);
+std::string FormatTimeZone(UCalendarDisplayNameType type);
+int GetCurrentYear();
+std::string GetGanzhi(int year);
+std::string GetChineseZodiac(int year);
+std::string ConvertWeekdayUnit(std::string original);
+void AddMacro(std::unordered_map<std::string, std::unique_ptr<InputMacro>>& m,
+              std::unique_ptr<InputMacro> p);
 }  // namespace
 
+class InputMacroDate : public InputMacro {
+ public:
+  InputMacroDate(std::string macroName, std::string calendar, int offset,
+                 UDateFormatStyle style)
+      : name_(std::move(macroName)),
+        calendarName_(std::move(calendar)),
+        dayOffset_(offset),
+        dateStyle_(style) {}
+  [[nodiscard]] std::string name() const override { return name_; }
+  [[nodiscard]] std::string replacement() const override {
+    return FormatDate(calendarName_, dayOffset_, dateStyle_);
+  }
+
+ private:
+  std::string name_;
+  std::string calendarName_;
+  int dayOffset_;
+  UDateFormatStyle dateStyle_;
+};
+
+class InputMacroYear : public InputMacro {
+ public:
+  InputMacroYear(std::string macroName, std::string calendar, int offset,
+                 std::wstring pattern)
+      : name_(std::move(macroName)),
+        calendarName_(std::move(calendar)),
+        yearOffset_(offset),
+        pattern_(std::move(pattern)) {}
+  [[nodiscard]] std::string name() const override { return name_; }
+  [[nodiscard]] std::string replacement() const override {
+    return FormatWithPattern(calendarName_, yearOffset_, /*dateOffset*/ 0,
+                             pattern_) +
+           "年";
+  }
+
+ private:
+  std::string name_;
+  std::string calendarName_;
+  int yearOffset_;
+  std::wstring pattern_;
+};
+
+class InputMacroDayOfTheWeek : public InputMacro {
+ public:
+  InputMacroDayOfTheWeek(std::string macroName, std::string calendar,
+                         int offset, std::wstring pattern)
+      : name_(std::move(macroName)),
+        calendarName_(std::move(calendar)),
+        dayOffset_(offset),
+        pattern_(std::move(pattern)) {}
+  [[nodiscard]] std::string name() const override { return name_; }
+  [[nodiscard]] std::string replacement() const override {
+    return FormatWithPattern(calendarName_, /*yearOffset*/ 0, dayOffset_,
+                             pattern_);
+  }
+
+ private:
+  std::string name_;
+  std::string calendarName_;
+  int dayOffset_;
+  std::wstring pattern_;
+};
+
+class InputMacroDateTime : public InputMacro {
+ public:
+  InputMacroDateTime(std::string macroName, UDateFormatStyle style)
+      : name_(std::move(macroName)), timeStyle_(style) {}
+  [[nodiscard]] std::string name() const override { return name_; }
+  [[nodiscard]] std::string replacement() const override {
+    return FormatTime(timeStyle_);
+  }
+
+ private:
+  std::string name_;
+  UDateFormatStyle timeStyle_;
+};
+
+class InputMacroTimeZone : public InputMacro {
+ public:
+  InputMacroTimeZone(std::string macroName, UCalendarDisplayNameType type)
+      : name_(std::move(macroName)), type_(type) {}
+  [[nodiscard]] std::string name() const override { return name_; }
+  [[nodiscard]] std::string replacement() const override {
+    return FormatTimeZone(type_);
+  }
+
+ private:
+  std::string name_;
+  UCalendarDisplayNameType type_;
+};
+
+template <typename transform>
+class InputMacroTransform : public InputMacro {
+ public:
+  InputMacroTransform(std::string macroName, int yearOffset, transform t)
+      : name_(std::move(macroName)),
+        yearOffset_(yearOffset),
+        t_(std::move(t)) {}
+  [[nodiscard]] std::string name() const override { return name_; }
+  [[nodiscard]] std::string replacement() const override {
+    int year = GetCurrentYear();
+    return t_(year + yearOffset_);
+  }
+
+ private:
+  std::string name_;
+  int yearOffset_;
+  transform t_;
+};
+
+class InputMacroGanZhi
+    : public InputMacroTransform<std::function<decltype(GetGanzhi)>> {
+ public:
+  InputMacroGanZhi(std::string macroName, int yearOffset)
+      : InputMacroTransform(std::move(macroName), yearOffset, GetGanzhi) {}
+};
+
+class InputMacroZodiac
+    : public InputMacroTransform<std::function<decltype(GetChineseZodiac)>> {
+ public:
+  InputMacroZodiac(std::string macroName, int yearOffset)
+      : InputMacroTransform(std::move(macroName), yearOffset,
+                            GetChineseZodiac) {}
+};
+
+class InputMacroDateTodayShort : public InputMacroDate {
+ public:
+  InputMacroDateTodayShort()
+      : InputMacroDate("MACRO@DATE_TODAY_SHORT", "", 0, UDAT_SHORT) {}
+};
+
+class InputMacroDateTodayMedium : public InputMacroDate {
+ public:
+  InputMacroDateTodayMedium()
+      : InputMacroDate("MACRO@DATE_TODAY_MEDIUM", "", 0, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateTodayMediumRoc : public InputMacroDate {
+ public:
+  InputMacroDateTodayMediumRoc()
+      : InputMacroDate("MACRO@DATE_TODAY_MEDIUM_ROC", "roc", 0, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateTodayMediumChinese : public InputMacroDate {
+ public:
+  InputMacroDateTodayMediumChinese()
+      : InputMacroDate("MACRO@DATE_TODAY_MEDIUM_CHINESE", "chinese", 0, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateTodayMediumJapanese : public InputMacroDate {
+ public:
+  InputMacroDateTodayMediumJapanese()
+      : InputMacroDate("MACRO@DATE_TODAY_MEDIUM_JAPANESE", "japanese", 0, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateYesterdayShort : public InputMacroDate {
+ public:
+  InputMacroDateYesterdayShort()
+      : InputMacroDate("MACRO@DATE_YESTERDAY_SHORT", "", -1, UDAT_SHORT) {}
+};
+
+class InputMacroDateYesterdayMedium : public InputMacroDate {
+ public:
+  InputMacroDateYesterdayMedium()
+      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM", "", -1, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateYesterdayMediumRoc : public InputMacroDate {
+ public:
+  InputMacroDateYesterdayMediumRoc()
+      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_ROC", "roc", -1, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateYesterdayMediumChinese : public InputMacroDate {
+ public:
+  InputMacroDateYesterdayMediumChinese()
+      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_CHINESE", "chinese", -1, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateYesterdayMediumJapanese : public InputMacroDate {
+ public:
+  InputMacroDateYesterdayMediumJapanese()
+      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_JAPANESE", "japanese", -1, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateTomorrowShort : public InputMacroDate {
+ public:
+  InputMacroDateTomorrowShort()
+      : InputMacroDate("MACRO@DATE_TOMORROW_SHORT", "", 1, UDAT_SHORT) {}
+};
+
+class InputMacroDateTomorrowMedium : public InputMacroDate {
+ public:
+  InputMacroDateTomorrowMedium()
+      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM", "", 1, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateTomorrowMediumRoc : public InputMacroDate {
+ public:
+  InputMacroDateTomorrowMediumRoc()
+      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_ROC", "roc", 1, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateTomorrowMediumChinese : public InputMacroDate {
+ public:
+  InputMacroDateTomorrowMediumChinese()
+      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_CHINESE", "chinese", 1, UDAT_MEDIUM) {}
+};
+
+class InputMacroDateTomorrowMediumJapanese : public InputMacroDate {
+ public:
+  InputMacroDateTomorrowMediumJapanese()
+      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_JAPANESE", "japanese", 1, UDAT_MEDIUM) {}
+};
+
+class InputMacroThisYearPlain : public InputMacroYear {
+ public:
+  InputMacroThisYearPlain()
+      : InputMacroYear("MACRO@THIS_YEAR_PLAIN", "", 0, L"y") {}
+};
+
+class InputMacroThisYearPlainWithEra : public InputMacroYear {
+ public:
+  InputMacroThisYearPlainWithEra()
+      : InputMacroYear("MACRO@THIS_YEAR_PLAIN_WITH_ERA", "", 0, L"Gy") {}
+};
+
+class InputMacroThisYearRoc : public InputMacroYear {
+ public:
+  InputMacroThisYearRoc()
+      : InputMacroYear("MACRO@THIS_YEAR_ROC", "roc", 0, L"Gy") {}
+};
+
+class InputMacroThisYearJapanese : public InputMacroYear {
+ public:
+  InputMacroThisYearJapanese()
+      : InputMacroYear("MACRO@THIS_YEAR_JAPANESE", "japanese", 0, L"Gy") {}
+};
+
+class InputMacroLastYearPlain : public InputMacroYear {
+ public:
+  InputMacroLastYearPlain()
+      : InputMacroYear("MACRO@LAST_YEAR_PLAIN", "", -1, L"y") {}
+};
+
+class InputMacroLastYearPlainWithEra : public InputMacroYear {
+ public:
+  InputMacroLastYearPlainWithEra()
+      : InputMacroYear("MACRO@LAST_YEAR_PLAIN_WITH_ERA", "", -1, L"Gy") {}
+};
+
+class InputMacroLastYearRoc : public InputMacroYear {
+ public:
+  InputMacroLastYearRoc()
+      : InputMacroYear("MACRO@LAST_YEAR_ROC", "roc", -1, L"Gy") {}
+};
+
+class InputMacroLastYearJapanese : public InputMacroYear {
+ public:
+  InputMacroLastYearJapanese()
+      : InputMacroYear("MACRO@LAST_YEAR_JAPANESE", "japanese", -1, L"Gy") {}
+};
+
+class InputMacroNextYearPlain : public InputMacroYear {
+ public:
+  InputMacroNextYearPlain()
+      : InputMacroYear("MACRO@NEXT_YEAR_PLAIN", "", 1, L"y") {}
+};
+
+class InputMacroNextYearPlainWithEra : public InputMacroYear {
+ public:
+  InputMacroNextYearPlainWithEra()
+      : InputMacroYear("MACRO@NEXT_YEAR_PLAIN_WITH_ERA", "", 1, L"Gy") {}
+};
+
+class InputMacroNextYearRoc : public InputMacroYear {
+ public:
+  InputMacroNextYearRoc()
+      : InputMacroYear("MACRO@NEXT_YEAR_ROC", "roc", 1, L"Gy") {}
+};
+
+class InputMacroNextYearJapanese : public InputMacroYear {
+ public:
+  InputMacroNextYearJapanese()
+      : InputMacroYear("MACRO@NEXT_YEAR_JAPANESE", "japanese", 1, L"Gy") {}
+};
+
+class InputMacroWeekdayTodayShort : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayTodayShort()
+      : InputMacroDayOfTheWeek("MACRO@DATE_TODAY_WEEKDAY_SHORT", "", 0, L"E") {}
+};
+
+class InputMacroWeekdayToday : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayToday()
+      : InputMacroDayOfTheWeek("MACRO@DATE_TODAY_WEEKDAY", "", 0, L"EEEE") {}
+};
+
+class InputMacroWeekdayToday2 : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayToday2()
+      : InputMacroDayOfTheWeek("MACRO@DATE_TODAY2_WEEKDAY", "", 0, L"EEEE") {}
+  [[nodiscard]] std::string replacement() const override {
+    std::string original(InputMacroDayOfTheWeek::replacement());
+    return ConvertWeekdayUnit(original);
+  }
+};
+
+class InputMacroWeekdayTodayJapanese : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayTodayJapanese()
+      : InputMacroDayOfTheWeek("MACRO@DATE_TODAY_WEEKDAY_JAPANESE", "japanese",
+                               0, L"EEEE") {}
+};
+
+class InputMacroWeekdayYesterdayShort : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayYesterdayShort()
+      : InputMacroDayOfTheWeek("MACRO@DATE_YESTERDAY_WEEKDAY_SHORT", "", -1,
+                               L"E") {}
+};
+
+class InputMacroWeekdayYesterday : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayYesterday()
+      : InputMacroDayOfTheWeek("MACRO@DATE_YESTERDAY_WEEKDAY", "", -1, L"EEEE") {
+  }
+};
+
+class InputMacroWeekdayYesterday2 : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayYesterday2()
+      : InputMacroDayOfTheWeek("MACRO@DATE_YESTERDAY2_WEEKDAY", "", -1,
+                               L"EEEE") {}
+  [[nodiscard]] std::string replacement() const override {
+    std::string original(InputMacroDayOfTheWeek::replacement());
+    return ConvertWeekdayUnit(original);
+  }
+};
+
+class InputMacroWeekdayYesterdayJapanese : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayYesterdayJapanese()
+      : InputMacroDayOfTheWeek("MACRO@DATE_YESTERDAY_WEEKDAY_JAPANESE",
+                               "japanese", -1, L"EEEE") {}
+};
+
+class InputMacroWeekdayTomorrowShort : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayTomorrowShort()
+      : InputMacroDayOfTheWeek("MACRO@DATE_TOMORROW_WEEKDAY_SHORT", "", 1,
+                               L"E") {}
+};
+
+class InputMacroWeekdayTomorrow : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayTomorrow()
+      : InputMacroDayOfTheWeek("MACRO@DATE_TOMORROW_WEEKDAY", "", 1, L"EEEE") {}
+};
+
+class InputMacroWeekdayTomorrow2 : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayTomorrow2()
+      : InputMacroDayOfTheWeek("MACRO@DATE_TOMORROW2_WEEKDAY", "", 1, L"EEEE") {}
+  [[nodiscard]] std::string replacement() const override {
+    std::string original(InputMacroDayOfTheWeek::replacement());
+    return ConvertWeekdayUnit(original);
+  }
+};
+
+class InputMacroWeekdayTomorrowJapanese : public InputMacroDayOfTheWeek {
+ public:
+  InputMacroWeekdayTomorrowJapanese()
+      : InputMacroDayOfTheWeek("MACRO@DATE_TOMORROW_WEEKDAY_JAPANESE",
+                               "japanese", 1, L"EEEE") {}
+};
+
+class InputMacroDateTimeNowShort : public InputMacroDateTime {
+ public:
+  InputMacroDateTimeNowShort()
+      : InputMacroDateTime("MACRO@TIME_NOW_SHORT", UDAT_SHORT) {}
+};
+
+class InputMacroDateTimeNowMedium : public InputMacroDateTime {
+ public:
+  InputMacroDateTimeNowMedium()
+      : InputMacroDateTime("MACRO@TIME_NOW_MEDIUM", UDAT_MEDIUM) {}
+};
+
+class InputMacroTimeZoneStandard : public InputMacroTimeZone {
+ public:
+  InputMacroTimeZoneStandard()
+      : InputMacroTimeZone("MACRO@TIMEZONE_STANDARD", UCAL_STANDARD) {}
+};
+
+class InputMacroTimeZoneShortGeneric : public InputMacroTimeZone {
+ public:
+  InputMacroTimeZoneShortGeneric()
+      : InputMacroTimeZone("MACRO@TIMEZONE_GENERIC_SHORT", UCAL_SHORT_STANDARD) {}
+};
+
+class InputMacroThisYearGanZhi : public InputMacroGanZhi {
+ public:
+  InputMacroThisYearGanZhi() : InputMacroGanZhi("MACRO@THIS_YEAR_GANZHI", 0) {}
+};
+
+class InputMacroLastYearGanZhi : public InputMacroGanZhi {
+ public:
+  InputMacroLastYearGanZhi() : InputMacroGanZhi("MACRO@LAST_YEAR_GANZHI", -1) {}
+};
+
+class InputMacroNextYearGanZhi : public InputMacroGanZhi {
+ public:
+  InputMacroNextYearGanZhi() : InputMacroGanZhi("MACRO@NEXT_YEAR_GANZHI", 1) {}
+};
+
+class InputMacroThisYearChineseZodiac : public InputMacroZodiac {
+ public:
+  InputMacroThisYearChineseZodiac()
+      : InputMacroZodiac("MACRO@THIS_YEAR_CHINESE_ZODIAC", 0) {}
+};
+
+class InputMacroLastYearChineseZodiac : public InputMacroZodiac {
+ public:
+  InputMacroLastYearChineseZodiac()
+      : InputMacroZodiac("MACRO@LAST_YEAR_CHINESE_ZODIAC", -1) {}
+};
+
+class InputMacroNextYearChineseZodiac : public InputMacroZodiac {
+ public:
+  InputMacroNextYearChineseZodiac()
+      : InputMacroZodiac("MACRO@NEXT_YEAR_CHINESE_ZODIAC", 1) {}
+};
+
 InputMacroController::InputMacroController() {
-  auto add = [this](std::string name, std::function<std::string()> func) {
-    macros_[name] = std::make_unique<FuncInputMacro>(name, func);
-  };
-
-  // Year Plain
-  add("MACRO@THIS_YEAR_PLAIN", []() { return FormatDate(0, "%Y年"); });
-  add("MACRO@LAST_YEAR_PLAIN", []() { return FormatDate(-365, "%Y年"); });
-  add("MACRO@NEXT_YEAR_PLAIN", []() { return FormatDate(365, "%Y年"); });
-
-  add("MACRO@THIS_YEAR_PLAIN_WITH_ERA",
-      []() { return FormatDate(0, "西元%Y年"); });
-  add("MACRO@LAST_YEAR_PLAIN_WITH_ERA",
-      []() { return FormatDate(-365, "西元%Y年"); });
-  add("MACRO@NEXT_YEAR_PLAIN_WITH_ERA",
-      []() { return FormatDate(365, "西元%Y年"); });
-
-  // Year ROC
-  add("MACRO@THIS_YEAR_ROC", []() { return FormatRocYear(0); });
-  add("MACRO@LAST_YEAR_ROC", []() { return FormatRocYear(-365); });
-  add("MACRO@NEXT_YEAR_ROC", []() { return FormatRocYear(365); });
-
-  // Date Short
-  add("MACRO@DATE_TODAY_SHORT", []() { return FormatDate(0, "%Y/%m/%d"); });
-  add("MACRO@DATE_YESTERDAY_SHORT",
-      []() { return FormatDate(-1, "%Y/%m/%d"); });
-  add("MACRO@DATE_TOMORROW_SHORT", []() { return FormatDate(1, "%Y/%m/%d"); });
-
-  // Date Medium
-  add("MACRO@DATE_TODAY_MEDIUM",
-      []() { return FormatDate(0, "%Y年%#m月%#d日"); });
-  add("MACRO@DATE_YESTERDAY_MEDIUM",
-      []() { return FormatDate(-1, "%Y年%#m月%#d日"); });
-  add("MACRO@DATE_TOMORROW_MEDIUM",
-      []() { return FormatDate(1, "%Y年%#m月%#d日"); });
-
-  // Date Medium ROC
-  add("MACRO@DATE_TODAY_MEDIUM_ROC",
-      []() { return FormatRocDate(0, true, "%#m月%#d日"); });
-  add("MACRO@DATE_YESTERDAY_MEDIUM_ROC",
-      []() { return FormatRocDate(-1, true, "%#m月%#d日"); });
-  add("MACRO@DATE_TOMORROW_MEDIUM_ROC",
-      []() { return FormatRocDate(1, true, "%#m月%#d日"); });
-
-  add("MACRO@DATE_TODAY_MEDIUM_CHINESE", []() { return GetChineseDate(0); });
-  add("MACRO@DATE_TODAY_MEDIUM_JAPANESE", []() { return GetJapaneseDate(0); });
-  add("MACRO@THIS_YEAR_JAPANESE", []() { return GetJapaneseYear(0); });
-  add("MACRO@DATE_TODAY2_WEEKDAY", []() { return GetChineseWeekday2(0); });
-
-  // Time
-  add("MACRO@TIME_NOW_SHORT", []() { return FormatDate(0, "%H:%M"); });
-  add("MACRO@TIME_NOW_MEDIUM", []() { return FormatDate(0, "%H:%M:%S"); });
-
-  // Ganzhi
-  add("MACRO@THIS_YEAR_GANZHI", []() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
-    return GetGanzhi(tm.tm_year + 1900);
-  });
-  add("MACRO@LAST_YEAR_GANZHI", []() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
-    return GetGanzhi(tm.tm_year + 1900 - 1);
-  });
-  add("MACRO@NEXT_YEAR_GANZHI", []() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
-    return GetGanzhi(tm.tm_year + 1900 + 1);
-  });
-
-  // Zodiac
-  add("MACRO@THIS_YEAR_CHINESE_ZODIAC", []() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
-    return GetChineseZodiac(tm.tm_year + 1900);
-  });
-  add("MACRO@LAST_YEAR_CHINESE_ZODIAC", []() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
-    return GetChineseZodiac(tm.tm_year + 1900 - 1);
-  });
-  add("MACRO@NEXT_YEAR_CHINESE_ZODIAC", []() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm;
-    localtime_s(&tm, &t);
-    return GetChineseZodiac(tm.tm_year + 1900 + 1);
-  });
-
-  // Weekdays
-  add("MACRO@DATE_TODAY_WEEKDAY_SHORT",
-      []() { return GetChineseWeekday(0, true); });
-  add("MACRO@DATE_TODAY_WEEKDAY", []() { return GetChineseWeekday(0, false); });
-  add("MACRO@DATE_TODAY_WEEKDAY_JAPANESE",
-      []() { return GetJapaneseWeekday(0); });
-
-  add("MACRO@DATE_YESTERDAY_WEEKDAY_SHORT",
-      []() { return GetChineseWeekday(-1, true); });
-  add("MACRO@DATE_YESTERDAY_WEEKDAY",
-      []() { return GetChineseWeekday(-1, false); });
-  add("MACRO@DATE_YESTERDAY_WEEKDAY_JAPANESE",
-      []() { return GetJapaneseWeekday(-1); });
-
-  add("MACRO@DATE_TOMORROW_WEEKDAY_SHORT",
-      []() { return GetChineseWeekday(1, true); });
-  add("MACRO@DATE_TOMORROW_WEEKDAY",
-      []() { return GetChineseWeekday(1, false); });
-  add("MACRO@DATE_TOMORROW_WEEKDAY_JAPANESE",
-      []() { return GetJapaneseWeekday(1); });
-
-  // Japanese Dates
-  add("MACRO@DATE_TODAY_JAPANESE", []() { return GetJapaneseDate(0); });
-  add("MACRO@DATE_YESTERDAY_JAPANESE", []() { return GetJapaneseDate(-1); });
-  add("MACRO@DATE_TOMORROW_JAPANESE", []() { return GetJapaneseDate(1); });
-
-  // Lunar Dates
-  add("MACRO@DATE_TODAY_LUNAR", []() { return GetLunarDate(0); });
-  add("MACRO@DATE_YESTERDAY_LUNAR", []() { return GetLunarDate(-1); });
-  add("MACRO@DATE_TOMORROW_LUNAR", []() { return GetLunarDate(1); });
+  AddMacro(macros_, std::make_unique<InputMacroDateTodayShort>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTodayMedium>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTodayMediumRoc>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTodayMediumChinese>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTodayMediumJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroThisYearPlain>());
+  AddMacro(macros_, std::make_unique<InputMacroThisYearPlainWithEra>());
+  AddMacro(macros_, std::make_unique<InputMacroThisYearRoc>());
+  AddMacro(macros_, std::make_unique<InputMacroThisYearJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroLastYearPlain>());
+  AddMacro(macros_, std::make_unique<InputMacroLastYearPlainWithEra>());
+  AddMacro(macros_, std::make_unique<InputMacroLastYearRoc>());
+  AddMacro(macros_, std::make_unique<InputMacroLastYearJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroNextYearPlain>());
+  AddMacro(macros_, std::make_unique<InputMacroNextYearPlainWithEra>());
+  AddMacro(macros_, std::make_unique<InputMacroNextYearRoc>());
+  AddMacro(macros_, std::make_unique<InputMacroNextYearJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayTodayShort>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayToday>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayToday2>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayTodayJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayYesterdayShort>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayYesterday>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayYesterday2>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayYesterdayJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayTomorrowShort>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayTomorrow>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayTomorrow2>());
+  AddMacro(macros_, std::make_unique<InputMacroWeekdayTomorrowJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroDateYesterdayShort>());
+  AddMacro(macros_, std::make_unique<InputMacroDateYesterdayMedium>());
+  AddMacro(macros_, std::make_unique<InputMacroDateYesterdayMediumRoc>());
+  AddMacro(macros_, std::make_unique<InputMacroDateYesterdayMediumChinese>());
+  AddMacro(macros_, std::make_unique<InputMacroDateYesterdayMediumJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTomorrowShort>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTomorrowMedium>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTomorrowMediumRoc>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTomorrowMediumChinese>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTomorrowMediumJapanese>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTimeNowShort>());
+  AddMacro(macros_, std::make_unique<InputMacroDateTimeNowMedium>());
+  AddMacro(macros_, std::make_unique<InputMacroTimeZoneStandard>());
+  AddMacro(macros_, std::make_unique<InputMacroTimeZoneShortGeneric>());
+  AddMacro(macros_, std::make_unique<InputMacroThisYearGanZhi>());
+  AddMacro(macros_, std::make_unique<InputMacroLastYearGanZhi>());
+  AddMacro(macros_, std::make_unique<InputMacroNextYearGanZhi>());
+  AddMacro(macros_, std::make_unique<InputMacroThisYearChineseZodiac>());
+  AddMacro(macros_, std::make_unique<InputMacroLastYearChineseZodiac>());
+  AddMacro(macros_, std::make_unique<InputMacroNextYearChineseZodiac>());
 }
 
 std::string InputMacroController::handle(const std::string& input) const {
-  auto it = macros_.find(input);
-  if (it != macros_.end()) {
+  const auto& it = macros_.find(input);
+  if (it != macros_.cend()) {
     return it->second->replacement();
   }
   return input;
 }
+
+namespace {
+
+std::string CreateLocaleName(const std::string& calendarName) {
+  std::string localeName = calendarName == "japanese" ? "ja_JP" : "zh_Hant_TW";
+  if (!calendarName.empty()) {
+    localeName += "@calendar=" + calendarName;
+  }
+  return localeName;
+}
+
+std::string FormatWithStyle(const std::string& calendarName, int yearOffset,
+                            int dayOffset, UDateFormatStyle dateStyle,
+                            UDateFormatStyle timeStyle) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::string locale = CreateLocaleName(calendarName);
+
+  UCalendar* cal = ucal_open(nullptr, -1, locale.c_str(), UCAL_DEFAULT, &status);
+  if (U_FAILURE(status)) return "";
+
+  ucal_setMillis(cal, ucal_getNow(), &status);
+
+  if (yearOffset != 0) {
+    ucal_add(cal, UCAL_YEAR, yearOffset, &status);
+  }
+  if (dayOffset != 0) {
+    ucal_add(cal, UCAL_DATE, dayOffset, &status);
+  }
+
+  UDateFormat* df = udat_open(timeStyle, dateStyle, locale.c_str(), nullptr, -1, nullptr, 0, &status);
+  if (U_FAILURE(status)) {
+    ucal_close(cal);
+    return "";
+  }
+
+  UChar result[256] = {0};
+  int32_t len = udat_format(df, ucal_getMillis(cal, &status), result, 256, nullptr, &status);
+
+  udat_close(df);
+  ucal_close(cal);
+
+  if (U_FAILURE(status)) return "";
+
+  return Utf16ToUtf8(std::wstring(reinterpret_cast<wchar_t*>(result), len));
+}
+
+std::string FormatWithPattern(const std::string& calendarName, int yearOffset,
+                              int dateOffset,
+                              const std::wstring& pattern) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::string locale = CreateLocaleName(calendarName);
+
+  UCalendar* cal = ucal_open(nullptr, -1, locale.c_str(), UCAL_DEFAULT, &status);
+  if (U_FAILURE(status)) return "";
+
+  ucal_setMillis(cal, ucal_getNow(), &status);
+
+  if (yearOffset != 0) {
+    ucal_add(cal, UCAL_YEAR, yearOffset, &status);
+  }
+  if (dateOffset != 0) {
+    ucal_add(cal, UCAL_DATE, dateOffset, &status);
+  }
+
+  UDateFormat* df = udat_open(UDAT_PATTERN, UDAT_PATTERN, locale.c_str(), nullptr, -1, 
+                              reinterpret_cast<const UChar*>(pattern.c_str()), (int32_t)pattern.length(), &status);
+  if (U_FAILURE(status)) {
+    ucal_close(cal);
+    return "";
+  }
+
+  UChar result[256] = {0};
+  int32_t len = udat_format(df, ucal_getMillis(cal, &status), result, 256, nullptr, &status);
+
+  udat_close(df);
+  ucal_close(cal);
+
+  if (U_FAILURE(status)) return "";
+
+  return Utf16ToUtf8(std::wstring(reinterpret_cast<wchar_t*>(result), len));
+}
+
+std::string FormatDate(const std::string& calendarName, int dayOffset,
+                       UDateFormatStyle dateStyle) {
+  return FormatWithStyle(calendarName, /*yearOffset*/ 0, dayOffset, dateStyle,
+                         /*timeStyle*/ UDAT_NONE);
+}
+
+std::string FormatTime(UDateFormatStyle timeStyle) {
+  return FormatWithStyle(/*calendarName*/ "", /*yearOffset*/ 0, /*dayOffset*/ 0,
+                         /*dateStyle*/ UDAT_NONE,
+                         timeStyle);
+}
+
+std::string FormatTimeZone(UCalendarDisplayNameType type) {
+  UErrorCode status = U_ZERO_ERROR;
+  UCalendar* cal = ucal_open(nullptr, -1, "zh_Hant_TW", UCAL_DEFAULT, &status);
+  if (U_FAILURE(status)) return "";
+
+  UChar result[256] = {0};
+  int32_t len = ucal_getTimeZoneDisplayName(cal, type, "zh_Hant_TW", result, 256, &status);
+
+  ucal_close(cal);
+
+  if (U_FAILURE(status)) return "";
+
+  return Utf16ToUtf8(std::wstring(reinterpret_cast<wchar_t*>(result), len));
+}
+
+int GetCurrentYear() {
+  UErrorCode status = U_ZERO_ERROR;
+  UCalendar* cal = ucal_open(nullptr, -1, "zh_Hant_TW", UCAL_GREGORIAN, &status);
+  if (U_FAILURE(status)) return 0;
+
+  ucal_setMillis(cal, ucal_getNow(), &status);
+  int32_t year = ucal_get(cal, UCAL_YEAR, &status);
+
+  ucal_close(cal);
+  return year;
+}
+
+int getYearBase(int year) {
+  if (year < 4) {
+    year = year * -1;
+    return 60 - ((year + 2) % 60);
+  }
+  return (year - 3) % 60;
+}
+
+std::string GetGanzhi(int year) {
+  const std::vector<std::string> gan(
+      {"癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬"});
+  const std::vector<std::string> zhi(
+      {"亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌"});
+  size_t base = static_cast<size_t>(getYearBase(year));
+  size_t ganIndex = base % gan.size();
+  size_t zhiIndex = base % zhi.size();
+  return gan[ganIndex] + zhi[zhiIndex] + "年";
+}
+
+std::string GetChineseZodiac(int year) {
+  const std::vector<std::string> gan(
+      {"水", "木", "木", "火", "火", "土", "土", "金", "金", "水"});
+  const std::vector<std::string> zhi(
+      {"豬", "鼠", "牛", "虎", "兔", "龍", "蛇", "馬", "羊", "猴", "雞", "狗"});
+  size_t base = static_cast<size_t>(getYearBase(year));
+  size_t ganIndex = base % gan.size();
+  size_t zhiIndex = base % zhi.size();
+  return gan[ganIndex] + zhi[zhiIndex] + "年";
+}
+
+std::string ConvertWeekdayUnit(std::string original) {
+  std::string src = "星期";
+  std::string dst = "禮拜";
+  size_t pos = original.find(src);
+  if (pos != std::string::npos) {
+    return original.replace(pos, src.length(), dst);
+  }
+  return original;
+}
+
+void AddMacro(std::unordered_map<std::string, std::unique_ptr<InputMacro>>& m,
+              std::unique_ptr<InputMacro> p) {
+  m.insert({p->name(), std::move(p)});
+}
+
+}  // namespace
 
 }  // namespace McBopomofo

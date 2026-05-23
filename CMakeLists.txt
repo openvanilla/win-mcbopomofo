@@ -62,6 +62,8 @@ target_link_libraries(BugReproTest PRIVATE
     libopencc 
     gtest_main
     shell32
+    icuuc
+    icuin
 )
 add_test(NAME BugReproTest COMMAND BugReproTest)
 
@@ -88,15 +90,10 @@ add_test(NAME LunarCalendarConverterTest COMMAND LunarCalendarConverterTest)
 
 add_executable(InputMacroTest
     tests/InputMacroTest.cpp
-    src/Server/InputMacro.cpp
-    src/Server/ChineseNumbers/ChineseNumbers.cpp
-    src/Server/ChineseNumbers/StringUtils.cpp
-    src/Server/LunarCalendarConverter.cpp
-    third_party/Lunar-Solar-Calendar-Converter/C_C++/LunarSolarConverter.c)
+    src/Server/InputMacro.cpp)
 target_include_directories(InputMacroTest PRIVATE
     ${CMAKE_SOURCE_DIR}/src/Server
-    ${CMAKE_SOURCE_DIR}/src/Server/ChineseNumbers
-    ${CMAKE_SOURCE_DIR}/third_party/Lunar-Solar-Calendar-Converter/C_C++
+    ${CMAKE_SOURCE_DIR}/src/Common
     ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
-target_link_libraries(InputMacroTest PRIVATE gtest_main)
+target_link_libraries(InputMacroTest PRIVATE Common gtest_main icuuc icuin)
 add_test(NAME InputMacroTest COMMAND InputMacroTest)
