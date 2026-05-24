@@ -30,7 +30,11 @@
 
 class McBopomofoTIP;
 
-// CCandidateListUIElement class
+// CCandidateListUIElement is the TSF-side candidate list object exposed through
+// ITfUIElementMgr. It is used when the text service has candidate data to show
+// and calls BeginUIElement/UpdateUIElement so the host application or the system
+// can present the candidate list via the standard TSF UIElement mechanism,
+// instead of relying only on this project's custom CandidateWindow popup.
 class CCandidateListUIElement : public ITfCandidateListUIElementBehavior {
  public:
   CCandidateListUIElement(McBopomofoTIP* pTIP);

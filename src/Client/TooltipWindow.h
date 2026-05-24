@@ -28,6 +28,15 @@
 
 #include <string>
 
+// TooltipWindow is a lightweight per-monitor-DPI-aware popup rendered with
+// Direct2D/DirectWrite.
+//
+// It updates dpiScale_ from GetDpiScaleForWindow(), reacts to WM_DPICHANGED and
+// cross-monitor Move() operations, measures text in DIPs via DirectWrite, then
+// scales the measured size to physical pixels before resizing the HWND.
+// Painting happens in onPaint_(): create/recreate the HWND render target and
+// brushes, apply the DPI transform, clear the background, draw the text layout,
+// then reset to device space and stroke the 1-pixel border.
 class TooltipWindow {
  public:
   TooltipWindow();

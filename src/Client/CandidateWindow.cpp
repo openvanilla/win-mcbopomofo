@@ -336,32 +336,23 @@ void CandidateWindow::Destroy() {
   }
 }
 
-void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
-                               int cursorIndex, bool forceVertical,
-                               McBopomofo::IPC::CandidateSelectionStyle
-                                   selectionStyle,
-                               int candidateFontSize,
-                               const std::string& hint,
-                               bool candidateWindowVertical,
-                               const std::string& candidateKeys,
-                               int candidateKeysCount,
-                               const McBopomofo::IPC::CandidateWindowColors&
-                                   colors) {
+void CandidateWindow::UpdateUI(const UpdateUIRequest& request) {
   if (!hwnd_) return;
 
-  applyCandidateWindowSettings_(candidateWindowVertical, candidateKeys,
-                                candidateKeysCount, colors);
+  applyCandidateWindowSettings_(request.candidateWindowVertical,
+                                request.candidateKeys,
+                                request.candidateKeysCount, request.colors);
 
   dpiScale_ = GetDpiScaleForWindow(hwnd_);
 
   candidates_.clear();
-  for (const auto& c : candidates) {
+  for (const auto& c : request.candidates) {
     candidates_.push_back(McBopomofo::Utf8ToUtf16(c));
   }
-  cursorIndex_ = cursorIndex;
-  hint_ = McBopomofo::Utf8ToUtf16(hint);
+  cursorIndex_ = request.cursorIndex;
+  hint_ = McBopomofo::Utf8ToUtf16(request.hint);
 
-  if (candidates_.empty()) {
+  if (request.candidates.empty()) {
     Hide();
     return;
   }
@@ -373,10 +364,10 @@ void CandidateWindow::UpdateUI(const std::vector<std::string>& candidates,
     cursorIndex_ = 0;
   }
 
-  forceVertical_ = forceVertical;
-  selectionStyle_ = selectionStyle;
-  if (candidateFontSize_ != candidateFontSize) {
-    candidateFontSize_ = candidateFontSize;
+  forceVertical_ = request.forceVertical;
+  selectionStyle_ = request.selectionStyle;
+  if (candidateFontSize_ != request.candidateFontSize) {
+    candidateFontSize_ = request.candidateFontSize;
     createDeviceIndependentResources_();
   }
   rebuildLayoutAndResize_();

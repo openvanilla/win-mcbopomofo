@@ -31,8 +31,36 @@
 
 #include "Ipc.h"
 
+// CandidateWindow is a per-monitor-DPI-aware popup rendered with
+// Direct2D/DirectWrite.
+//
+//  It tracks the current scale with GetDpiScaleForWindow(), refreshes the scale
+// on Move() and WM_DPICHANGED, rebuilds text layouts in DIPs, then converts the
+// measured size back to physical pixels before resizing the HWND. Painting
+// happens in onPaint_(): create/recreate the HWND render target and brushes,
+// apply a DPI scale transform, clear the background, draw the optional hint and
+// candidate text layouts, paint the selected range highlight, then draw the
+// 1-pixel border in device space.
 class CandidateWindow {
  public:
+  struct UpdateUIRequest {
+    std::vector<std::string> candidates;
+    std::string hint;
+
+    int cursorIndex = 0;
+    McBopomofo::IPC::CandidateSelectionStyle selectionStyle =
+        McBopomofo::IPC::CandidateSelectionStyle::kStandard;
+
+    bool forceVertical = false;
+    bool candidateWindowVertical = false;
+
+    int candidateFontSize = 16;
+    std::string candidateKeys = "123456789";
+    int candidateKeysCount = 9;
+
+    McBopomofo::IPC::CandidateWindowColors colors;
+  };
+
   CandidateWindow();
   ~CandidateWindow();
 
@@ -40,17 +68,7 @@ class CandidateWindow {
   void Destroy();
   void SetOwnerWindow(HWND ownerHwnd);
 
-  void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex,
-                bool forceVertical = false,
-                McBopomofo::IPC::CandidateSelectionStyle selectionStyle =
-                    McBopomofo::IPC::CandidateSelectionStyle::kStandard,
-                int candidateFontSize = 16,
-                const std::string& hint = "",
-                bool candidateWindowVertical = false,
-                const std::string& candidateKeys = "123456789",
-                int candidateKeysCount = 9,
-                const McBopomofo::IPC::CandidateWindowColors& colors =
-                    McBopomofo::IPC::CandidateWindowColors());
+  void UpdateUI(const UpdateUIRequest& request);
   void Move(int x, int y);
   void Hide();
 

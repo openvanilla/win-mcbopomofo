@@ -490,11 +490,18 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
 
         if (showCustomCand && !state_.candidates.empty()) {
           pTIP_->GetCandidateWindow()->SetOwnerWindow(GetContextWindow(pContext_));
-          pTIP_->GetCandidateWindow()->UpdateUI(
-              state_.candidates, state_.candidateIndex, state_.forceVertical,
-              state_.selectionStyle, state_.candidateFontSize, state_.hint,
-              state_.candidateWindowVertical, state_.candidateKeys,
-              state_.candidateKeysCount, state_.candidateWindowColors);
+          CandidateWindow::UpdateUIRequest request;
+          request.candidates = state_.candidates;
+          request.cursorIndex = state_.candidateIndex;
+          request.forceVertical = state_.forceVertical;
+          request.selectionStyle = state_.selectionStyle;
+          request.candidateFontSize = state_.candidateFontSize;
+          request.hint = state_.hint;
+          request.candidateWindowVertical = state_.candidateWindowVertical;
+          request.candidateKeys = state_.candidateKeys;
+          request.candidateKeysCount = state_.candidateKeysCount;
+          request.colors = state_.candidateWindowColors;
+          pTIP_->GetCandidateWindow()->UpdateUI(request);
         } else {
           pTIP_->GetCandidateWindow()->Hide();
         }
@@ -608,11 +615,18 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
 
     if (showCustomCand && !state_.candidates.empty()) {
       pTIP_->GetCandidateWindow()->SetOwnerWindow(GetContextWindow(pContext_));
-      pTIP_->GetCandidateWindow()->UpdateUI(
-          state_.candidates, state_.candidateIndex, state_.forceVertical,
-          state_.selectionStyle, state_.candidateFontSize, state_.hint,
-          state_.candidateWindowVertical, state_.candidateKeys,
-          state_.candidateKeysCount, state_.candidateWindowColors);
+      CandidateWindow::UpdateUIRequest request;
+      request.candidates = state_.candidates;
+      request.cursorIndex = state_.candidateIndex;
+      request.forceVertical = state_.forceVertical;
+      request.selectionStyle = state_.selectionStyle;
+      request.candidateFontSize = state_.candidateFontSize;
+      request.hint = state_.hint;
+      request.candidateWindowVertical = state_.candidateWindowVertical;
+      request.candidateKeys = state_.candidateKeys;
+      request.candidateKeysCount = state_.candidateKeysCount;
+      request.colors = state_.candidateWindowColors;
+      pTIP_->GetCandidateWindow()->UpdateUI(request);
     } else {
       pTIP_->GetCandidateWindow()->Hide();
     }
