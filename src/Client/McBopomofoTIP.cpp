@@ -198,121 +198,6 @@ bool IsOnlyShiftKeyEvent(WPARAM wParam, const BYTE keyboardState[256]) {
          !IsAltPressed(keyboardState);
 }
 
-bool IsPrintableAscii(WCHAR ch) { return ch >= 32 && ch <= 126; }
-
-bool IsLikelyTextInputVirtualKey(WPARAM wParam) {
-  if ((wParam >= '0' && wParam <= '9') || (wParam >= 'A' && wParam <= 'Z')) {
-    return true;
-  }
-
-  switch (wParam) {
-    case VK_NUMPAD0:
-    case VK_NUMPAD1:
-    case VK_NUMPAD2:
-    case VK_NUMPAD3:
-    case VK_NUMPAD4:
-    case VK_NUMPAD5:
-    case VK_NUMPAD6:
-    case VK_NUMPAD7:
-    case VK_NUMPAD8:
-    case VK_NUMPAD9:
-    case VK_SPACE:
-    case VK_OEM_1:
-    case VK_OEM_2:
-    case VK_OEM_3:
-    case VK_OEM_4:
-    case VK_OEM_5:
-    case VK_OEM_6:
-    case VK_OEM_7:
-    case VK_OEM_COMMA:
-    case VK_OEM_MINUS:
-    case VK_OEM_PERIOD:
-    case VK_OEM_PLUS:
-    case VK_DECIMAL:
-    case VK_DIVIDE:
-    case VK_MULTIPLY:
-    case VK_SUBTRACT:
-    case VK_ADD:
-    case VK_OEM_102:
-      return true;
-    default:
-      return false;
-  }
-}
-
-char ShiftedDigitAscii(WPARAM wParam) {
-  switch (wParam) {
-    case '0':
-      return ')';
-    case '1':
-      return '!';
-    case '2':
-      return '@';
-    case '3':
-      return '#';
-    case '4':
-      return '$';
-    case '5':
-      return '%';
-    case '6':
-      return '^';
-    case '7':
-      return '&';
-    case '8':
-      return '*';
-    case '9':
-      return '(';
-    default:
-      return '\0';
-  }
-}
-
-char FallbackAsciiFromVirtualKey(WPARAM wParam,
-                                 const BYTE keyboardState[256]) {
-  const bool shiftPressed = IsShiftPressed(keyboardState);
-
-  if (wParam >= 'A' && wParam <= 'Z') {
-    return shiftPressed ? static_cast<char>(wParam)
-                        : static_cast<char>(wParam - 'A' + 'a');
-  }
-
-  if (wParam >= '0' && wParam <= '9') {
-    if (shiftPressed) {
-      return ShiftedDigitAscii(wParam);
-    }
-    return static_cast<char>(wParam);
-  }
-
-  if (wParam == VK_SPACE) {
-    return ' ';
-  }
-
-  UINT translated = MapVirtualKeyExW(static_cast<UINT>(wParam), MAPVK_VK_TO_CHAR,
-                                     GetKeyboardLayout(0));
-  if ((translated & 0x80000000) != 0) {
-    translated &= 0x7FFFFFFF;
-  }
-
-  WCHAR ch = static_cast<WCHAR>(translated & 0xFFFF);
-  return IsPrintableAscii(ch) ? static_cast<char>(ch) : '\0';
-}
-
-char PrintableAsciiFromKeyEvent(WPARAM wParam, LPARAM lParam,
-                                const BYTE keyboardState[256]) {
-  BYTE keyboardStateCopy[256];
-  CopyMemory(keyboardStateCopy, keyboardState, sizeof(keyboardStateCopy));
-
-  WCHAR chars[4] = {0};
-  int translated = ToUnicodeEx(static_cast<UINT>(wParam), (lParam >> 16) & 0xFF,
-                               keyboardStateCopy, chars, 4, 0,
-                               GetKeyboardLayout(0));
-  if (translated == 1 && IsPrintableAscii(chars[0])) {
-    return static_cast<char>(chars[0]);
-  }
-
-  return FallbackAsciiFromVirtualKey(wParam, keyboardState);
-}
-
 bool GetFocusedContext(ITfThreadMgr* threadMgr, ITfContext** context) {
   if (!threadMgr || !context) {
     return false;
@@ -654,7 +539,6 @@ STDAPI McBopomofoTIP::OnSetFocus(BOOL fForeground) {
 STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
                                     LPARAM lParam, BOOL* pfEaten) {
   UNREFERENCED_PARAMETER(pic);
-  UNREFERENCED_PARAMETER(lParam);
   if (pfEaten == nullptr) {
     return E_INVALIDARG;
   }
@@ -684,15 +568,17 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
     return S_OK;
   }
 
-  if (IsCtrlPressed(keyboardState) || IsAltPressed(keyboardState)) {
+  // No active state: only eat printable characters, let server decide if it
+  // wants to start composing
+  WCHAR chars[2] = {0};
+  if (ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2,
+                0) == 1) {
+    // Only eat if it's a printable ASCII character (let server handle Bopomofo
+    // keys)
+    *pfEaten = (chars[0] >= 32 && chars[0] <= 126);
+  } else {
     *pfEaten = FALSE;
-    return S_OK;
   }
-
-  // Some TSF hosts are sensitive to repeated ToUnicode calls across
-  // OnTestKeyDown/OnKeyDown. Use a virtual-key based probe here and let the
-  // server make the final consume decision in OnKeyDown.
-  *pfEaten = IsLikelyTextInputVirtualKey(wParam) ? TRUE : FALSE;
 
   return S_OK;
 }
@@ -731,9 +617,13 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   req.ctrl = IsCtrlPressed(keyboardState);
 
   GetKeyboardState(keyboardState);
-  req.ascii = static_cast<unsigned int>(
-      static_cast<unsigned char>(
-          PrintableAsciiFromKeyEvent(wParam, lParam, keyboardState)));
+  WCHAR chars[2] = {0};
+  if (ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2,
+                0) == 1) {
+    req.ascii = (chars[0] >= 32 && chars[0] <= 126) ? chars[0] : 0;
+  } else {
+    req.ascii = 0;
+  }
 
   McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
   std::string response;
