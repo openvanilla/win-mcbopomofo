@@ -1,0 +1,46 @@
+if(NOT DEFINED INPUT_CMAKE_FILE)
+  message(FATAL_ERROR "INPUT_CMAKE_FILE is required")
+endif()
+
+if(NOT DEFINED OUTPUT_RC_FILE)
+  message(FATAL_ERROR "OUTPUT_RC_FILE is required")
+endif()
+
+file(READ "${INPUT_CMAKE_FILE}" PROJECT_CMAKE_TEXT)
+
+string(
+  REGEX MATCH
+    "project[ \t\r\n]*\\([^)]*VERSION[ \t\r\n]+([0-9]+)\\.([0-9]+)\\.([0-9]+)(\\.([0-9]+))?"
+    VERSION_MATCH
+    "${PROJECT_CMAKE_TEXT}"
+)
+
+if(NOT VERSION_MATCH)
+  message(FATAL_ERROR "Unable to find project VERSION in ${INPUT_CMAKE_FILE}")
+endif()
+
+set(VERSION_MAJOR "${CMAKE_MATCH_1}")
+set(VERSION_MINOR "${CMAKE_MATCH_2}")
+set(VERSION_PATCH "${CMAKE_MATCH_3}")
+if(CMAKE_MATCH_5)
+  set(VERSION_TWEAK "${CMAKE_MATCH_5}")
+else()
+  set(VERSION_TWEAK "0")
+endif()
+
+set(VERSION_COMMA
+    "${VERSION_MAJOR},${VERSION_MINOR},${VERSION_PATCH},${VERSION_TWEAK}")
+set(VERSION_STRING
+    "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}.${VERSION_TWEAK}")
+
+get_filename_component(OUTPUT_DIR "${OUTPUT_RC_FILE}" DIRECTORY)
+file(MAKE_DIRECTORY "${OUTPUT_DIR}")
+
+file(
+  WRITE "${OUTPUT_RC_FILE}"
+  "#pragma once\n"
+  "#define WINMCBOPOMOFO_VERSION_NUM ${VERSION_COMMA}\n"
+  "#define WINMCBOPOMOFO_VERSION_STR \"${VERSION_STRING}\"\n"
+)
+
+message(STATUS "Generated ${OUTPUT_RC_FILE} from ${INPUT_CMAKE_FILE}: ${VERSION_STRING}")

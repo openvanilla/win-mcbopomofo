@@ -1,9 +1,44 @@
 #include "resource.h"
 #include <winres.h>
+#include "WinMcBopomofoVersion.rcinc"
 
 IDI_ICON_APP ICON "res\\app.ico"
 IDI_ICON_ZH ICON "res\\zh.ico"
 IDI_ICON_EN ICON "res\\en.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION WINMCBOPOMOFO_VERSION_NUM
+ PRODUCTVERSION WINMCBOPOMOFO_VERSION_NUM
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "Comments", "MIT License"
+            VALUE "CompanyName", "OpenVanilla.org"
+            VALUE "FileDescription", "Win-McBopomofo Text Service"
+            VALUE "FileVersion", WINMCBOPOMOFO_VERSION_STR
+            VALUE "InternalName", "McBopomofoTIP_v2"
+            VALUE "LegalCopyright", "McBopomofo Authors. All rights reserved."
+            VALUE "OriginalFilename", "McBopomofoTIP_v2.dll"
+            VALUE "ProductName", "Win-McBopomofo"
+            VALUE "ProductVersion", WINMCBOPOMOFO_VERSION_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END
 
 #pragma code_page(65001)
 
@@ -44,5 +79,3 @@ BEGIN
     IDS_IME_MODE_TOOLTIP           "中/簡/英文模式"
     IDS_WIN_MCBOPOMOFO             "小麥注音"
 END
-
-

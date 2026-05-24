@@ -1,7 +1,42 @@
 #include "resource.h"
 #include <winres.h>
+#include "WinMcBopomofoVersion.rcinc"
 
 IDI_ICON_APP ICON "..\\Client\\res\\app.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION WINMCBOPOMOFO_VERSION_NUM
+ PRODUCTVERSION WINMCBOPOMOFO_VERSION_NUM
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "Comments", "MIT License"
+            VALUE "CompanyName", "OpenVanilla.org"
+            VALUE "FileDescription", "Win-McBopomofo Server"
+            VALUE "FileVersion", WINMCBOPOMOFO_VERSION_STR
+            VALUE "InternalName", "McBopomofoServer"
+            VALUE "LegalCopyright", "McBopomofo Authors. All rights reserved."
+            VALUE "OriginalFilename", "McBopomofoServer.exe"
+            VALUE "ProductName", "Win-McBopomofo"
+            VALUE "ProductVersion", WINMCBOPOMOFO_VERSION_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END
 
 #pragma code_page(65001)
 
@@ -70,6 +105,4 @@ BEGIN
     IDS_EXCLUDED_PHRASE_FILE_HEADER "# 手動刪詞資料檔\n# 使用方式請參考 https://github.com/openvanilla/McBopomofo/wiki/使用手冊#手動刪詞\n# 如果將下面這行範例加入資料檔中，輸入 ""ㄐㄧㄚ ㄘˊ"" 時不會再看到「家祠」一詞：\n# 請注意，注音音節之間要用減號 (""-"") 分隔。\n"
     IDS_CHARACTER_INFORMATION      "字元資訊"
 END
-
-
 

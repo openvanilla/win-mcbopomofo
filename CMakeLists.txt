@@ -1,6 +1,17 @@
 cmake_minimum_required(VERSION 3.20)
 project(WinMcBopomofo VERSION 1.0.0 LANGUAGES CXX C)
 
+set(WINMCBOPOMOFO_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
+set(WINMCBOPOMOFO_VERSION_RC "${WINMCBOPOMOFO_GENERATED_DIR}/WinMcBopomofoVersion.rcinc")
+execute_process(
+    COMMAND
+        ${CMAKE_COMMAND}
+        -DINPUT_CMAKE_FILE=${CMAKE_SOURCE_DIR}/CMakeLists.txt
+        -DOUTPUT_RC_FILE=${WINMCBOPOMOFO_VERSION_RC}
+        -P ${CMAKE_SOURCE_DIR}/cmake/GenerateVersionRc.cmake
+    COMMAND_ERROR_IS_FATAL ANY
+)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

@@ -60,5 +60,5 @@ add_executable(McBopomofoServer
     SettingsApp.cpp
 )
 set_target_properties(McBopomofoServer PROPERTIES WIN32_EXECUTABLE TRUE)
-target_include_directories(McBopomofoServer PRIVATE ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src)
+target_include_directories(McBopomofoServer PRIVATE ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src ${WINMCBOPOMOFO_GENERATED_DIR})
 target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common libopencc dwmapi windowsapp icuuc icuin)
