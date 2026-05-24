@@ -43,6 +43,15 @@
 // 1-pixel border in device space.
 class CandidateWindow {
  public:
+  // Some hosts, notably CoreWindow-based apps such as modern Notepads, do not
+  // reliably show the popup when it is rendered with our D2D path even though
+  // the HWND is created, sized, and moved correctly. Use GDI as a compatibility
+  // renderer for those hosts and keep D2D for normal desktop windows.
+  enum class RenderMode {
+    kD2D,
+    kGDI,
+  };
+
   struct UpdateUIRequest {
     std::vector<std::string> candidates;
     std::string hint;
@@ -100,12 +109,14 @@ class CandidateWindow {
   void createDeviceResources_();
   void discardDeviceResources_();
   void rebuildLayoutAndResize_();
+  bool recreateWindow_();
   void enableSystemRoundedCorners_();
   void updateRoundedRegion_();
   void applyCandidateWindowSettings_(
       bool vertical, const std::string& candidateKeys, int candidateKeysCount,
       const McBopomofo::IPC::CandidateWindowColors& colors);
   void reloadServerControlledSettings_();
+  void updateRenderMode_();
 
   struct TextRange {
     UINT32 start;
@@ -114,6 +125,8 @@ class CandidateWindow {
 
   HWND hwnd_;
   HWND ownerHwnd_;
+  HINSTANCE hInstance_;
+  RenderMode renderMode_;
   float dpiScale_;
   std::vector<std::wstring> candidates_;
   int cursorIndex_;

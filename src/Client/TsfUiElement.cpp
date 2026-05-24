@@ -105,6 +105,7 @@ STDMETHODIMP CCandidateListUIElement::GetGUID(GUID* pguid) {
   if (pguid == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("GetGUID");
   *pguid = guid_;
   return S_OK;
 }
@@ -113,12 +114,15 @@ STDMETHODIMP CCandidateListUIElement::IsShown(BOOL* pfShow) {
   if (pfShow == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("IsShown");
   *pfShow = fShown_;
   return S_OK;
 }
 
 STDMETHODIMP CCandidateListUIElement::Show(BOOL fShow) {
+  noteHostInteraction_("Show");
   fShown_ = fShow;
+  LogMessage("CCandidateListUIElement::Show fShow=%d", fShow ? 1 : 0);
   return S_OK;
 }
 
@@ -126,6 +130,7 @@ STDMETHODIMP CCandidateListUIElement::GetUpdatedFlags(DWORD* pdwFlags) {
   if (pdwFlags == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("GetUpdatedFlags");
   *pdwFlags = TF_CLUIE_DOCUMENTMGR | TF_CLUIE_COUNT | TF_CLUIE_SELECTION |
               TF_CLUIE_STRING | TF_CLUIE_PAGEINDEX | TF_CLUIE_CURRENTPAGE;
   return S_OK;
@@ -135,6 +140,7 @@ STDMETHODIMP CCandidateListUIElement::GetDocumentMgr(ITfDocumentMgr** ppdim) {
   if (ppdim == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("GetDocumentMgr");
   *ppdim = nullptr;
   if (pActiveContext_) {
     return pActiveContext_->GetDocumentMgr(ppdim);
@@ -146,7 +152,9 @@ STDMETHODIMP CCandidateListUIElement::GetCount(UINT* puCount) {
   if (puCount == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("GetCount");
   *puCount = static_cast<UINT>(candidates_.size());
+  LogMessage("CCandidateListUIElement::GetCount count=%u", *puCount);
   return S_OK;
 }
 
@@ -154,7 +162,9 @@ STDMETHODIMP CCandidateListUIElement::GetSelection(UINT* puIndex) {
   if (puIndex == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("GetSelection");
   *puIndex = static_cast<UINT>(selectionIndex_);
+  LogMessage("CCandidateListUIElement::GetSelection index=%u", *puIndex);
   return S_OK;
 }
 
@@ -162,11 +172,15 @@ STDMETHODIMP CCandidateListUIElement::GetString(UINT uIndex, BSTR* pbstr) {
   if (pbstr == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("GetString");
   *pbstr = nullptr;
   if (uIndex >= candidates_.size()) {
     return E_INVALIDARG;
   }
   *pbstr = SysAllocString(candidates_[uIndex].c_str());
+  LogMessage("CCandidateListUIElement::GetString index=%u textLength=%llu",
+             uIndex,
+             static_cast<unsigned long long>(candidates_[uIndex].length()));
   return *pbstr ? S_OK : E_OUTOFMEMORY;
 }
 
@@ -174,6 +188,7 @@ STDMETHODIMP CCandidateListUIElement::GetPageIndex(UINT* puIndex, UINT uSize, UI
   if (puPageCnt == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("GetPageIndex");
 
   UINT pageSize = (candidateKeysCount_ > 0) ? candidateKeysCount_ : 9;
   UINT totalCount = static_cast<UINT>(candidates_.size());
@@ -190,10 +205,15 @@ STDMETHODIMP CCandidateListUIElement::GetPageIndex(UINT* puIndex, UINT uSize, UI
     }
   }
 
+  LogMessage(
+      "CCandidateListUIElement::GetPageIndex pageSize=%u totalCount=%u totalPages=%u requestedSize=%u",
+      pageSize, totalCount, totalPages, uSize);
+
   return S_OK;
 }
 
 STDMETHODIMP CCandidateListUIElement::SetPageIndex(UINT* puIndex, UINT uPageCnt) {
+  noteHostInteraction_("SetPageIndex");
   UNREFERENCED_PARAMETER(puIndex);
   UNREFERENCED_PARAMETER(uPageCnt);
   return S_OK;
@@ -203,8 +223,11 @@ STDMETHODIMP CCandidateListUIElement::GetCurrentPage(UINT* puPage) {
   if (puPage == nullptr) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("GetCurrentPage");
   UINT pageSize = (candidateKeysCount_ > 0) ? candidateKeysCount_ : 9;
   *puPage = static_cast<UINT>(selectionIndex_ / pageSize);
+  LogMessage("CCandidateListUIElement::GetCurrentPage page=%u pageSize=%u",
+             *puPage, pageSize);
   return S_OK;
 }
 
@@ -212,6 +235,7 @@ STDMETHODIMP CCandidateListUIElement::SetSelection(UINT uIndex) {
   if (uIndex >= candidates_.size()) {
     return E_INVALIDARG;
   }
+  noteHostInteraction_("SetSelection");
 
   if (!pTIP_) {
     return E_UNEXPECTED;
@@ -245,10 +269,12 @@ STDMETHODIMP CCandidateListUIElement::SetSelection(UINT uIndex) {
 }
 
 STDMETHODIMP CCandidateListUIElement::Finalize(void) {
+  noteHostInteraction_("Finalize");
   return SetSelection(static_cast<UINT>(selectionIndex_));
 }
 
 STDMETHODIMP CCandidateListUIElement::Abort(void) {
+  noteHostInteraction_("Abort");
   return S_OK;
 }
 
@@ -263,6 +289,10 @@ void CCandidateListUIElement::UpdateData(const std::vector<std::string>& candida
   selectionIndex_ = (selectionIndex >= 0) ? selectionIndex : 0;
   candidateKeys_ = McBopomofo::Utf8ToUtf16(candidateKeys);
   candidateKeysCount_ = candidateKeysCount;
+  LogMessage(
+      "CCandidateListUIElement::UpdateData count=%llu selectionIndex=%d candidateKeysCount=%d",
+      static_cast<unsigned long long>(candidates_.size()), selectionIndex_,
+      candidateKeysCount_);
 }
 
 void CCandidateListUIElement::SetActiveContext(ITfContext* pContext) {
@@ -273,6 +303,8 @@ void CCandidateListUIElement::SetActiveContext(ITfContext* pContext) {
   if (pActiveContext_) {
     pActiveContext_->AddRef();
   }
+  LogMessage("CCandidateListUIElement::SetActiveContext context=%p",
+             pActiveContext_);
 }
 
 void CCandidateListUIElement::SetShown(BOOL fShow) {
@@ -281,6 +313,30 @@ void CCandidateListUIElement::SetShown(BOOL fShow) {
 
 void CCandidateListUIElement::ClearTip() {
   pTIP_ = nullptr;
+}
+
+void CCandidateListUIElement::ResetDiagnostics() {
+  hostInteractionCount_ = 0;
+  lastHostMethod_ = "none";
+}
+
+bool CCandidateListUIElement::HasHostInteraction() const {
+  return hostInteractionCount_ != 0;
+}
+
+const char* CCandidateListUIElement::LastHostMethod() const {
+  return lastHostMethod_;
+}
+
+unsigned long CCandidateListUIElement::HostInteractionCount() const {
+  return hostInteractionCount_;
+}
+
+void CCandidateListUIElement::noteHostInteraction_(const char* methodName) {
+  ++hostInteractionCount_;
+  lastHostMethod_ = methodName;
+  LogMessage("CCandidateListUIElement host interaction #%lu via %s",
+             hostInteractionCount_, methodName);
 }
 
 // ==========================================

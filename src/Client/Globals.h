@@ -32,6 +32,7 @@ void DllAddRef();
 void DllRelease();
 
 void LogMessage(const char* format, ...);
+void LogMessageFileOnly(const char* format, ...);
 
 float GetDpiScaleForWindow(HWND hwnd);
 

@@ -742,6 +742,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       return IPC::SerializeClientSettings(payload);
     }
 
+    IPC::ClientLogPayload clientLogReq;
+    if (IPC::DeserializeClientLog(req, clientLogReq)) {
+      FCITX_MCBOPOMOFO_INFO()
+          << "TIP[" << clientLogReq.processId << "][+"
+          << clientLogReq.elapsedMs << "ms] " << clientLogReq.message;
+      return std::string("1");
+    }
+
     FCITX_MCBOPOMOFO_WARN() << "IPC Failed to deserialize request.";
     return std::string();
   });

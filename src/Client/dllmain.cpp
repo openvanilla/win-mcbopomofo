@@ -107,10 +107,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call,
     case DLL_PROCESS_ATTACH:
       g_hInst = hModule;
       DisableThreadLibraryCalls(hModule);
-      LogMessage("DLL_PROCESS_ATTACH loaded");
+      LogMessageFileOnly("DLL_PROCESS_ATTACH loaded");
       break;
     case DLL_PROCESS_DETACH:
-      LogMessage("DLL_PROCESS_DETACH unloaded");
+      LogMessageFileOnly("DLL_PROCESS_DETACH unloaded");
       break;
   }
   return TRUE;

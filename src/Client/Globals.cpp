@@ -26,28 +26,124 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <dwmapi.h>
+#include <string.h>
+#include <string>
 
-void LogMessage(const char* format, ...) {
-#ifdef _DEBUG
-  char buffer[1024];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
+#include "../Common/Ipc.h"
+#include "../Common/NamedPipe.h"
 
-  // Send to debugger
-  char dbgBuffer[1050];
-  sprintf_s(dbgBuffer, "[WinMcBopomofo] [%lu] %s\n", GetCurrentProcessId(),
-            buffer);
-  OutputDebugStringA(dbgBuffer);
+namespace {
 
-  // Also write to a file in Public Documents
+thread_local bool g_isRelayingClientLog = false;
+
+ULONGLONG ElapsedMsSinceProcessStart() {
+  static const ULONGLONG kStartTick = GetTickCount64();
+  return GetTickCount64() - kStartTick;
+}
+
+void AppendLogLine(const char* path, DWORD processId, ULONGLONG elapsedMs,
+                   const char* message) {
   FILE* fp = nullptr;
-  if (fopen_s(&fp, "C:\\Users\\Public\\mcbopomofo_tip.log", "a") == 0) {
-    fprintf(fp, "[%lu] %s\n", GetCurrentProcessId(), buffer);
+  if (fopen_s(&fp, path, "a") == 0) {
+    fprintf(fp, "[%lu][+%llums] %s\n", processId, elapsedMs, message);
     fclose(fp);
   }
-#endif
+}
+
+void AppendLogLineToTemp(DWORD processId, ULONGLONG elapsedMs,
+                         const char* message) {
+  char tempPath[MAX_PATH] = {0};
+  DWORD len = GetTempPathA(MAX_PATH, tempPath);
+  if (len == 0 || len >= MAX_PATH) {
+    return;
+  }
+
+  std::string tempLogPath(tempPath);
+  tempLogPath += "mcbopomofo_tip.log";
+  AppendLogLine(tempLogPath.c_str(), processId, elapsedMs, message);
+}
+
+bool ShouldRelayToServer(const char* message) {
+  static const char* const kPrefixes[] = {
+      "Sending IPC request:",
+      "Received IPC response:",
+      "State deserialized.",
+      "Failed to deserialize state update",
+      "IPC Call failed",
+      "CandidateUI ",
+      "CandidateWindow ",
+      "TooltipWindow ",
+      "CCandidateListUIElement::",
+      "CReadingInformationUIElement::",
+      "MoveWindowsToRange ",
+      "MoveWindowsToSelection ",
+      "MoveWindowsToCaretFallback ",
+  };
+
+  for (const char* prefix : kPrefixes) {
+    size_t prefixLength = strlen(prefix);
+    if (strncmp(message, prefix, prefixLength) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void RelayClientLogToServer(DWORD processId, ULONGLONG elapsedMs,
+                            const char* message) {
+  if (g_isRelayingClientLog || !ShouldRelayToServer(message)) {
+    return;
+  }
+
+  g_isRelayingClientLog = true;
+
+  McBopomofo::IPC::ClientLogPayload payload;
+  payload.processId = processId;
+  payload.elapsedMs = elapsedMs;
+  payload.message = message;
+
+  McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
+  std::string response;
+  pipe.Call(McBopomofo::IPC::SerializeClientLog(payload), response);
+
+  g_isRelayingClientLog = false;
+}
+
+void LogMessageImpl(bool relayToServer, const char* format, va_list args) {
+  char buffer[1024];
+  vsnprintf(buffer, sizeof(buffer), format, args);
+
+  DWORD processId = GetCurrentProcessId();
+  ULONGLONG elapsedMs = ElapsedMsSinceProcessStart();
+
+  char dbgBuffer[1100];
+  sprintf_s(dbgBuffer, "[WinMcBopomofo] [%lu][+%llums] %s\n",
+            processId, elapsedMs, buffer);
+  OutputDebugStringA(dbgBuffer);
+
+  AppendLogLine("C:\\Users\\Public\\mcbopomofo_tip.log", processId, elapsedMs,
+                buffer);
+  AppendLogLineToTemp(processId, elapsedMs, buffer);
+
+  if (relayToServer) {
+    RelayClientLogToServer(processId, elapsedMs, buffer);
+  }
+}
+
+}  // namespace
+
+void LogMessage(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  LogMessageImpl(true, format, args);
+  va_end(args);
+}
+
+void LogMessageFileOnly(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  LogMessageImpl(false, format, args);
+  va_end(args);
 }
 
 float GetDpiScaleForWindow(HWND hwnd) {

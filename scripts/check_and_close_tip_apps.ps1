@@ -42,19 +42,18 @@ function Show-WarningDialog {
     $processes_list = $unique_names -join "`n"
     
     $message = @"
-以下應用程式已載入 McBopomofo 輸入法 (McBopomofoTIP*.dll)：
+The following applications have loaded the McBopomofo input method (McBopomofoTIP*.dll):
 
 $processes_list
 
-我們需要關閉這些應用程式才能繼續安裝。
+These applications must be closed before installation can continue.
 
-點擊「確定」讓我們為您關閉這些應用程式，
-或點擊「取消」中止安裝。
+Click OK to let the installer close them, or Cancel to abort installation.
 "@
     
     $result = [System.Windows.Forms.MessageBox]::Show(
         $message, 
-        "McBopomofo 安裝程式 - 需要關閉應用程式", 
+        "McBopomofo Installer - Applications Must Be Closed", 
         [System.Windows.Forms.MessageBoxButtons]::OKCancel, 
         [System.Windows.Forms.MessageBoxIcon]::Warning
     )

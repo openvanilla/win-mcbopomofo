@@ -35,7 +35,12 @@ namespace {
 
 std::atomic_bool g_loggingEnabled{true};
 
+ULONGLONG ElapsedMsSinceProcessStart() {
+  static const ULONGLONG kStartTick = GetTickCount64();
+  return GetTickCount64() - kStartTick;
 }
+
+}  // namespace
 
 std::wstring GetLogFilePath() {
   wchar_t tempPath[MAX_PATH];
@@ -63,8 +68,8 @@ LogMessageContext::~LogMessageContext() {
   if (!logPath.empty()) {
     FILE* fp = nullptr;
     if (_wfopen_s(&fp, logPath.c_str(), L"a") == 0) {
-      fprintf(fp, "[%lu] [%s] %s\n", GetCurrentProcessId(), level_,
-              stream_.str().c_str());
+      fprintf(fp, "[%lu][+%llums] [%s] %s\n", GetCurrentProcessId(),
+              ElapsedMsSinceProcessStart(), level_, stream_.str().c_str());
       fclose(fp);
     }
   }

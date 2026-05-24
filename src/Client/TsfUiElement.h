@@ -72,8 +72,14 @@ class CCandidateListUIElement : public ITfCandidateListUIElementBehavior {
   void SetActiveContext(ITfContext* pContext);
   void SetShown(BOOL fShow);
   void ClearTip();
+  void ResetDiagnostics();
+  bool HasHostInteraction() const;
+  const char* LastHostMethod() const;
+  unsigned long HostInteractionCount() const;
 
  private:
+  void noteHostInteraction_(const char* methodName);
+
   LONG cRef_ = 1;
   McBopomofoTIP* pTIP_;
   GUID guid_;
@@ -85,6 +91,8 @@ class CCandidateListUIElement : public ITfCandidateListUIElementBehavior {
   int candidateKeysCount_ = 9;
 
   ITfContext* pActiveContext_ = nullptr;
+  unsigned long hostInteractionCount_ = 0;
+  const char* lastHostMethod_ = "none";
 };
 
 // CReadingInformationUIElement class

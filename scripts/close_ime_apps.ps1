@@ -38,8 +38,8 @@ if ($lockedProcesses.Count -gt 0) {
         # Show UI prompt to user
         Add-Type -AssemblyName System.Windows.Forms
         $processes_list = $lockedProcesses | ForEach-Object { $_.ProcessName } | Sort-Object -Unique
-        $message = "以下應用程式已載入 McBopomofo 輸入法：`n`n" + ($processes_list -join "`n") + "`n`n我們需要關閉這些應用程式來完成安裝。`n`n點擊 OK 繼續，Cancel 則中止安裝。"
-        $result = [System.Windows.Forms.MessageBox]::Show($message, "McBopomofo 安裝程式", [System.Windows.Forms.MessageBoxButtons]::OKCancel, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        $message = "The following applications have loaded the McBopomofo input method:`n`n" + ($processes_list -join "`n") + "`n`nThese applications must be closed to complete installation.`n`nClick OK to continue, or Cancel to abort installation."
+        $result = [System.Windows.Forms.MessageBox]::Show($message, "McBopomofo Installer", [System.Windows.Forms.MessageBoxButtons]::OKCancel, [System.Windows.Forms.MessageBoxIcon]::Warning)
         
         if ($result -eq [System.Windows.Forms.DialogResult]::Cancel) {
             Write-Host "User cancelled installation."

@@ -41,6 +41,73 @@ namespace {
 
 constexpr size_t kForceVerticalCandidateThreshold = 8;
 
+const char* StateName(InputState* state) {
+  if (state == nullptr) {
+    return "null";
+  }
+  if (dynamic_cast<InputStates::Empty*>(state) != nullptr) {
+    return "Empty";
+  }
+  if (dynamic_cast<InputStates::EmptyIgnoringPrevious*>(state) != nullptr) {
+    return "EmptyIgnoringPrevious";
+  }
+  if (dynamic_cast<InputStates::Committing*>(state) != nullptr) {
+    return "Committing";
+  }
+  if (dynamic_cast<InputStates::ChoosingPunctuationList*>(state) != nullptr) {
+    return "ChoosingPunctuationList";
+  }
+  if (dynamic_cast<InputStates::ChoosingCandidate*>(state) != nullptr) {
+    return "ChoosingCandidate";
+  }
+  if (dynamic_cast<InputStates::SelectingDictionary*>(state) != nullptr) {
+    return "SelectingDictionary";
+  }
+  if (dynamic_cast<InputStates::ShowingCharInfo*>(state) != nullptr) {
+    return "ShowingCharInfo";
+  }
+  if (dynamic_cast<InputStates::Marking*>(state) != nullptr) {
+    return "Marking";
+  }
+  if (dynamic_cast<InputStates::AssociatedPhrases*>(state) != nullptr) {
+    return "AssociatedPhrases";
+  }
+  if (dynamic_cast<InputStates::AssociatedPhrasesPlain*>(state) != nullptr) {
+    return "AssociatedPhrasesPlain";
+  }
+  if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr) {
+    return "NumberInput";
+  }
+  if (dynamic_cast<InputStates::Big5*>(state) != nullptr) {
+    return "Big5";
+  }
+  if (dynamic_cast<InputStates::IrohaCandidate*>(state) != nullptr) {
+    return "IrohaCandidate";
+  }
+  if (dynamic_cast<InputStates::Iroha*>(state) != nullptr) {
+    return "Iroha";
+  }
+  if (dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr) {
+    return "SelectingFeature";
+  }
+  if (dynamic_cast<InputStates::SelectingDateMacro*>(state) != nullptr) {
+    return "SelectingDateMacro";
+  }
+  if (dynamic_cast<InputStates::CustomMenu*>(state) != nullptr) {
+    return "CustomMenu";
+  }
+  if (dynamic_cast<InputStates::Inputting*>(state) != nullptr) {
+    return "Inputting";
+  }
+  if (dynamic_cast<InputStates::NotEmpty*>(state) != nullptr) {
+    return "NotEmpty";
+  }
+  if (dynamic_cast<InputStates::StateSequence*>(state) != nullptr) {
+    return "StateSequence";
+  }
+  return "Unknown";
+}
+
 int CandidateCount(InputState* state) {
   if (auto* choosing = dynamic_cast<InputStates::ChoosingCandidate*>(state)) {
     return static_cast<int>(choosing->candidates.size());
@@ -296,6 +363,15 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
       payload.candidates.push_back(entry.name);
     }
   }
+
+  FCITX_MCBOPOMOFO_INFO()
+      << "Server buildStateUpdatePayload state=" << StateName(state)
+      << " composingLen=" << payload.composingBuffer.size()
+      << " cursorIndex=" << payload.cursorIndex
+      << " candidateCount=" << payload.candidates.size()
+      << " candidateIndex=" << payload.candidateIndex
+      << " tooltipLen=" << payload.tooltip.size()
+      << " forceVertical=" << payload.forceVertical;
 
   return payload;
 }
@@ -993,6 +1069,13 @@ void InputController::refreshUI() { notifyUI_(); }
 
 void InputController::enterNewState_(std::unique_ptr<InputState> previousState,
                                      std::unique_ptr<InputState> newState) {
+  FCITX_MCBOPOMOFO_INFO()
+      << "Server enterNewState from=" << StateName(previousState.get())
+      << " to=" << StateName(newState.get())
+      << " prevCandidateCount=" << CandidateCount(previousState.get())
+      << " newCandidateCount=" << CandidateCount(newState.get())
+      << " currentCandidateIndex=" << candidateIndex_;
+
   if (auto* sequence =
           dynamic_cast<InputStates::StateSequence*>(newState.get())) {
     for (size_t i = 0; i < sequence->states.size(); ++i) {
@@ -1062,6 +1145,10 @@ void InputController::enterNewState_(std::unique_ptr<InputState> previousState,
   }
 
   currentState_ = std::move(newState);
+  FCITX_MCBOPOMOFO_INFO()
+      << "Server state committed current=" << StateName(currentState_.get())
+      << " candidateIndex=" << candidateIndex_
+      << " candidateCount=" << CandidateCount(currentState_.get());
   notifyUI_();
 }
 

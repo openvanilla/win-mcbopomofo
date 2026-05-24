@@ -37,11 +37,88 @@
 
 const wchar_t* const TOOLTIP_WINDOW_CLASS = L"WinMcBopomofoTooltipWindow";
 
+namespace {
+
+bool IsCoreWindowHost(HWND hwnd) {
+  if (!hwnd) {
+    return false;
+  }
+  wchar_t className[128] = {};
+  if (!GetClassNameW(hwnd, className, static_cast<int>(std::size(className)))) {
+    return false;
+  }
+  return wcscmp(className, L"Windows.UI.Core.CoreWindow") == 0;
+}
+
+bool IsEmojiCodePoint(char32_t cp) {
+  return (cp >= 0x1F300 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF) ||
+         (cp >= 0xFE00 && cp <= 0xFE0F);
+}
+
+HFONT CreateUiFont(const wchar_t* faceName, LONG height) {
+  LOGFONTW lf = {};
+  lf.lfHeight = height;
+  lf.lfWeight = FW_NORMAL;
+  lf.lfQuality = CLEARTYPE_QUALITY;
+  wcscpy_s(lf.lfFaceName, faceName);
+  return CreateFontIndirectW(&lf);
+}
+
+int DrawOrMeasureTooltipRun(HDC hdc, std::wstring_view text, int x, int y,
+                            HFONT textFont, HFONT emojiFont, bool draw) {
+  int cursorX = x;
+  SetBkMode(hdc, TRANSPARENT);
+  SetTextColor(hdc, RGB(0, 0, 0));
+
+  size_t i = 0;
+  while (i < text.size()) {
+    size_t start = i;
+    char32_t cp = text[i];
+    size_t cpLen = 1;
+    if (i + 1 < text.size() && IS_HIGH_SURROGATE(text[i]) &&
+        IS_LOW_SURROGATE(text[i + 1])) {
+      cp = (((text[i] - 0xD800) << 10) | (text[i + 1] - 0xDC00)) + 0x10000;
+      cpLen = 2;
+    }
+    const bool useEmoji = IsEmojiCodePoint(cp);
+    i += cpLen;
+    while (i < text.size()) {
+      char32_t nextCp = text[i];
+      size_t nextLen = 1;
+      if (i + 1 < text.size() && IS_HIGH_SURROGATE(text[i]) &&
+          IS_LOW_SURROGATE(text[i + 1])) {
+        nextCp = (((text[i] - 0xD800) << 10) | (text[i + 1] - 0xDC00)) + 0x10000;
+        nextLen = 2;
+      }
+      if (IsEmojiCodePoint(nextCp) != useEmoji) {
+        break;
+      }
+      i += nextLen;
+    }
+
+    std::wstring_view run = text.substr(start, i - start);
+    HFONT runFont = useEmoji ? emojiFont : textFont;
+    HGDIOBJ oldFont = SelectObject(hdc, runFont);
+    SIZE size = {};
+    GetTextExtentPoint32W(hdc, run.data(), static_cast<int>(run.size()), &size);
+    if (draw) {
+      TextOutW(hdc, cursorX, y, run.data(), static_cast<int>(run.size()));
+    }
+    SelectObject(hdc, oldFont);
+    cursorX += size.cx;
+  }
+  return cursorX - x;
+}
+
+}  // namespace
+
 
 
 TooltipWindow::TooltipWindow()
     : hwnd_(nullptr),
       ownerHwnd_(nullptr),
+      hInstance_(nullptr),
+      renderMode_(RenderMode::kD2D),
       dpiScale_(1.0f),
       pD2DFactory_(nullptr),
       pRenderTarget_(nullptr),
@@ -135,13 +212,17 @@ void TooltipWindow::discardDeviceResources_() {
 }
 
 bool TooltipWindow::Create(HINSTANCE hInstance) {
+  if (hInstance) {
+    hInstance_ = hInstance;
+  }
   if (hwnd_) return true;
+  if (!hInstance_) return false;
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = 0;
+  wcex.style = CS_IME;
   wcex.lpfnWndProc = wndProc_;
-  wcex.hInstance = hInstance;
+  wcex.hInstance = hInstance_;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
   wcex.hbrBackground = NULL;  // Handled by D2D
   wcex.lpszClassName = TOOLTIP_WINDOW_CLASS;
@@ -149,15 +230,52 @@ bool TooltipWindow::Create(HINSTANCE hInstance) {
   RegisterClassExW(
       &wcex);  // Ignore failure as it might be registered by another instance
 
-  hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+  hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
                           TOOLTIP_WINDOW_CLASS, L"",
-                          WS_POPUP,       // D2D will draw the border
+                          WS_POPUP | WS_CLIPCHILDREN,
                           0, 0, 100, 30,  // Initial dummy size
-                          ownerHwnd_, nullptr, hInstance, this);
+                          ownerHwnd_, nullptr, hInstance_, this);
 
   EnableWindowDropShadow(hwnd_);
 
   return hwnd_ != nullptr;
+}
+
+bool TooltipWindow::recreateWindow_() {
+  if (!hInstance_) {
+    return false;
+  }
+
+  bool wasVisible = IsVisible();
+  RECT rc = {0};
+  if (hwnd_) {
+    GetWindowRect(hwnd_, &rc);
+    Destroy();
+  }
+
+  if (!Create(hInstance_)) {
+    LogMessage("TooltipWindow recreate failed owner=%p", ownerHwnd_);
+    return false;
+  }
+
+  if (rc.right > rc.left && rc.bottom > rc.top) {
+    SetWindowPos(hwnd_, HWND_TOPMOST, rc.left, rc.top, rc.right - rc.left,
+                 rc.bottom - rc.top, SWP_NOACTIVATE);
+  }
+
+  LogMessage("TooltipWindow recreated hwnd=%p owner=%p wasVisible=%d", hwnd_,
+             ownerHwnd_, wasVisible ? 1 : 0);
+  return true;
+}
+
+void TooltipWindow::updateRenderMode_() {
+  const RenderMode newMode =
+      IsCoreWindowHost(ownerHwnd_) ? RenderMode::kGDI : RenderMode::kD2D;
+  if (renderMode_ != newMode) {
+    renderMode_ = newMode;
+    LogMessage("TooltipWindow renderer=%s owner=%p",
+               renderMode_ == RenderMode::kGDI ? "GDI" : "D2D", ownerHwnd_);
+  }
 }
 
 void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
@@ -171,13 +289,21 @@ void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
     return;
   }
 
+  const HWND previousOwner = ownerHwnd_;
   ownerHwnd_ = ownerHwnd;
+  updateRenderMode_();
   if (!hwnd_) {
+    return;
+  }
+
+  if (previousOwner != ownerHwnd_ && recreateWindow_()) {
     return;
   }
 
   SetWindowLongPtrW(hwnd_, GWLP_HWNDPARENT,
                     reinterpret_cast<LONG_PTR>(ownerHwnd_));
+  LogMessage("TooltipWindow owner updated hwnd=%p owner=%p", hwnd_,
+             ownerHwnd_);
 }
 
 void TooltipWindow::Destroy() {
@@ -191,10 +317,14 @@ void TooltipWindow::UpdateUI(const std::string& tooltipText) {
   if (!hwnd_) return;
 
   if (tooltipText.empty()) {
+    LogMessage("TooltipWindow UpdateUI empty text -> hide");
     Hide();
     return;
   }
 
+  LogMessage("TooltipWindow UpdateUI hwnd=%p owner=%p textLen=%llu", hwnd_,
+             ownerHwnd_,
+             static_cast<unsigned long long>(tooltipText.size()));
   dpiScale_ = GetDpiScaleForWindow(hwnd_);
   displayString_ = McBopomofo::Utf8ToUtf16(tooltipText);
   rebuildLayoutAndResize_();
@@ -231,6 +361,9 @@ void TooltipWindow::rebuildLayoutAndResize_() {
   width = std::max(width, (int)(20 * dpiScale_));
   height = std::max(height, (int)(20 * dpiScale_));
 
+  LogMessage("TooltipWindow layout hwnd=%p width=%d height=%d dpi=%.3f", hwnd_,
+             width, height, dpiScale_);
+
   SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOACTIVATE);
   if (pRenderTarget_) {
@@ -242,6 +375,8 @@ void TooltipWindow::rebuildLayoutAndResize_() {
 
 void TooltipWindow::Move(int x, int y) {
   if (hwnd_) {
+    LogMessage("TooltipWindow Move hwnd=%p owner=%p x=%d y=%d", hwnd_,
+               ownerHwnd_, x, y);
     const float oldScale = dpiScale_;
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
@@ -256,6 +391,7 @@ void TooltipWindow::Move(int x, int y) {
 
 void TooltipWindow::Hide() {
   if (hwnd_) {
+    LogMessage("TooltipWindow Hide hwnd=%p owner=%p", hwnd_, ownerHwnd_);
     ShowWindow(hwnd_, SW_HIDE);
   }
 }
@@ -294,7 +430,39 @@ LRESULT CALLBACK TooltipWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
 
 LRESULT TooltipWindow::onPaint_(HWND hwnd) {
   PAINTSTRUCT ps;
-  BeginPaint(hwnd, &ps);
+  HDC hdc = BeginPaint(hwnd, &ps);
+
+  if (renderMode_ == RenderMode::kGDI) {
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+    HBRUSH bgBrush = CreateSolidBrush(RGB(255, 255, 224));
+    FillRect(hdc, &rc, bgBrush);
+    DeleteObject(bgBrush);
+
+    HPEN borderPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+    HGDIOBJ oldPen = SelectObject(hdc, borderPen);
+    HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
+    Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(borderPen);
+
+    const LONG textHeight =
+        -std::max(11L, static_cast<LONG>(std::lround(15.0f * dpiScale_)));
+    HFONT textFont = CreateUiFont(L"Microsoft JhengHei UI", textHeight);
+    HFONT emojiFont = CreateUiFont(L"Segoe UI Emoji", textHeight);
+    DrawOrMeasureTooltipRun(hdc, displayString_,
+                            static_cast<int>(std::lround(8.0f * dpiScale_)),
+                            static_cast<int>(std::lround(4.0f * dpiScale_)),
+                            textFont, emojiFont, true);
+    DeleteObject(textFont);
+    DeleteObject(emojiFont);
+
+    LogMessage("TooltipWindow GDI painted hwnd=%p textLen=%llu", hwnd_,
+               static_cast<unsigned long long>(displayString_.size()));
+    EndPaint(hwnd, &ps);
+    return 0;
+  }
 
   createDeviceResources_();
   if (pRenderTarget_) {

@@ -39,6 +39,14 @@
 // then reset to device space and stroke the 1-pixel border.
 class TooltipWindow {
  public:
+  // TooltipWindow follows the same host-compatibility split as CandidateWindow:
+  // use D2D for typical desktop hosts and switch to GDI for CoreWindow-based
+  // hosts where D2D popups may exist but remain visually invisible.
+  enum class RenderMode {
+    kD2D,
+    kGDI,
+  };
+
   TooltipWindow();
   ~TooltipWindow();
 
@@ -73,9 +81,13 @@ class TooltipWindow {
   void createDeviceResources_();
   void discardDeviceResources_();
   void rebuildLayoutAndResize_();
+  bool recreateWindow_();
+  void updateRenderMode_();
 
   HWND hwnd_;
   HWND ownerHwnd_;
+  HINSTANCE hInstance_;
+  RenderMode renderMode_;
   float dpiScale_;
   std::wstring displayString_;
 

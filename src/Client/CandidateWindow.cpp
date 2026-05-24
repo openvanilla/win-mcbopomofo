@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cwchar>
 #include <dwmapi.h>
+#include <string_view>
 #include <sstream>
 
 #include "UTFHelper.h"
@@ -63,11 +64,136 @@ D2D1_COLOR_F D2DColorFromRgb(uint32_t rgb) {
   return D2D1::ColorF(rgb);
 }
 
+COLORREF ToColorRef(uint32_t rgb) {
+  return RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+}
+
+bool IsCoreWindowHost(HWND hwnd) {
+  if (!hwnd) {
+    return false;
+  }
+  wchar_t className[128] = {};
+  if (!GetClassNameW(hwnd, className, static_cast<int>(std::size(className)))) {
+    return false;
+  }
+  return wcscmp(className, L"Windows.UI.Core.CoreWindow") == 0;
+}
+
+bool IsEmojiCodePoint(char32_t cp) {
+  return (cp >= 0x1F300 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF) ||
+         (cp >= 0xFE00 && cp <= 0xFE0F);
+}
+
+struct GdiFontSet {
+  HFONT textFont = nullptr;
+  HFONT hintFont = nullptr;
+  HFONT emojiFont = nullptr;
+  HFONT hintEmojiFont = nullptr;
+};
+
+HFONT CreateUiFont(const wchar_t* faceName, LONG height, LONG weight = FW_NORMAL) {
+  LOGFONTW lf = {};
+  lf.lfHeight = height;
+  lf.lfWeight = weight;
+  lf.lfQuality = CLEARTYPE_QUALITY;
+  wcscpy_s(lf.lfFaceName, faceName);
+  return CreateFontIndirectW(&lf);
+}
+
+GdiFontSet CreateGdiFontSet(float dpiScale, int candidateFontSize) {
+  const LONG textHeight =
+      -std::max(12L, static_cast<LONG>(std::lround(candidateFontSize * dpiScale)));
+  const LONG hintHeight =
+      -std::max(11L, static_cast<LONG>(std::lround((candidateFontSize - 3) * dpiScale)));
+
+  GdiFontSet fonts;
+  fonts.textFont = CreateUiFont(L"Microsoft JhengHei UI", textHeight);
+  fonts.hintFont = CreateUiFont(L"Microsoft JhengHei UI", hintHeight);
+  fonts.emojiFont = CreateUiFont(L"Segoe UI Emoji", textHeight);
+  fonts.hintEmojiFont = CreateUiFont(L"Segoe UI Emoji", hintHeight);
+  return fonts;
+}
+
+void DestroyGdiFontSet(GdiFontSet& fonts) {
+  if (fonts.textFont) DeleteObject(fonts.textFont);
+  if (fonts.hintFont) DeleteObject(fonts.hintFont);
+  if (fonts.emojiFont) DeleteObject(fonts.emojiFont);
+  if (fonts.hintEmojiFont) DeleteObject(fonts.hintEmojiFont);
+}
+
+int DrawOrMeasureTextRun(HDC hdc, std::wstring_view text, int x, int y,
+                         HFONT primaryFont, HFONT emojiFont, COLORREF color,
+                         bool draw) {
+  int cursorX = x;
+  SetBkMode(hdc, TRANSPARENT);
+  SetTextColor(hdc, color);
+
+  size_t i = 0;
+  while (i < text.size()) {
+    size_t start = i;
+    char32_t cp = text[i];
+    size_t cpLen = 1;
+    if (i + 1 < text.size() && IS_HIGH_SURROGATE(text[i]) &&
+        IS_LOW_SURROGATE(text[i + 1])) {
+      cp = (((text[i] - 0xD800) << 10) | (text[i + 1] - 0xDC00)) + 0x10000;
+      cpLen = 2;
+    }
+    const bool useEmoji = IsEmojiCodePoint(cp);
+    i += cpLen;
+    while (i < text.size()) {
+      char32_t nextCp = text[i];
+      size_t nextLen = 1;
+      if (i + 1 < text.size() && IS_HIGH_SURROGATE(text[i]) &&
+          IS_LOW_SURROGATE(text[i + 1])) {
+        nextCp = (((text[i] - 0xD800) << 10) | (text[i + 1] - 0xDC00)) + 0x10000;
+        nextLen = 2;
+      }
+      if (IsEmojiCodePoint(nextCp) != useEmoji) {
+        break;
+      }
+      i += nextLen;
+    }
+
+    std::wstring_view run = text.substr(start, i - start);
+    HFONT runFont = useEmoji ? emojiFont : primaryFont;
+    HGDIOBJ oldFont = SelectObject(hdc, runFont ? runFont : primaryFont);
+    SIZE size = {};
+    GetTextExtentPoint32W(hdc, run.data(), static_cast<int>(run.size()), &size);
+    if (draw) {
+      TextOutW(hdc, cursorX, y, run.data(), static_cast<int>(run.size()));
+    }
+    SelectObject(hdc, oldFont);
+    cursorX += size.cx;
+  }
+  return cursorX - x;
+}
+
+std::vector<std::pair<UINT32, std::wstring_view>> SplitDisplayLines(
+    const std::wstring& text) {
+  std::vector<std::pair<UINT32, std::wstring_view>> lines;
+  size_t lineStart = 0;
+  while (lineStart <= text.size()) {
+    size_t lineEnd = text.find(L'\n', lineStart);
+    if (lineEnd == std::wstring::npos) {
+      lineEnd = text.size();
+    }
+    lines.emplace_back(static_cast<UINT32>(lineStart),
+                       std::wstring_view(text).substr(lineStart, lineEnd - lineStart));
+    if (lineEnd == text.size()) {
+      break;
+    }
+    lineStart = lineEnd + 1;
+  }
+  return lines;
+}
+
 }  // namespace
 
 CandidateWindow::CandidateWindow()
     : hwnd_(nullptr),
       ownerHwnd_(nullptr),
+      hInstance_(nullptr),
+      renderMode_(RenderMode::kD2D),
       dpiScale_(1.0f),
       cursorIndex_(0),
       candidateKeys_(L"123456789"),
@@ -285,13 +411,17 @@ void CandidateWindow::reloadServerControlledSettings_() {
 }
 
 bool CandidateWindow::Create(HINSTANCE hInstance) {
+  if (hInstance) {
+    hInstance_ = hInstance;
+  }
   if (hwnd_) return true;
+  if (!hInstance_) return false;
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = CS_DROPSHADOW;
+  wcex.style = CS_IME | CS_DROPSHADOW;
   wcex.lpfnWndProc = wndProc_;
-  wcex.hInstance = hInstance;
+  wcex.hInstance = hInstance_;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
   wcex.hbrBackground = NULL;  // Handled by D2D
   wcex.lpszClassName = CANDIDATE_WINDOW_CLASS;
@@ -299,13 +429,50 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
   RegisterClassExW(
       &wcex);  // Ignore failure as it might be registered by another instance
 
-  hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+  hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
                           CANDIDATE_WINDOW_CLASS, L"",
-                          WS_POPUP,       // D2D will draw the border
+                          WS_POPUP | WS_CLIPCHILDREN,
                           0, 0, 100, 30,  // Initial dummy size
-                          ownerHwnd_, nullptr, hInstance, this);
+                          ownerHwnd_, nullptr, hInstance_, this);
 
   return hwnd_ != nullptr;
+}
+
+bool CandidateWindow::recreateWindow_() {
+  if (!hInstance_) {
+    return false;
+  }
+
+  bool wasVisible = IsVisible();
+  RECT rc = {0};
+  if (hwnd_) {
+    GetWindowRect(hwnd_, &rc);
+    Destroy();
+  }
+
+  if (!Create(hInstance_)) {
+    LogMessage("CandidateWindow recreate failed owner=%p", ownerHwnd_);
+    return false;
+  }
+
+  if (rc.right > rc.left && rc.bottom > rc.top) {
+    SetWindowPos(hwnd_, HWND_TOPMOST, rc.left, rc.top, rc.right - rc.left,
+                 rc.bottom - rc.top, SWP_NOACTIVATE);
+  }
+
+  LogMessage("CandidateWindow recreated hwnd=%p owner=%p wasVisible=%d", hwnd_,
+             ownerHwnd_, wasVisible ? 1 : 0);
+  return true;
+}
+
+void CandidateWindow::updateRenderMode_() {
+  const RenderMode newMode =
+      IsCoreWindowHost(ownerHwnd_) ? RenderMode::kGDI : RenderMode::kD2D;
+  if (renderMode_ != newMode) {
+    renderMode_ = newMode;
+    LogMessage("CandidateWindow renderer=%s owner=%p",
+               renderMode_ == RenderMode::kGDI ? "GDI" : "D2D", ownerHwnd_);
+  }
 }
 
 void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
@@ -319,13 +486,21 @@ void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
     return;
   }
 
+  const HWND previousOwner = ownerHwnd_;
   ownerHwnd_ = ownerHwnd;
+  updateRenderMode_();
   if (!hwnd_) {
+    return;
+  }
+
+  if (previousOwner != ownerHwnd_ && recreateWindow_()) {
     return;
   }
 
   SetWindowLongPtrW(hwnd_, GWLP_HWNDPARENT,
                     reinterpret_cast<LONG_PTR>(ownerHwnd_));
+  LogMessage("CandidateWindow owner updated hwnd=%p owner=%p", hwnd_,
+             ownerHwnd_);
 }
 
 
@@ -338,6 +513,14 @@ void CandidateWindow::Destroy() {
 
 void CandidateWindow::UpdateUI(const UpdateUIRequest& request) {
   if (!hwnd_) return;
+
+  LogMessage(
+      "CandidateWindow UpdateUI hwnd=%p owner=%p candidates=%llu cursorIndex=%d forceVertical=%d vertical=%d hintLen=%llu",
+      hwnd_, ownerHwnd_,
+      static_cast<unsigned long long>(request.candidates.size()),
+      request.cursorIndex, request.forceVertical ? 1 : 0,
+      request.candidateWindowVertical ? 1 : 0,
+      static_cast<unsigned long long>(request.hint.size()));
 
   applyCandidateWindowSettings_(request.candidateWindowVertical,
                                 request.candidateKeys,
@@ -353,6 +536,7 @@ void CandidateWindow::UpdateUI(const UpdateUIRequest& request) {
   hint_ = McBopomofo::Utf8ToUtf16(request.hint);
 
   if (request.candidates.empty()) {
+    LogMessage("CandidateWindow UpdateUI empty candidates -> hide");
     Hide();
     return;
   }
@@ -507,6 +691,13 @@ void CandidateWindow::rebuildLayoutAndResize_() {
   width = std::max(width, (int)(50 * dpiScale_));
   height = std::max(height, (int)(24 * dpiScale_));
 
+  LogMessage(
+      "CandidateWindow layout hwnd=%p width=%d height=%d dpi=%.3f pageIndex=%d pageSize=%d totalCandidates=%llu selectedStart=%lu selectedLength=%lu",
+      hwnd_, width, height, dpiScale_, pageIndex, pageSize,
+      static_cast<unsigned long long>(candidates_.size()),
+      static_cast<unsigned long>(selectedRange_.start),
+      static_cast<unsigned long>(selectedRange_.length));
+
   SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOACTIVATE);
   if (pRenderTarget_) {
@@ -518,6 +709,8 @@ void CandidateWindow::rebuildLayoutAndResize_() {
 
 void CandidateWindow::Move(int x, int y) {
   if (hwnd_) {
+    LogMessage("CandidateWindow Move hwnd=%p owner=%p x=%d y=%d", hwnd_,
+               ownerHwnd_, x, y);
     const float oldScale = dpiScale_;
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
@@ -532,6 +725,7 @@ void CandidateWindow::Move(int x, int y) {
 
 void CandidateWindow::Hide() {
   if (hwnd_) {
+    LogMessage("CandidateWindow Hide hwnd=%p owner=%p", hwnd_, ownerHwnd_);
     ShowWindow(hwnd_, SW_HIDE);
   }
 }
@@ -583,8 +777,95 @@ LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
 
 LRESULT CandidateWindow::onPaint_(HWND hwnd) {
   PAINTSTRUCT ps;
-  BeginPaint(hwnd, &ps);
+  HDC hdc = BeginPaint(hwnd, &ps);
 
+  if (renderMode_ == RenderMode::kGDI) {
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+
+    HBRUSH bgBrush = CreateSolidBrush(ToColorRef(colors_.background));
+    FillRect(hdc, &rc, bgBrush);
+    DeleteObject(bgBrush);
+
+    HPEN borderPen = CreatePen(PS_SOLID, 1, ToColorRef(colors_.border));
+    HGDIOBJ oldPen = SelectObject(hdc, borderPen);
+    HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(NULL_BRUSH));
+    Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(borderPen);
+
+    GdiFontSet fonts = CreateGdiFontSet(dpiScale_, candidateFontSize_);
+    const int originX = static_cast<int>(std::lround(12.0f * dpiScale_));
+    int currentY = static_cast<int>(std::lround(8.0f * dpiScale_));
+    const int lineGap = static_cast<int>(std::lround(4.0f * dpiScale_));
+    TEXTMETRICW tm = {};
+
+    HGDIOBJ oldFont = SelectObject(hdc, fonts.textFont);
+    GetTextMetricsW(hdc, &tm);
+    SelectObject(hdc, oldFont);
+    const int lineHeight = tm.tmHeight + tm.tmExternalLeading;
+
+    if (!hint_.empty()) {
+      DrawOrMeasureTextRun(hdc, hint_, originX, currentY, fonts.hintFont,
+                           fonts.hintEmojiFont, ToColorRef(colors_.text), true);
+      currentY += std::max(lineHeight - 2, 14) + lineGap;
+    }
+
+    const auto lines = SplitDisplayLines(displayString_);
+    for (const auto& [globalStart, lineText] : lines) {
+      const UINT32 lineEnd = globalStart + static_cast<UINT32>(lineText.size());
+      const UINT32 selStart = selectedRange_.start;
+      const UINT32 selEnd = selectedRange_.start + selectedRange_.length;
+
+      const bool intersects = selectedRange_.length > 0 && selStart < lineEnd &&
+                              selEnd > globalStart;
+
+      int cursorX = originX;
+      if (intersects) {
+        const UINT32 localStart = std::max(selStart, globalStart) - globalStart;
+        const UINT32 localEnd = std::min(selEnd, lineEnd) - globalStart;
+
+        std::wstring_view prefix = lineText.substr(0, localStart);
+        std::wstring_view selected = lineText.substr(localStart, localEnd - localStart);
+        std::wstring_view suffix = lineText.substr(localEnd);
+
+        cursorX += DrawOrMeasureTextRun(hdc, prefix, cursorX, currentY,
+                                        fonts.textFont, fonts.emojiFont,
+                                        ToColorRef(colors_.text), true);
+
+        const int selectedWidth = DrawOrMeasureTextRun(
+            hdc, selected, 0, currentY, fonts.textFont, fonts.emojiFont,
+            ToColorRef(colors_.highlightText), false);
+        RECT highlightRect = {cursorX - static_cast<int>(std::lround(4.0f * dpiScale_)),
+                              currentY - static_cast<int>(std::lround(2.0f * dpiScale_)),
+                              cursorX + selectedWidth +
+                                  static_cast<int>(std::lround(4.0f * dpiScale_)),
+                              currentY + lineHeight +
+                                  static_cast<int>(std::lround(2.0f * dpiScale_))};
+        HBRUSH highlightBrush =
+            CreateSolidBrush(ToColorRef(colors_.highlightBackground));
+        FillRect(hdc, &highlightRect, highlightBrush);
+        DeleteObject(highlightBrush);
+
+        cursorX += DrawOrMeasureTextRun(hdc, selected, cursorX, currentY,
+                                        fonts.textFont, fonts.emojiFont,
+                                        ToColorRef(colors_.highlightText), true);
+        DrawOrMeasureTextRun(hdc, suffix, cursorX, currentY, fonts.textFont,
+                             fonts.emojiFont, ToColorRef(colors_.text), true);
+      } else {
+        DrawOrMeasureTextRun(hdc, lineText, cursorX, currentY, fonts.textFont,
+                             fonts.emojiFont, ToColorRef(colors_.text), true);
+      }
+      currentY += lineHeight + lineGap;
+    }
+
+    DestroyGdiFontSet(fonts);
+    LogMessage("CandidateWindow GDI painted hwnd=%p textLen=%llu", hwnd_,
+               static_cast<unsigned long long>(displayString_.size()));
+    EndPaint(hwnd, &ps);
+    return 0;
+  }
 
   createDeviceResources_();
   if (pRenderTarget_) {

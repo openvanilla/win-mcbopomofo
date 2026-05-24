@@ -202,6 +202,31 @@ bool DeserializeClientSettings(const std::string& data,
   return true;
 }
 
+std::string SerializeClientLog(const ClientLogPayload& payload) {
+  std::ostringstream ss;
+  ss << (int)Command::CMD_CLIENT_LOG << "\n"
+     << payload.processId << "\n"
+     << payload.elapsedMs << "\n";
+  WriteSizedString(ss, payload.message);
+  return ss.str();
+}
+
+bool DeserializeClientLog(const std::string& data, ClientLogPayload& payload) {
+  std::istringstream ss(data);
+  std::string line;
+
+  if (!std::getline(ss, line)) return false;
+  if (std::stoi(line) != (int)Command::CMD_CLIENT_LOG) return false;
+
+  if (!std::getline(ss, line)) return false;
+  payload.processId = static_cast<unsigned long>(std::stoul(line));
+
+  if (!std::getline(ss, line)) return false;
+  payload.elapsedMs = std::stoull(line);
+
+  return ReadSizedString(ss, payload.message);
+}
+
 // Format for StateUpdate:
 // CONSUMED(1/0)
 // CURSOR_INDEX

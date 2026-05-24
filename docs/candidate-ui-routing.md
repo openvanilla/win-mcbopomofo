@@ -1,187 +1,295 @@
 # Candidate UI Routing
 
-這份文件說明 Win-McBopomofo 在 Windows TSF 環境下，什麼時候使用自訂選字窗 `CandidateWindow`，什麼時候使用 `ITfCandidateListUIElementBehavior` 實作的 `CCandidateListUIElement`，以及實際判斷分支在哪裡。
+This document explains how Win-McBopomofo decides between:
 
-## 兩條候選 UI 路徑
+- the custom popup windows (`CandidateWindow` and `TooltipWindow`)
+- the standard TSF UIElement path (`CCandidateListUIElement`)
 
-專案內有兩條候選字顯示路徑：
+It also explains why different host applications require different popup
+rendering strategies.
 
-1. 自訂視窗路徑
-   `CandidateWindow` 是本專案自己畫的 popup window，負責視覺樣式、DPI 適應、定位與移動。
+## Two Candidate UI Paths
 
-2. TSF UIElement 路徑
-   `CCandidateListUIElement` 是提供給 `ITfUIElementMgr` 的標準 TSF candidate list 物件，讓宿主程式或系統用自己的方式呈現候選字。
+The project has two candidate-display paths:
 
-這兩條路徑不是二選一地在啟動時固定決定，而是在每次 state update 進入 `CStateEditSession::DoEditSession()` 時依條件動態判斷。
+1. Custom popup path
+   `CandidateWindow` is the project's own popup window implementation. It is
+   responsible for visuals, DPI handling, and positioning.
 
-## 元件建立時機
+2. TSF UIElement path
+   `CCandidateListUIElement` implements the standard TSF candidate list
+   interfaces so the host application or the system can consume candidate data
+   through TSF.
 
-在 `McBopomofoTIP::ActivateEx()`：
+These paths are not selected once at startup. The decision is made dynamically
+ on each state update inside `CStateEditSession::DoEditSession()`.
 
-- 一定會建立自訂 `CandidateWindow`
-- 如果 `ITfUIElementMgr` 取得成功，另外建立 `CCandidateListUIElement`
+## The Custom Popup Path Also Has Two Renderers
 
-對應程式位置：
+Even after the code decides to use the custom popup windows, not every host can
+reliably display the same kind of HWND with the same renderer.
 
-- [src/Client/McBopomofoTIP.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/McBopomofoTIP.cpp:443)
+The custom popup path therefore has two internal renderers:
 
-這代表：
+1. `D2D`
+   Uses Direct2D and DirectWrite. This is the preferred renderer for normal
+   desktop hosts.
 
-- `CandidateWindow` 幾乎總是可用
-- `CCandidateListUIElement` 只有在宿主提供 `ITfUIElementMgr` 時才會參與判斷
+2. `GDI`
+   Uses traditional GDI drawing. This renderer exists as a compatibility path
+   for hosts where the popup HWND is created and positioned correctly but a D2D
+   popup still does not become visible.
 
-## 高階判斷原則
+This renderer decision is separate from TSF's `BeginUIElement()` decision:
 
-候選字是否顯示，先看 `state_.candidates` 是否為空。
+- `bShow` decides whether the TIP should draw its own popup at all
+- the renderer decides whether that popup is drawn with D2D or GDI
 
-- 如果沒有候選字：兩條路徑都關閉
-- 如果有候選字：先更新 TSF UIElement 路徑，再決定是否也顯示自訂 `CandidateWindow`
+Relevant code:
 
-真正決定「自訂選字窗要不要顯示」的核心依據不是使用者設定，而是 `ITfUIElementMgr::BeginUIElement()` 回傳的 `bShow`。
+- [src/Client/CandidateWindow.h](C:/Users/user/Works/win-mcbopomofo/src/Client/CandidateWindow.h)
+- [src/Client/TooltipWindow.h](C:/Users/user/Works/win-mcbopomofo/src/Client/TooltipWindow.h)
 
-程式把這個結果存進：
+## When Components Are Created
+
+In `McBopomofoTIP::ActivateEx()`:
+
+- the custom `CandidateWindow` is always created
+- if `ITfUIElementMgr` is available, `CCandidateListUIElement` is also created
+
+Relevant code:
+
+- [src/Client/McBopomofoTIP.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/McBopomofoTIP.cpp)
+
+This means:
+
+- `CandidateWindow` is almost always available
+- `CCandidateListUIElement` participates only when the host exposes
+  `ITfUIElementMgr`
+
+## High-Level Decision Rule
+
+Candidate visibility first depends on whether `state_.candidates` is empty.
+
+- If there are no candidates, both paths are shut down
+- If there are candidates, the TSF UIElement path is updated first, then the
+  code decides whether to also show the custom popup
+
+The key decision for the custom candidate popup is the `bShow` value returned
+from `ITfUIElementMgr::BeginUIElement()`.
+
+That result is stored in:
 
 - `McBopomofoTIP::showCustomCandidateWindow_`
 
-對應介面：
+Relevant code:
 
-- [src/Client/McBopomofoTIP.h](C:/Users/user/Works/win-mcbopomofo/src/Client/McBopomofoTIP.h:170)
+- [src/Client/McBopomofoTIP.h](C:/Users/user/Works/win-mcbopomofo/src/Client/McBopomofoTIP.h)
 
-語意是：
+Its meaning is:
 
-- `bShow == TRUE`：宿主沒有接手顯示，TIP 應該自己顯示自訂 `CandidateWindow`
-- `bShow == FALSE`：宿主或系統會處理 TSF candidate UI，TIP 不應再額外顯示自訂 `CandidateWindow`
+- `bShow == TRUE`: the host did not take over candidate display; the TIP should
+  show its own candidate window
+- `bShow == FALSE`: the host or system will handle TSF candidate UI; the TIP
+  should not show its own candidate window
 
-## 實際分支流程
+## Why Different Apps Need Different Popup Rendering
 
-`CStateEditSession::DoEditSession()` 內有兩個入口會跑到候選字 UI 判斷：
+This is based on observed runtime behavior, not just theory.
 
-1. 有 composing buffer 時
-2. 沒有 composition，但仍有候選字或 tooltip 時
+On some traditional desktop hosts:
 
-這兩段邏輯幾乎相同，只是觸發來源不同。第二段主要對應沒有組字中的候選清單情境，例如某些標點清單或獨立候選 UI。
+- `BeginUIElement()` returns `bShow == TRUE`
+- the custom popup is visible when rendered with D2D
 
-對應程式位置：
+On `Notepads` and similar `Windows.UI.Core.CoreWindow` hosts, logging showed:
 
-- 第一段：[src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:458)
-- 第二段：[src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:583)
+- `BeginUIElement()` returns `bShow == TRUE`
+- the candidate popup is created successfully
+- the popup receives `UpdateUI`
+- layout is computed
+- the popup is moved to a reasonable screen position
+- the popup is not immediately hidden while the candidate state is active
+- but a D2D popup still does not become visible
 
-判斷順序如下。
+To verify that the problem was not TSF state, fallback logic, or positioning, a
+minimal GDI probe was added. With the same owner HWND, same candidate data, and
+same coordinates, the popup became visible when drawn with GDI.
 
-### 1. 沒有候選字
+That leads to the current engineering conclusion:
 
-如果 `state_.candidates.empty()`：
+- the problem is not the candidate state machine
+- the problem is not `BeginUIElement()` or `bShow`
+- the problem is not popup creation or positioning
+- the problem is host-specific visibility behavior for certain popup/rendering
+  combinations
 
-- 隱藏 `CandidateWindow`
-- 如果先前建立過 TSF UIElement，呼叫 `EndUIElement()`
-- 把 `CCandidateListUIElement` 標成 not shown
+Because of that, a single popup renderer is not reliable enough for every host.
 
-對應程式位置：
+## Current Renderer Selection Strategy
 
-- [src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:639)
+The current implementation uses host window class as a runtime heuristic.
 
-### 2. 有候選字，且有 `ITfUIElementMgr`
+- If the context window class is `Windows.UI.Core.CoreWindow`
+  - `CandidateWindow` uses `GDI`
+  - `TooltipWindow` uses `GDI`
+- Otherwise
+  - `CandidateWindow` uses `D2D`
+  - `TooltipWindow` uses `D2D`
 
-如果下面兩個條件都成立：
+Relevant code:
+
+- [src/Client/CandidateWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/CandidateWindow.cpp)
+- [src/Client/TooltipWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/TooltipWindow.cpp)
+
+The decision is based on `GetClassNameW(ownerHwnd_)`, not on a process-name
+whitelist, because window class is a more direct signal of the host's windowing
+model.
+
+## What the GDI Path Must Support
+
+The GDI path is not just a debug probe. It must be functionally usable as a
+real fallback renderer.
+
+It therefore includes:
+
+1. Candidate highlight
+   `CandidateWindow` draws the selected candidate with a highlight background
+   and highlight text color.
+
+2. Emoji fallback
+   The GDI path splits text into runs and uses:
+   - `Microsoft JhengHei UI` for normal text
+   - `Segoe UI Emoji` for emoji runs
+
+3. Tooltip parity
+   `TooltipWindow` uses the same host-based renderer selection strategy so the
+   candidate popup and tooltip do not diverge on the same host.
+
+Relevant code:
+
+- `CandidateWindow` paint path:
+  [src/Client/CandidateWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/CandidateWindow.cpp)
+- `TooltipWindow` paint path:
+  [src/Client/TooltipWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/TooltipWindow.cpp)
+
+## Actual Branch Flow
+
+`CStateEditSession::DoEditSession()` has two entry paths that can route into
+candidate UI handling:
+
+1. There is an active composing buffer
+2. There is no composition, but there are still candidates or tooltip text
+
+The logic is almost identical in both branches.
+
+Relevant code:
+
+- [src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp)
+
+### 1. No Candidates
+
+If `state_.candidates.empty()`:
+
+- hide `CandidateWindow`
+- if a TSF UIElement was active, call `EndUIElement()`
+- mark `CCandidateListUIElement` as not shown
+
+### 2. Candidates Exist and `ITfUIElementMgr` Is Available
+
+If both are true:
 
 - `pTIP_->GetUIElementMgr() != nullptr`
 - `pTIP_->GetCandidateUIElement() != nullptr`
 
-就先走 TSF UIElement 路徑。
+then the TSF UIElement path is updated first.
 
-流程是：
+The flow is:
 
-1. 呼叫 `CCandidateListUIElement::SetActiveContext()`
-2. 呼叫 `CCandidateListUIElement::UpdateData()`，把候選字、選取索引、選字鍵等資料同步進 UIElement
-3. 如果這是第一次顯示，呼叫 `BeginUIElement()`
-4. 如果不是第一次，呼叫 `UpdateUIElement()`
-5. 把 `BeginUIElement()` 回來的 `bShow` 存到 `showCustomCandidateWindow_`
-6. 用 `showCustomCandidateWindow_` 決定是否還要顯示自訂 `CandidateWindow`
+1. call `CCandidateListUIElement::SetActiveContext()`
+2. call `CCandidateListUIElement::UpdateData()`
+3. if this is the first show, call `BeginUIElement()`
+4. otherwise call `UpdateUIElement()`
+5. store the returned `bShow` in `showCustomCandidateWindow_`
+6. use `showCustomCandidateWindow_` to decide whether to also show the custom
+   popup
 
-對應程式位置：
+The important point is:
 
-- `BeginUIElement()`：[src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:472)
-- `UpdateUIElement()`：[src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:477)
-- 第二個入口的同樣流程：[src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:597)
+- `CCandidateListUIElement` is updated first
+- whether the custom popup is also shown depends on `bShow`
 
-這裡的重點是：
+So `CCandidateListUIElement` is not a fallback for `CandidateWindow`. It is the
+first notification to the TSF/host path, and the host then tells the TIP
+whether the TIP still needs to draw its own popup.
 
-- `CCandidateListUIElement` 永遠會先被更新
-- `CandidateWindow` 是否顯示，要等 `BeginUIElement()` 的 `bShow` 決定
+### 3. Candidates Exist but `ITfUIElementMgr` Is Not Available
 
-也就是說，`CCandidateListUIElement` 不是 `CandidateWindow` 的 fallback；它是先通知 TSF/宿主「我有 candidate list」，然後由宿主回覆是否還需要 TIP 顯示自己的 UI。
+If `ITfUIElementMgr` is unavailable, or the candidate UIElement was not
+created:
 
-### 3. 有候選字，但沒有 `ITfUIElementMgr`
+- `showCustomCand` stays at its default `true`
+- no TSF UIElement routing occurs
+- the custom candidate popup is shown directly
 
-如果 `ITfUIElementMgr` 取不到，或 `CCandidateListUIElement` 沒建立成功：
+### 4. Showing the Custom `CandidateWindow`
 
-- `showCustomCand` 會維持預設值 `true`
-- 不會進入 TSF UIElement 流程
-- 直接顯示自訂 `CandidateWindow`
-
-對應程式位置可從 `showCustomCand` 的初始化看出：
-
-- [src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:458)
-- [src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:583)
-
-這代表在不支援或不提供 TSF UIElement 管理的宿主上，專案會回退到自己的選字窗。
-
-### 4. 顯示自訂 `CandidateWindow`
-
-只有在以下條件同時成立時才會呼叫 `CandidateWindow::UpdateUI()`：
+`CandidateWindow::UpdateUI()` is called only when both are true:
 
 - `showCustomCand == true`
-- `state_.candidates` 非空
+- `state_.candidates` is not empty
 
-對應程式位置：
+If `showCustomCand == false`, the TSF UIElement path can still be updated, but
+the custom popup will not be shown.
 
-- 第一個入口：[src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:504)
-- 第二個入口：[src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:629)
+### 5. Direct Commit Without Composition
 
-如果 `showCustomCand == false`，就算本地有 candidate data，也只更新 TSF UIElement，不會顯示自訂 `CandidateWindow`。
+If a state update is a direct commit and there is no active composition:
 
-### 5. 直接提交且沒有 composition 的特殊情況
+- hide `CandidateWindow`
+- hide tooltip
+- if a TSF UIElement is active, call `EndUIElement()`
+- stop further UI handling for that edit session
 
-如果這次 state update 是 direct commit，而且當前沒有 active composition：
+The purpose of this branch is to prevent stale candidate UI after direct
+commit.
 
-- 先隱藏 `CandidateWindow`
-- 先隱藏 tooltip
-- 如果有 TSF UIElement，也一併 `EndUIElement()`
-- 然後直接結束這次 edit session 的 UI 更新流程
+## What `CCandidateListUIElement::Show()` Means Here
 
-對應程式位置：
+`CCandidateListUIElement::Show(BOOL fShow)` only updates the UIElement's own
+shown state.
 
-- [src/Client/StateEditSession.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/StateEditSession.cpp:306)
+It does not directly decide whether the custom popup is shown. The custom popup
+decision is based on `BeginUIElement()`'s returned `bShow`, which is stored in
+`showCustomCandidateWindow_`.
 
-這個分支的目的不是在選哪個 UI 路徑，而是避免 direct commit 後殘留任何候選 UI。
+So these should be understood separately:
 
-## `CCandidateListUIElement::Show()` 在這裡扮演什麼角色
+- `CCandidateListUIElement::Show()`: shown state of the TSF UIElement itself
+- `showCustomCandidateWindow_`: whether the TIP should also show its own
+  candidate window
 
-`CCandidateListUIElement::Show(BOOL fShow)` 只會更新 UIElement 內部的 `fShown_` 狀態。
+## Decision Table
 
-對應程式位置：
-
-- [src/Client/TsfUiElement.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/TsfUiElement.cpp:120)
-
-目前自訂 `CandidateWindow` 的顯示與否，不是直接根據 `CCandidateListUIElement::Show()` 的 `fShown_` 來判斷，而是根據 `BeginUIElement()` 回傳的 `bShow`，也就是 `showCustomCandidateWindow_`。
-
-因此可以把兩者分開理解：
-
-- `CCandidateListUIElement::Show()`：TSF UIElement 自己的 shown state
-- `showCustomCandidateWindow_`：TIP 是否應該另外顯示自訂選字窗
-
-## 總結成決策表
-
-| 條件 | TSF `CCandidateListUIElement` | 自訂 `CandidateWindow` |
+| Condition | TSF `CCandidateListUIElement` | Custom `CandidateWindow` |
 | --- | --- | --- |
-| `state_.candidates` 為空 | 關閉 / EndUIElement | 隱藏 |
-| 有 candidates，且沒有 `ITfUIElementMgr` | 不可用 | 顯示 |
-| 有 candidates，`BeginUIElement()` 成功且 `bShow == TRUE` | 更新 | 顯示 |
-| 有 candidates，`BeginUIElement()` 成功且 `bShow == FALSE` | 更新 | 不顯示 |
-| direct commit without composition | 關閉 / EndUIElement | 隱藏 |
+| `state_.candidates` is empty | closed / `EndUIElement` | hidden |
+| candidates exist, no `ITfUIElementMgr` | unavailable | shown |
+| candidates exist, `BeginUIElement()` succeeds and `bShow == TRUE` | updated | shown |
+| candidates exist, `BeginUIElement()` succeeds and `bShow == FALSE` | updated | not shown |
+| direct commit without composition | closed / `EndUIElement` | hidden |
 
-## 一句話版
+If the custom popup is shown, there is a second-stage renderer decision:
 
-實作上的真實規則是：
+| Custom popup host | Renderer |
+| --- | --- |
+| `Windows.UI.Core.CoreWindow` | `GDI` |
+| other typical desktop hosts | `D2D` |
 
-先把 candidate data 提供給 TSF UIElement；如果宿主透過 `BeginUIElement()` 表示「不用你自己畫」，就只用 `CCandidateListUIElement` 路徑；否則再顯示本專案的 `CandidateWindow`。
+## One-Sentence Summary
+
+The actual rule is:
+
+First publish candidate data through the TSF UIElement path. If the host tells
+the TIP not to draw its own popup, stop there. Otherwise show the project's own
+candidate popup, and choose D2D or GDI based on the host's windowing model.
