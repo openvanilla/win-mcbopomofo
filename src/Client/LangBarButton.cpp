@@ -36,8 +36,8 @@
 #include "NamedPipe.h"
 #include "PathCompat.h"
 #include "Register.h"
-#include "resource.h"
 #include "UTFHelper.h"
+#include "resource.h"
 
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "uxtheme.lib")
@@ -114,7 +114,7 @@ bool ReadBoolSetting(const wchar_t* key, bool defaultValue) {
 
 const wchar_t* CurrentModeLabel(McBopomofoTIP* tip) {
   if (!tip->IsOpen()) {
-    return L"英";
+    return L"EN";
   }
   return ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"简" : L"中";
 }
@@ -192,10 +192,10 @@ std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip,
   items.push_back({0, nullptr, false, true});
   items.push_back({MENU_OPEN_SETTINGS, settingsStr.c_str(), false, false});
   items.push_back({MENU_EDIT_USER_PHRASES, editUser.c_str(), false, false});
-  items.push_back({MENU_EDIT_EXCLUDED_PHRASES, editExcluded.c_str(), false,
-                   false});
-  items.push_back({MENU_OPEN_USER_DATA_FOLDER, openUserData.c_str(), false,
-                   false});
+  items.push_back(
+      {MENU_EDIT_EXCLUDED_PHRASES, editExcluded.c_str(), false, false});
+  items.push_back(
+      {MENU_OPEN_USER_DATA_FOLDER, openUserData.c_str(), false, false});
 
   return items;
 }
@@ -436,7 +436,6 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON* phIcon) {
 
   const wchar_t* label = CurrentModeLabel(pTIP_);
   LogMessage("CLangBarButton::GetIcon called with label: %ls", label);
-
 
   HDC hdc = GetDC(NULL);
   HDC hMemDC = CreateCompatibleDC(hdc);
