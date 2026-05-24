@@ -155,14 +155,25 @@ It therefore includes:
 
 1. Candidate highlight
    `CandidateWindow` draws the selected candidate with a highlight background
-   and highlight text color.
+   and highlight text color. In vertical layouts, the highlight extends across
+   the full content row instead of stopping at the selected glyph width.
 
 2. Emoji fallback
    The GDI path splits text into runs and uses:
    - `Microsoft JhengHei UI` for normal text
    - `Segoe UI Emoji` for emoji runs
 
-3. Tooltip parity
+3. Keycap styling
+   Candidate key labels are rendered with a slightly smaller UI font than the
+   candidate text so the fallback renderer stays visually close to the original
+   D2D layout.
+
+4. Layout parity
+   GDI sizing uses the same run-splitting rules as GDI painting. This avoids
+   clipping caused by measuring text with one renderer and drawing it with
+   another.
+
+5. Tooltip parity
    `TooltipWindow` uses the same host-based renderer selection strategy so the
    candidate popup and tooltip do not diverge on the same host.
 

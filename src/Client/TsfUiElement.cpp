@@ -122,7 +122,6 @@ STDMETHODIMP CCandidateListUIElement::IsShown(BOOL* pfShow) {
 STDMETHODIMP CCandidateListUIElement::Show(BOOL fShow) {
   noteHostInteraction_("Show");
   fShown_ = fShow;
-  LogMessage("CCandidateListUIElement::Show fShow=%d", fShow ? 1 : 0);
   return S_OK;
 }
 
@@ -154,7 +153,6 @@ STDMETHODIMP CCandidateListUIElement::GetCount(UINT* puCount) {
   }
   noteHostInteraction_("GetCount");
   *puCount = static_cast<UINT>(candidates_.size());
-  LogMessage("CCandidateListUIElement::GetCount count=%u", *puCount);
   return S_OK;
 }
 
@@ -164,7 +162,6 @@ STDMETHODIMP CCandidateListUIElement::GetSelection(UINT* puIndex) {
   }
   noteHostInteraction_("GetSelection");
   *puIndex = static_cast<UINT>(selectionIndex_);
-  LogMessage("CCandidateListUIElement::GetSelection index=%u", *puIndex);
   return S_OK;
 }
 
@@ -178,9 +175,6 @@ STDMETHODIMP CCandidateListUIElement::GetString(UINT uIndex, BSTR* pbstr) {
     return E_INVALIDARG;
   }
   *pbstr = SysAllocString(candidates_[uIndex].c_str());
-  LogMessage("CCandidateListUIElement::GetString index=%u textLength=%llu",
-             uIndex,
-             static_cast<unsigned long long>(candidates_[uIndex].length()));
   return *pbstr ? S_OK : E_OUTOFMEMORY;
 }
 
@@ -204,11 +198,6 @@ STDMETHODIMP CCandidateListUIElement::GetPageIndex(UINT* puIndex, UINT uSize, UI
       puIndex[i] = i * pageSize;
     }
   }
-
-  LogMessage(
-      "CCandidateListUIElement::GetPageIndex pageSize=%u totalCount=%u totalPages=%u requestedSize=%u",
-      pageSize, totalCount, totalPages, uSize);
-
   return S_OK;
 }
 
@@ -226,8 +215,6 @@ STDMETHODIMP CCandidateListUIElement::GetCurrentPage(UINT* puPage) {
   noteHostInteraction_("GetCurrentPage");
   UINT pageSize = (candidateKeysCount_ > 0) ? candidateKeysCount_ : 9;
   *puPage = static_cast<UINT>(selectionIndex_ / pageSize);
-  LogMessage("CCandidateListUIElement::GetCurrentPage page=%u pageSize=%u",
-             *puPage, pageSize);
   return S_OK;
 }
 
@@ -335,8 +322,6 @@ unsigned long CCandidateListUIElement::HostInteractionCount() const {
 void CCandidateListUIElement::noteHostInteraction_(const char* methodName) {
   ++hostInteractionCount_;
   lastHostMethod_ = methodName;
-  LogMessage("CCandidateListUIElement host interaction #%lu via %s",
-             hostInteractionCount_, methodName);
 }
 
 // ==========================================

@@ -346,16 +346,44 @@ void TooltipWindow::rebuildLayoutAndResize_() {
         10000.0f, 10000.0f, &pTextLayout_);
   }
 
-  float textWidth = 0, textHeight = 0;
-  if (pTextLayout_) {
-    DWRITE_TEXT_METRICS metrics;
-    pTextLayout_->GetMetrics(&metrics);
-    textWidth = metrics.width;
-    textHeight = metrics.height;
+  int width = 0;
+  int height = 0;
+  if (renderMode_ == RenderMode::kGDI) {
+    HDC screenDc = GetDC(nullptr);
+    if (screenDc) {
+      const LONG textHeight =
+          -std::max(11L, static_cast<LONG>(std::lround(15.0f * dpiScale_)));
+      HFONT textFont = CreateUiFont(L"Microsoft JhengHei UI", textHeight);
+      HFONT emojiFont = CreateUiFont(L"Segoe UI Emoji", textHeight);
+      HGDIOBJ oldFont = SelectObject(screenDc, textFont);
+      TEXTMETRICW tm = {};
+      GetTextMetricsW(screenDc, &tm);
+      SelectObject(screenDc, oldFont);
+
+      width = DrawOrMeasureTooltipRun(screenDc, displayString_, 0, 0, textFont,
+                                      emojiFont, false) +
+              static_cast<int>(std::lround(16.0f * dpiScale_));
+      height = (tm.tmHeight + tm.tmExternalLeading) +
+               static_cast<int>(std::lround(8.0f * dpiScale_));
+
+      DeleteObject(textFont);
+      DeleteObject(emojiFont);
+      ReleaseDC(nullptr, screenDc);
+    }
   }
 
-  int width = (int)std::ceil(textWidth * dpiScale_) + (int)(16 * dpiScale_);
-  int height = (int)std::ceil(textHeight * dpiScale_) + (int)(8 * dpiScale_);
+  if (width == 0 || height == 0) {
+    float textWidth = 0, textHeight = 0;
+    if (pTextLayout_) {
+      DWRITE_TEXT_METRICS metrics;
+      pTextLayout_->GetMetrics(&metrics);
+      textWidth = metrics.width;
+      textHeight = metrics.height;
+    }
+
+    width = (int)std::ceil(textWidth * dpiScale_) + (int)(16 * dpiScale_);
+    height = (int)std::ceil(textHeight * dpiScale_) + (int)(8 * dpiScale_);
+  }
 
   // Enforce a minimum size
   width = std::max(width, (int)(20 * dpiScale_));
@@ -457,9 +485,6 @@ LRESULT TooltipWindow::onPaint_(HWND hwnd) {
                             textFont, emojiFont, true);
     DeleteObject(textFont);
     DeleteObject(emojiFont);
-
-    LogMessage("TooltipWindow GDI painted hwnd=%p textLen=%llu", hwnd_,
-               static_cast<unsigned long long>(displayString_.size()));
     EndPaint(hwnd, &ps);
     return 0;
   }

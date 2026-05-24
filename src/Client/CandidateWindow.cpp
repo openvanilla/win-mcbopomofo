@@ -86,8 +86,10 @@ bool IsEmojiCodePoint(char32_t cp) {
 
 struct GdiFontSet {
   HFONT textFont = nullptr;
+  HFONT keyFont = nullptr;
   HFONT hintFont = nullptr;
   HFONT emojiFont = nullptr;
+  HFONT keyEmojiFont = nullptr;
   HFONT hintEmojiFont = nullptr;
 };
 
@@ -103,21 +105,27 @@ HFONT CreateUiFont(const wchar_t* faceName, LONG height, LONG weight = FW_NORMAL
 GdiFontSet CreateGdiFontSet(float dpiScale, int candidateFontSize) {
   const LONG textHeight =
       -std::max(12L, static_cast<LONG>(std::lround(candidateFontSize * dpiScale)));
+  const LONG keyHeight =
+      -std::max(10L, static_cast<LONG>(std::lround((candidateFontSize - 3) * dpiScale)));
   const LONG hintHeight =
       -std::max(11L, static_cast<LONG>(std::lround((candidateFontSize - 3) * dpiScale)));
 
   GdiFontSet fonts;
   fonts.textFont = CreateUiFont(L"Microsoft JhengHei UI", textHeight);
+  fonts.keyFont = CreateUiFont(L"Segoe UI", keyHeight);
   fonts.hintFont = CreateUiFont(L"Microsoft JhengHei UI", hintHeight);
   fonts.emojiFont = CreateUiFont(L"Segoe UI Emoji", textHeight);
+  fonts.keyEmojiFont = CreateUiFont(L"Segoe UI Emoji", keyHeight);
   fonts.hintEmojiFont = CreateUiFont(L"Segoe UI Emoji", hintHeight);
   return fonts;
 }
 
 void DestroyGdiFontSet(GdiFontSet& fonts) {
   if (fonts.textFont) DeleteObject(fonts.textFont);
+  if (fonts.keyFont) DeleteObject(fonts.keyFont);
   if (fonts.hintFont) DeleteObject(fonts.hintFont);
   if (fonts.emojiFont) DeleteObject(fonts.emojiFont);
+  if (fonts.keyEmojiFont) DeleteObject(fonts.keyEmojiFont);
   if (fonts.hintEmojiFont) DeleteObject(fonts.hintEmojiFont);
 }
 
@@ -661,29 +669,132 @@ void CandidateWindow::rebuildLayoutAndResize_() {
                                       &pHintLayout_);
   }
 
-  float textWidth = 0, textHeight = 0;
-  if (pTextLayout_) {
-    DWRITE_TEXT_METRICS metrics;
-    pTextLayout_->GetMetrics(&metrics);
-    textWidth = metrics.width;
-    textHeight = metrics.height;
+  int width = 0;
+  int height = 0;
+  if (renderMode_ == RenderMode::kGDI) {
+    HDC screenDc = GetDC(nullptr);
+    if (screenDc) {
+      GdiFontSet fonts = CreateGdiFontSet(dpiScale_, candidateFontSize_);
+      const int horizontalPadding =
+          static_cast<int>(std::lround(24.0f * dpiScale_));
+      const int verticalPadding =
+          static_cast<int>(std::lround(16.0f * dpiScale_));
+      const int hintGap = static_cast<int>(std::lround(4.0f * dpiScale_));
+
+      auto fontLineHeight = [screenDc](HFONT font) -> int {
+        if (!font) {
+          return 0;
+        }
+        HGDIOBJ oldFont = SelectObject(screenDc, font);
+        TEXTMETRICW tm = {};
+        GetTextMetricsW(screenDc, &tm);
+        SelectObject(screenDc, oldFont);
+        return tm.tmHeight + tm.tmExternalLeading;
+      };
+
+      auto measureCandidateLine = [&](UINT32 globalStart,
+                                      std::wstring_view lineText) {
+        int measuredWidth = 0;
+        size_t localPos = 0;
+        while (localPos < lineText.size()) {
+          const UINT32 globalPos = globalStart + static_cast<UINT32>(localPos);
+          bool inKeyRange = false;
+          size_t nextBoundary = lineText.size();
+          for (const auto& range : keyRanges_) {
+            const UINT32 rangeStart = range.start;
+            const UINT32 rangeEnd = range.start + range.length;
+            if (globalPos >= rangeStart && globalPos < rangeEnd) {
+              inKeyRange = true;
+              nextBoundary = std::min(
+                  nextBoundary,
+                  static_cast<size_t>(rangeEnd - globalStart));
+              break;
+            }
+            if (rangeStart > globalPos) {
+              nextBoundary = std::min(
+                  nextBoundary,
+                  static_cast<size_t>(rangeStart - globalStart));
+            }
+          }
+
+          if (nextBoundary <= localPos) {
+            nextBoundary = localPos + 1;
+          }
+
+          std::wstring_view segment =
+              lineText.substr(localPos, nextBoundary - localPos);
+          measuredWidth += DrawOrMeasureTextRun(
+              screenDc, segment, 0, 0,
+              inKeyRange ? fonts.keyFont : fonts.textFont,
+              inKeyRange ? fonts.keyEmojiFont : fonts.emojiFont,
+              ToColorRef(colors_.text), false);
+          localPos = nextBoundary;
+        }
+        return measuredWidth;
+      };
+
+      const int textLineHeight =
+          std::max(fontLineHeight(fonts.textFont), fontLineHeight(fonts.keyFont));
+      const int hintLineHeight = fontLineHeight(fonts.hintFont);
+      const int lineGap = static_cast<int>(std::lround(4.0f * dpiScale_));
+
+      int contentWidth = 0;
+      int contentHeight = 0;
+      if (!hint_.empty()) {
+        contentWidth = std::max(
+            contentWidth,
+            DrawOrMeasureTextRun(screenDc, hint_, 0, 0, fonts.hintFont,
+                                 fonts.hintEmojiFont, ToColorRef(colors_.text),
+                                 false));
+        contentHeight += std::max(hintLineHeight, 14);
+      }
+
+      const auto lines = SplitDisplayLines(displayString_);
+      if (!lines.empty() && !hint_.empty()) {
+        contentHeight += hintGap;
+      }
+      for (size_t i = 0; i < lines.size(); ++i) {
+        const auto& [globalStart, lineText] = lines[i];
+        contentWidth = std::max(contentWidth,
+                                measureCandidateLine(globalStart, lineText));
+        contentHeight += textLineHeight;
+        if (i + 1 < lines.size()) {
+          contentHeight += lineGap;
+        }
+      }
+
+      width = contentWidth + horizontalPadding;
+      height = contentHeight + verticalPadding;
+      DestroyGdiFontSet(fonts);
+      ReleaseDC(nullptr, screenDc);
+    }
   }
 
-  float hintWidth = 0, hintHeight = 0;
-  if (pHintLayout_) {
-    DWRITE_TEXT_METRICS metrics;
-    pHintLayout_->GetMetrics(&metrics);
-    hintWidth = metrics.width;
-    hintHeight = metrics.height;
-  }
+  if (width == 0 || height == 0) {
+    float textWidth = 0, textHeight = 0;
+    if (pTextLayout_) {
+      DWRITE_TEXT_METRICS metrics;
+      pTextLayout_->GetMetrics(&metrics);
+      textWidth = metrics.width;
+      textHeight = metrics.height;
+    }
 
-  int width = (int)std::ceil(std::max(textWidth, hintWidth) * dpiScale_) +
-              (int)(24 * dpiScale_);
-  int height = (int)std::ceil((textHeight + hintHeight) * dpiScale_) +
-               (int)(16 * dpiScale_);
+    float hintWidth = 0, hintHeight = 0;
+    if (pHintLayout_) {
+      DWRITE_TEXT_METRICS metrics;
+      pHintLayout_->GetMetrics(&metrics);
+      hintWidth = metrics.width;
+      hintHeight = metrics.height;
+    }
 
-  if (pHintLayout_) {
-    height += (int)(4 * dpiScale_);  // Gap between hint and candidates
+    width = (int)std::ceil(std::max(textWidth, hintWidth) * dpiScale_) +
+            (int)(24 * dpiScale_);
+    height = (int)std::ceil((textHeight + hintHeight) * dpiScale_) +
+             (int)(16 * dpiScale_);
+
+    if (pHintLayout_) {
+      height += (int)(4 * dpiScale_);
+    }
   }
 
   // Enforce a minimum size to prevent the window from collapsing or being
@@ -799,17 +910,108 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
     const int originX = static_cast<int>(std::lround(12.0f * dpiScale_));
     int currentY = static_cast<int>(std::lround(8.0f * dpiScale_));
     const int lineGap = static_cast<int>(std::lround(4.0f * dpiScale_));
-    TEXTMETRICW tm = {};
+    const int highlightPaddingX =
+        static_cast<int>(std::lround(4.0f * dpiScale_));
+    const int highlightPaddingY =
+        static_cast<int>(std::lround(2.0f * dpiScale_));
+    const bool drawVertical = isVertical_ || forceVertical_;
 
-    HGDIOBJ oldFont = SelectObject(hdc, fonts.textFont);
-    GetTextMetricsW(hdc, &tm);
-    SelectObject(hdc, oldFont);
-    const int lineHeight = tm.tmHeight + tm.tmExternalLeading;
+      auto fontLineHeight = [hdc](HFONT font) -> int {
+      if (!font) {
+        return 0;
+      }
+      HGDIOBJ oldFont = SelectObject(hdc, font);
+      TEXTMETRICW tm = {};
+      GetTextMetricsW(hdc, &tm);
+      SelectObject(hdc, oldFont);
+      return tm.tmHeight + tm.tmExternalLeading;
+    };
+
+    auto drawCandidateLine = [&](UINT32 globalStart, std::wstring_view lineText,
+                                 int x, int y, COLORREF color) {
+      int cursorX = x;
+      size_t localPos = 0;
+      while (localPos < lineText.size()) {
+        const UINT32 globalPos = globalStart + static_cast<UINT32>(localPos);
+        bool inKeyRange = false;
+        size_t nextBoundary = lineText.size();
+        for (const auto& range : keyRanges_) {
+          const UINT32 rangeStart = range.start;
+          const UINT32 rangeEnd = range.start + range.length;
+          if (globalPos >= rangeStart && globalPos < rangeEnd) {
+            inKeyRange = true;
+            nextBoundary = std::min(
+                nextBoundary, static_cast<size_t>(rangeEnd - globalStart));
+            break;
+          }
+          if (rangeStart > globalPos) {
+            nextBoundary = std::min(
+                nextBoundary, static_cast<size_t>(rangeStart - globalStart));
+          }
+        }
+
+        if (nextBoundary <= localPos) {
+          nextBoundary = localPos + 1;
+        }
+
+        std::wstring_view segment =
+            lineText.substr(localPos, nextBoundary - localPos);
+        cursorX += DrawOrMeasureTextRun(
+            hdc, segment, cursorX, y,
+            inKeyRange ? fonts.keyFont : fonts.textFont,
+            inKeyRange ? fonts.keyEmojiFont : fonts.emojiFont, color, true);
+        localPos = nextBoundary;
+      }
+      return cursorX - x;
+    };
+
+    auto measureCandidateLine = [&](UINT32 globalStart,
+                                    std::wstring_view lineText) {
+      int width = 0;
+      size_t localPos = 0;
+      while (localPos < lineText.size()) {
+        const UINT32 globalPos = globalStart + static_cast<UINT32>(localPos);
+        bool inKeyRange = false;
+        size_t nextBoundary = lineText.size();
+        for (const auto& range : keyRanges_) {
+          const UINT32 rangeStart = range.start;
+          const UINT32 rangeEnd = range.start + range.length;
+          if (globalPos >= rangeStart && globalPos < rangeEnd) {
+            inKeyRange = true;
+            nextBoundary = std::min(
+                nextBoundary, static_cast<size_t>(rangeEnd - globalStart));
+            break;
+          }
+          if (rangeStart > globalPos) {
+            nextBoundary = std::min(
+                nextBoundary, static_cast<size_t>(rangeStart - globalStart));
+          }
+        }
+
+        if (nextBoundary <= localPos) {
+          nextBoundary = localPos + 1;
+        }
+
+        std::wstring_view segment =
+            lineText.substr(localPos, nextBoundary - localPos);
+        width += DrawOrMeasureTextRun(
+            hdc, segment, 0, 0,
+            inKeyRange ? fonts.keyFont : fonts.textFont,
+            inKeyRange ? fonts.keyEmojiFont : fonts.emojiFont,
+            ToColorRef(colors_.text), false);
+        localPos = nextBoundary;
+      }
+      return width;
+    };
+
+    const int lineHeight =
+        std::max(fontLineHeight(fonts.textFont), fontLineHeight(fonts.keyFont));
+    const int hintLineHeight = fontLineHeight(fonts.hintFont);
 
     if (!hint_.empty()) {
       DrawOrMeasureTextRun(hdc, hint_, originX, currentY, fonts.hintFont,
                            fonts.hintEmojiFont, ToColorRef(colors_.text), true);
-      currentY += std::max(lineHeight - 2, 14) + lineGap;
+      currentY += std::max(hintLineHeight, 14) + lineGap;
     }
 
     const auto lines = SplitDisplayLines(displayString_);
@@ -830,39 +1032,42 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
         std::wstring_view selected = lineText.substr(localStart, localEnd - localStart);
         std::wstring_view suffix = lineText.substr(localEnd);
 
-        cursorX += DrawOrMeasureTextRun(hdc, prefix, cursorX, currentY,
-                                        fonts.textFont, fonts.emojiFont,
-                                        ToColorRef(colors_.text), true);
+        cursorX += drawCandidateLine(globalStart, prefix, cursorX, currentY,
+                                     ToColorRef(colors_.text));
 
-        const int selectedWidth = DrawOrMeasureTextRun(
-            hdc, selected, 0, currentY, fonts.textFont, fonts.emojiFont,
-            ToColorRef(colors_.highlightText), false);
-        RECT highlightRect = {cursorX - static_cast<int>(std::lround(4.0f * dpiScale_)),
-                              currentY - static_cast<int>(std::lround(2.0f * dpiScale_)),
-                              cursorX + selectedWidth +
-                                  static_cast<int>(std::lround(4.0f * dpiScale_)),
-                              currentY + lineHeight +
-                                  static_cast<int>(std::lround(2.0f * dpiScale_))};
+        const int selectedWidth =
+            measureCandidateLine(globalStart + localStart, selected);
+        const int fullLineWidth = measureCandidateLine(globalStart, lineText);
+        RECT highlightRect = {
+            cursorX - highlightPaddingX,
+            currentY - highlightPaddingY,
+            drawVertical ? rc.right - (originX - highlightPaddingX)
+                         : cursorX + selectedWidth + highlightPaddingX,
+            currentY + lineHeight + highlightPaddingY};
+        if (drawVertical) {
+          highlightRect.left = originX - highlightPaddingX;
+          highlightRect.right =
+              std::max(highlightRect.left + fullLineWidth + highlightPaddingX * 2,
+                       rc.right - (originX - highlightPaddingX));
+        }
         HBRUSH highlightBrush =
             CreateSolidBrush(ToColorRef(colors_.highlightBackground));
         FillRect(hdc, &highlightRect, highlightBrush);
         DeleteObject(highlightBrush);
 
-        cursorX += DrawOrMeasureTextRun(hdc, selected, cursorX, currentY,
-                                        fonts.textFont, fonts.emojiFont,
-                                        ToColorRef(colors_.highlightText), true);
-        DrawOrMeasureTextRun(hdc, suffix, cursorX, currentY, fonts.textFont,
-                             fonts.emojiFont, ToColorRef(colors_.text), true);
+        cursorX += drawCandidateLine(globalStart + localStart, selected, cursorX,
+                                     currentY,
+                                     ToColorRef(colors_.highlightText));
+        drawCandidateLine(globalStart + localEnd, suffix, cursorX, currentY,
+                          ToColorRef(colors_.text));
       } else {
-        DrawOrMeasureTextRun(hdc, lineText, cursorX, currentY, fonts.textFont,
-                             fonts.emojiFont, ToColorRef(colors_.text), true);
+        drawCandidateLine(globalStart, lineText, cursorX, currentY,
+                          ToColorRef(colors_.text));
       }
       currentY += lineHeight + lineGap;
     }
 
     DestroyGdiFontSet(fonts);
-    LogMessage("CandidateWindow GDI painted hwnd=%p textLen=%llu", hwnd_,
-               static_cast<unsigned long long>(displayString_.size()));
     EndPaint(hwnd, &ps);
     return 0;
   }

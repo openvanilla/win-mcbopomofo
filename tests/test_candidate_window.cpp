@@ -11,6 +11,23 @@
         return 1; \
     }
 
+namespace {
+
+CandidateWindow::UpdateUIRequest MakeRequest(
+    const std::vector<std::string>& candidates, int cursorIndex,
+    McBopomofo::IPC::CandidateSelectionStyle selectionStyle =
+        McBopomofo::IPC::CandidateSelectionStyle::kStandard,
+    int candidateFontSize = 16) {
+    CandidateWindow::UpdateUIRequest request;
+    request.candidates = candidates;
+    request.cursorIndex = cursorIndex;
+    request.selectionStyle = selectionStyle;
+    request.candidateFontSize = candidateFontSize;
+    return request;
+}
+
+}  // namespace
+
 int test_single_candidate() {
     CandidateWindow window;
     window.Create(GetModuleHandle(NULL));
@@ -19,7 +36,7 @@ int test_single_candidate() {
     std::vector<std::string> candidates = {"A"}; // Use simple ascii for test to avoid encoding issues in console
     
     // UpdateUI with 1 candidate
-    window.UpdateUI(candidates, 0, false);
+    window.UpdateUI(MakeRequest(candidates, 0));
     
     // Check if the formatted string is not empty and matches expected
     std::wstring result = window.GetDisplayString();
@@ -37,14 +54,14 @@ int test_multiple_candidates() {
     std::vector<std::string> candidates = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"};
     
     // Page 1
-    window.UpdateUI(candidates, 0, false);
+    window.UpdateUI(MakeRequest(candidates, 0));
     std::wstring result1 = window.GetDisplayString();
     // It should have 9 items and page indicator
     std::wstring expected1 = L"1. 1   2. 2   3. 3   4. 4   5. 5   6. 6   7. 7   8. 8   9. 9  (1/2)";
     ASSERT_EQ(expected1, result1);
 
     // Page 2
-    window.UpdateUI(candidates, 9, false);
+    window.UpdateUI(MakeRequest(candidates, 9));
     std::wstring result2 = window.GetDisplayString();
     std::wstring expected2 = L"1. 0  (2/2)";
     ASSERT_EQ(expected2, result2);
@@ -61,7 +78,7 @@ int test_single_candidate_on_second_page() {
     std::vector<std::string> candidates = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"};
     
     // Page 2: Cursor index 9. There is only "0" on this page.
-    window.UpdateUI(candidates, 9, false);
+    window.UpdateUI(MakeRequest(candidates, 9));
     
     std::wstring result = window.GetDisplayString();
     std::wstring expected = L"1. 0  (2/2)";
@@ -77,7 +94,7 @@ int test_invalid_negative_cursor_index_clamps_to_first_candidate() {
     window.SetVertical(false);
 
     std::vector<std::string> candidates = {"A", "B", "C"};
-    window.UpdateUI(candidates, -1, false);
+    window.UpdateUI(MakeRequest(candidates, -1));
 
     std::wstring result = window.GetDisplayString();
     std::wstring expected = L"1. A   2. B   3. C";
@@ -93,9 +110,9 @@ int test_shift_key_selection_keycaps() {
     window.SetVertical(false);
 
     std::vector<std::string> candidates = {"A", "B", "C"};
-    window.UpdateUI(candidates, 0, false,
-                    McBopomofo::IPC::CandidateSelectionStyle::kShiftDigits,
-                    16);
+    window.UpdateUI(MakeRequest(
+        candidates, 0,
+        McBopomofo::IPC::CandidateSelectionStyle::kShiftDigits, 16));
 
     std::wstring result = window.GetDisplayString();
     std::wstring expected = L"\u21e71. A   \u21e72. B   \u21e73. C";
