@@ -67,6 +67,7 @@ D2D1_COLOR_F D2DColorFromRgb(uint32_t rgb) {
 
 CandidateWindow::CandidateWindow()
     : hwnd_(nullptr),
+      ownerHwnd_(nullptr),
       dpiScale_(1.0f),
       cursorIndex_(0),
       candidateKeys_(L"123456789"),
@@ -288,7 +289,7 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
 
   WNDCLASSEXW wcex = {0};
   wcex.cbSize = sizeof(WNDCLASSEXW);
-  wcex.style = 0;
+  wcex.style = CS_DROPSHADOW;
   wcex.lpfnWndProc = wndProc_;
   wcex.hInstance = hInstance;
   wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -302,13 +303,29 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
                           CANDIDATE_WINDOW_CLASS, L"",
                           WS_POPUP,       // D2D will draw the border
                           0, 0, 100, 30,  // Initial dummy size
-                          nullptr, nullptr, hInstance, this);
-
-  EnableWindowDropShadow(hwnd_);
-  enableSystemRoundedCorners_();
-  updateRoundedRegion_();
+                          ownerHwnd_, nullptr, hInstance, this);
 
   return hwnd_ != nullptr;
+}
+
+void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
+  if (ownerHwnd && !IsWindow(ownerHwnd)) {
+    ownerHwnd = nullptr;
+  }
+  if (ownerHwnd == hwnd_) {
+    ownerHwnd = nullptr;
+  }
+  if (ownerHwnd_ == ownerHwnd) {
+    return;
+  }
+
+  ownerHwnd_ = ownerHwnd;
+  if (!hwnd_) {
+    return;
+  }
+
+  SetWindowLongPtrW(hwnd_, GWLP_HWNDPARENT,
+                    reinterpret_cast<LONG_PTR>(ownerHwnd_));
 }
 
 
@@ -501,7 +518,6 @@ void CandidateWindow::rebuildLayoutAndResize_() {
 
   SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOACTIVATE);
-  updateRoundedRegion_();
   if (pRenderTarget_) {
     pRenderTarget_->Resize(D2D1::SizeU(width, height));
   }

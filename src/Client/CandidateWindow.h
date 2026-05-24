@@ -38,6 +38,7 @@ class CandidateWindow {
 
   bool Create(HINSTANCE hInstance);
   void Destroy();
+  void SetOwnerWindow(HWND ownerHwnd);
 
   void UpdateUI(const std::vector<std::string>& candidates, int cursorIndex,
                 bool forceVertical = false,
@@ -94,6 +95,7 @@ class CandidateWindow {
   };
 
   HWND hwnd_;
+  HWND ownerHwnd_;
   float dpiScale_;
   std::vector<std::wstring> candidates_;
   int cursorIndex_;
