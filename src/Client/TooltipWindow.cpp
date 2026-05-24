@@ -41,6 +41,7 @@ const wchar_t* const TOOLTIP_WINDOW_CLASS = L"WinMcBopomofoTooltipWindow";
 
 TooltipWindow::TooltipWindow()
     : hwnd_(nullptr),
+      ownerHwnd_(nullptr),
       dpiScale_(1.0f),
       pD2DFactory_(nullptr),
       pRenderTarget_(nullptr),
@@ -152,11 +153,31 @@ bool TooltipWindow::Create(HINSTANCE hInstance) {
                           TOOLTIP_WINDOW_CLASS, L"",
                           WS_POPUP,       // D2D will draw the border
                           0, 0, 100, 30,  // Initial dummy size
-                          nullptr, nullptr, hInstance, this);
+                          ownerHwnd_, nullptr, hInstance, this);
 
   EnableWindowDropShadow(hwnd_);
 
   return hwnd_ != nullptr;
+}
+
+void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
+  if (ownerHwnd && !IsWindow(ownerHwnd)) {
+    ownerHwnd = nullptr;
+  }
+  if (ownerHwnd == hwnd_) {
+    ownerHwnd = nullptr;
+  }
+  if (ownerHwnd_ == ownerHwnd) {
+    return;
+  }
+
+  ownerHwnd_ = ownerHwnd;
+  if (!hwnd_) {
+    return;
+  }
+
+  SetWindowLongPtrW(hwnd_, GWLP_HWNDPARENT,
+                    reinterpret_cast<LONG_PTR>(ownerHwnd_));
 }
 
 void TooltipWindow::Destroy() {

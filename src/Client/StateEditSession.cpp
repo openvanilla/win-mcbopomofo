@@ -30,6 +30,21 @@
 
 namespace {
 
+HWND GetContextWindow(ITfContext* context) {
+  if (context) {
+    ITfContextView* pView = nullptr;
+    if (SUCCEEDED(context->GetActiveView(&pView)) && pView) {
+      HWND hwnd = nullptr;
+      if (SUCCEEDED(pView->GetWnd(&hwnd)) && hwnd) {
+        pView->Release();
+        return hwnd;
+      }
+      pView->Release();
+    }
+  }
+  return GetFocus();
+}
+
 void MoveAuxiliaryWindowsInternal(McBopomofoTIP* tip, const RECT& rc) {
   auto* candWin = tip->GetCandidateWindow();
   auto* tooltipWin = tip->GetTooltipWindow();
@@ -434,6 +449,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         }
 
         if (showCustomTooltip && !state_.tooltip.empty()) {
+          pTIP_->GetTooltipWindow()->SetOwnerWindow(GetContextWindow(pContext_));
           pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
         } else {
           pTIP_->GetTooltipWindow()->Hide();
@@ -473,6 +489,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         }
 
         if (showCustomCand && !state_.candidates.empty()) {
+          pTIP_->GetCandidateWindow()->SetOwnerWindow(GetContextWindow(pContext_));
           pTIP_->GetCandidateWindow()->UpdateUI(
               state_.candidates, state_.candidateIndex, state_.forceVertical,
               state_.selectionStyle, state_.candidateFontSize, state_.hint,
@@ -550,6 +567,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
 
     if (showCustomTooltip && !state_.tooltip.empty()) {
+      pTIP_->GetTooltipWindow()->SetOwnerWindow(GetContextWindow(pContext_));
       pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
     } else {
       pTIP_->GetTooltipWindow()->Hide();
@@ -589,6 +607,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
 
     if (showCustomCand && !state_.candidates.empty()) {
+      pTIP_->GetCandidateWindow()->SetOwnerWindow(GetContextWindow(pContext_));
       pTIP_->GetCandidateWindow()->UpdateUI(
           state_.candidates, state_.candidateIndex, state_.forceVertical,
           state_.selectionStyle, state_.candidateFontSize, state_.hint,

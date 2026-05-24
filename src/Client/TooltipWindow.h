@@ -35,6 +35,7 @@ class TooltipWindow {
 
   bool Create(HINSTANCE hInstance);
   void Destroy();
+  void SetOwnerWindow(HWND ownerHwnd);
 
   void UpdateUI(const std::string& tooltipText);
   void Move(int x, int y);
@@ -65,6 +66,7 @@ class TooltipWindow {
   void rebuildLayoutAndResize_();
 
   HWND hwnd_;
+  HWND ownerHwnd_;
   float dpiScale_;
   std::wstring displayString_;
 
