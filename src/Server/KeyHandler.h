@@ -85,8 +85,7 @@ class KeyHandler {
 
   bool handleAssociatedPhrases(InputStates::Inputting* state,
                                StateCallback stateCallback,
-                               ErrorCallback errorCallback,
-                               bool autoTriggered);
+                               ErrorCallback errorCallback, bool autoTriggered);
 
   bool handleNumberInput(Key key, InputStates::NumberInput* state,
                          StateCallback stateCallback,

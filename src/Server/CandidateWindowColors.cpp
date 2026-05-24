@@ -39,8 +39,7 @@ constexpr uint32_t kFallbackHighlightBlue = 0x0078D7;
 
 uint32_t ToRgb(const winrt::Windows::UI::Color& color) {
   return (static_cast<uint32_t>(color.R) << 16) |
-         (static_cast<uint32_t>(color.G) << 8) |
-         static_cast<uint32_t>(color.B);
+         (static_cast<uint32_t>(color.G) << 8) | static_cast<uint32_t>(color.B);
 }
 
 bool EnsureWinrtApartmentInitialized() {

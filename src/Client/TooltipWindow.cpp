@@ -23,12 +23,12 @@
 
 #include "TooltipWindow.h"
 
-#include "Globals.h"
+#include <dwmapi.h>
 
 #include <algorithm>
 #include <cmath>
-#include <dwmapi.h>
 
+#include "Globals.h"
 #include "UTFHelper.h"
 
 #pragma comment(lib, "d2d1.lib")
@@ -87,7 +87,8 @@ int DrawOrMeasureTooltipRun(HDC hdc, std::wstring_view text, int x, int y,
       size_t nextLen = 1;
       if (i + 1 < text.size() && IS_HIGH_SURROGATE(text[i]) &&
           IS_LOW_SURROGATE(text[i + 1])) {
-        nextCp = (((text[i] - 0xD800) << 10) | (text[i + 1] - 0xDC00)) + 0x10000;
+        nextCp =
+            (((text[i] - 0xD800) << 10) | (text[i + 1] - 0xDC00)) + 0x10000;
         nextLen = 2;
       }
       if (IsEmojiCodePoint(nextCp) != useEmoji) {
@@ -111,8 +112,6 @@ int DrawOrMeasureTooltipRun(HDC hdc, std::wstring_view text, int x, int y,
 }
 
 }  // namespace
-
-
 
 TooltipWindow::TooltipWindow()
     : hwnd_(nullptr),
@@ -170,12 +169,8 @@ void TooltipWindow::createDeviceResources_() {
     D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
 
     pD2DFactory_->CreateHwndRenderTarget(
-        D2D1::RenderTargetProperties(
-            D2D1_RENDER_TARGET_TYPE_DEFAULT,
-            D2D1::PixelFormat(),
-            96.0f,
-            96.0f
-        ),
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
+                                     D2D1::PixelFormat(), 96.0f, 96.0f),
         D2D1::HwndRenderTargetProperties(hwnd_, size), &pRenderTarget_);
 
     if (pRenderTarget_) {
@@ -231,8 +226,7 @@ bool TooltipWindow::Create(HINSTANCE hInstance) {
       &wcex);  // Ignore failure as it might be registered by another instance
 
   hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-                          TOOLTIP_WINDOW_CLASS, L"",
-                          WS_POPUP | WS_CLIPCHILDREN,
+                          TOOLTIP_WINDOW_CLASS, L"", WS_POPUP | WS_CLIPCHILDREN,
                           0, 0, 100, 30,  // Initial dummy size
                           ownerHwnd_, nullptr, hInstance_, this);
 
@@ -302,8 +296,7 @@ void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
 
   SetWindowLongPtrW(hwnd_, GWLP_HWNDPARENT,
                     reinterpret_cast<LONG_PTR>(ownerHwnd_));
-  LogMessage("TooltipWindow owner updated hwnd=%p owner=%p", hwnd_,
-             ownerHwnd_);
+  LogMessage("TooltipWindow owner updated hwnd=%p owner=%p", hwnd_, ownerHwnd_);
 }
 
 void TooltipWindow::Destroy() {
@@ -323,8 +316,7 @@ void TooltipWindow::UpdateUI(const std::string& tooltipText) {
   }
 
   LogMessage("TooltipWindow UpdateUI hwnd=%p owner=%p textLen=%llu", hwnd_,
-             ownerHwnd_,
-             static_cast<unsigned long long>(tooltipText.size()));
+             ownerHwnd_, static_cast<unsigned long long>(tooltipText.size()));
   dpiScale_ = GetDpiScaleForWindow(hwnd_);
   displayString_ = McBopomofo::Utf8ToUtf16(tooltipText);
   rebuildLayoutAndResize_();
@@ -425,7 +417,7 @@ void TooltipWindow::Hide() {
 }
 
 LRESULT CALLBACK TooltipWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
-                                        LPARAM lParam) {
+                                         LPARAM lParam) {
   TooltipWindow* pThis = nullptr;
 
   if (uMsg == WM_NCCREATE) {

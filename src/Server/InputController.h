@@ -96,7 +96,7 @@ class InputController {
 
  private:
   void enterNewState_(std::unique_ptr<InputState> previousState,
-                    std::unique_ptr<InputState> newState);
+                      std::unique_ptr<InputState> newState);
   void handleError_() const;
   void notifyUI_();
   IPC::StateUpdatePayload buildStateUpdatePayload_() const;
@@ -108,8 +108,7 @@ class InputController {
   void moveCandidateCursor_(bool forward);
   void moveCandidatePage_(bool forward);
   void selectCandidate_(
-      int index,
-      const McBopomofo::KeyHandler::StateCallback& stateCallback);
+      int index, const McBopomofo::KeyHandler::StateCallback& stateCallback);
 
   std::shared_ptr<KeyHandler> keyHandler_;
   UIInterface* ui_;

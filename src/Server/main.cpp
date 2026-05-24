@@ -22,10 +22,10 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <dwmapi.h>
 #include <shellapi.h>
 #include <uxtheme.h>
+#include <windows.h>
 
 #include <array>
 #include <cwchar>
@@ -257,9 +257,10 @@ class ServerUI : public UIInterface {
   }
 };
 
-class WinLocalizedStrings : public McBopomofo::LocalizedStrings,
-                            public McBopomofo::InputController::LocalizedStrings,
-                            public McBopomofo::LanguageModelLoader::LocalizedStrings {
+class WinLocalizedStrings
+    : public McBopomofo::LocalizedStrings,
+      public McBopomofo::InputController::LocalizedStrings,
+      public McBopomofo::LanguageModelLoader::LocalizedStrings {
  public:
   // KeyHandler::LocalizedStrings
   std::string cursorIsBetweenSyllables(
@@ -321,7 +322,8 @@ class WinLocalizedStrings : public McBopomofo::LocalizedStrings,
     return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL), IDS_BOOST));
   }
   std::string exclude() override {
-    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL), IDS_EXCLUDE));
+    return Utf16ToUtf8(
+        LoadLocalizedStringW(GetModuleHandle(NULL), IDS_EXCLUDE));
   }
   std::string cancel() override {
     return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL), IDS_CANCEL));
@@ -745,8 +747,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     IPC::ClientLogPayload clientLogReq;
     if (IPC::DeserializeClientLog(req, clientLogReq)) {
       FCITX_MCBOPOMOFO_INFO()
-          << "TIP[" << clientLogReq.processId << "][+"
-          << clientLogReq.elapsedMs << "ms] " << clientLogReq.message;
+          << "TIP[" << clientLogReq.processId << "][+" << clientLogReq.elapsedMs
+          << "ms] " << clientLogReq.message;
       return std::string("1");
     }
 

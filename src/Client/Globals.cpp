@@ -23,10 +23,11 @@
 
 #include "Globals.h"
 
+#include <dwmapi.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <dwmapi.h>
 #include <string.h>
+
 #include <string>
 
 #include "../Common/Ipc.h"
@@ -117,8 +118,8 @@ void LogMessageImpl(bool relayToServer, const char* format, va_list args) {
   ULONGLONG elapsedMs = ElapsedMsSinceProcessStart();
 
   char dbgBuffer[1100];
-  sprintf_s(dbgBuffer, "[WinMcBopomofo] [%lu][+%llums] %s\n",
-            processId, elapsedMs, buffer);
+  sprintf_s(dbgBuffer, "[WinMcBopomofo] [%lu][+%llums] %s\n", processId,
+            elapsedMs, buffer);
   OutputDebugStringA(dbgBuffer);
 
   AppendLogLine("C:\\Users\\Public\\mcbopomofo_tip.log", processId, elapsedMs,

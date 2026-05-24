@@ -23,17 +23,17 @@
 
 #include "CandidateWindow.h"
 
-#include "Globals.h"
+#include <dwmapi.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cwchar>
-#include <dwmapi.h>
-#include <string_view>
 #include <sstream>
+#include <string_view>
 
-#include "UTFHelper.h"
+#include "Globals.h"
 #include "NamedPipe.h"
+#include "UTFHelper.h"
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
@@ -58,11 +58,7 @@ namespace {
 #define DWMWA_BORDER_COLOR 34
 #endif
 
-
-
-D2D1_COLOR_F D2DColorFromRgb(uint32_t rgb) {
-  return D2D1::ColorF(rgb);
-}
+D2D1_COLOR_F D2DColorFromRgb(uint32_t rgb) { return D2D1::ColorF(rgb); }
 
 COLORREF ToColorRef(uint32_t rgb) {
   return RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
@@ -93,7 +89,8 @@ struct GdiFontSet {
   HFONT hintEmojiFont = nullptr;
 };
 
-HFONT CreateUiFont(const wchar_t* faceName, LONG height, LONG weight = FW_NORMAL) {
+HFONT CreateUiFont(const wchar_t* faceName, LONG height,
+                   LONG weight = FW_NORMAL) {
   LOGFONTW lf = {};
   lf.lfHeight = height;
   lf.lfWeight = weight;
@@ -103,12 +100,12 @@ HFONT CreateUiFont(const wchar_t* faceName, LONG height, LONG weight = FW_NORMAL
 }
 
 GdiFontSet CreateGdiFontSet(float dpiScale, int candidateFontSize) {
-  const LONG textHeight =
-      -std::max(12L, static_cast<LONG>(std::lround(candidateFontSize * dpiScale)));
-  const LONG keyHeight =
-      -std::max(10L, static_cast<LONG>(std::lround((candidateFontSize - 3) * dpiScale)));
-  const LONG hintHeight =
-      -std::max(11L, static_cast<LONG>(std::lround((candidateFontSize - 3) * dpiScale)));
+  const LONG textHeight = -std::max(
+      12L, static_cast<LONG>(std::lround(candidateFontSize * dpiScale)));
+  const LONG keyHeight = -std::max(
+      10L, static_cast<LONG>(std::lround((candidateFontSize - 3) * dpiScale)));
+  const LONG hintHeight = -std::max(
+      11L, static_cast<LONG>(std::lround((candidateFontSize - 3) * dpiScale)));
 
   GdiFontSet fonts;
   fonts.textFont = CreateUiFont(L"Microsoft JhengHei UI", textHeight);
@@ -153,7 +150,8 @@ int DrawOrMeasureTextRun(HDC hdc, std::wstring_view text, int x, int y,
       size_t nextLen = 1;
       if (i + 1 < text.size() && IS_HIGH_SURROGATE(text[i]) &&
           IS_LOW_SURROGATE(text[i + 1])) {
-        nextCp = (((text[i] - 0xD800) << 10) | (text[i + 1] - 0xDC00)) + 0x10000;
+        nextCp =
+            (((text[i] - 0xD800) << 10) | (text[i + 1] - 0xDC00)) + 0x10000;
         nextLen = 2;
       }
       if (IsEmojiCodePoint(nextCp) != useEmoji) {
@@ -185,8 +183,9 @@ std::vector<std::pair<UINT32, std::wstring_view>> SplitDisplayLines(
     if (lineEnd == std::wstring::npos) {
       lineEnd = text.size();
     }
-    lines.emplace_back(static_cast<UINT32>(lineStart),
-                       std::wstring_view(text).substr(lineStart, lineEnd - lineStart));
+    lines.emplace_back(
+        static_cast<UINT32>(lineStart),
+        std::wstring_view(text).substr(lineStart, lineEnd - lineStart));
     if (lineEnd == text.size()) {
       break;
     }
@@ -224,7 +223,6 @@ CandidateWindow::CandidateWindow()
       pHighlightTextBrush_(nullptr) {
   createDeviceIndependentResources_();
 }
-
 
 CandidateWindow::~CandidateWindow() {
   Destroy();
@@ -288,26 +286,21 @@ void CandidateWindow::createDeviceResources_() {
     D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
 
     pD2DFactory_->CreateHwndRenderTarget(
-        D2D1::RenderTargetProperties(
-            D2D1_RENDER_TARGET_TYPE_DEFAULT,
-            D2D1::PixelFormat(),
-            96.0f,
-            96.0f
-        ),
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,
+                                     D2D1::PixelFormat(), 96.0f, 96.0f),
         D2D1::HwndRenderTargetProperties(hwnd_, size), &pRenderTarget_);
 
     if (pRenderTarget_) {
-      pRenderTarget_->CreateSolidColorBrush(
-          D2DColorFromRgb(colors_.text), &pTextBrush_);
-      pRenderTarget_->CreateSolidColorBrush(
-          D2DColorFromRgb(colors_.background), &pBgBrush_);
-      pRenderTarget_->CreateSolidColorBrush(
-          D2DColorFromRgb(colors_.border), &pBorderBrush_);
+      pRenderTarget_->CreateSolidColorBrush(D2DColorFromRgb(colors_.text),
+                                            &pTextBrush_);
+      pRenderTarget_->CreateSolidColorBrush(D2DColorFromRgb(colors_.background),
+                                            &pBgBrush_);
+      pRenderTarget_->CreateSolidColorBrush(D2DColorFromRgb(colors_.border),
+                                            &pBorderBrush_);
       pRenderTarget_->CreateSolidColorBrush(
           D2DColorFromRgb(colors_.highlightBackground), &pHighlightBgBrush_);
       pRenderTarget_->CreateSolidColorBrush(
-          D2DColorFromRgb(colors_.highlightText),
-          &pHighlightTextBrush_);
+          D2DColorFromRgb(colors_.highlightText), &pHighlightTextBrush_);
     }
   }
 }
@@ -336,7 +329,8 @@ void CandidateWindow::updateRoundedRegion_() {
     return;
   }
 
-  const int radius = std::max(6, static_cast<int>(std::lround(8.0f * dpiScale_)));
+  const int radius =
+      std::max(6, static_cast<int>(std::lround(8.0f * dpiScale_)));
   HRGN region =
       CreateRoundRectRgn(0, 0, width + 1, height + 1, radius * 2, radius * 2);
   if (region) {
@@ -386,9 +380,9 @@ void CandidateWindow::applyCandidateWindowSettings_(
   }
   candidateKeys_ = keys;
 
-  candidateKeysCount_ =
-      candidateKeysCount >= 4 && candidateKeysCount <= 9 ? candidateKeysCount
-                                                         : 9;
+  candidateKeysCount_ = candidateKeysCount >= 4 && candidateKeysCount <= 9
+                            ? candidateKeysCount
+                            : 9;
 
   if (colors_.text != colors.text || colors_.background != colors.background ||
       colors_.border != colors.border ||
@@ -412,8 +406,7 @@ void CandidateWindow::reloadServerControlledSettings_() {
   }
 
   applyCandidateWindowSettings_(state.candidateWindowVertical,
-                                state.candidateKeys,
-                                state.candidateKeysCount,
+                                state.candidateKeys, state.candidateKeysCount,
                                 state.candidateWindowColors);
   InvalidateRect(hwnd_, nullptr, FALSE);
 }
@@ -437,11 +430,10 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
   RegisterClassExW(
       &wcex);  // Ignore failure as it might be registered by another instance
 
-  hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-                          CANDIDATE_WINDOW_CLASS, L"",
-                          WS_POPUP | WS_CLIPCHILDREN,
-                          0, 0, 100, 30,  // Initial dummy size
-                          ownerHwnd_, nullptr, hInstance_, this);
+  hwnd_ = CreateWindowExW(
+      WS_EX_TOOLWINDOW | WS_EX_TOPMOST, CANDIDATE_WINDOW_CLASS, L"",
+      WS_POPUP | WS_CLIPCHILDREN, 0, 0, 100, 30,  // Initial dummy size
+      ownerHwnd_, nullptr, hInstance_, this);
 
   return hwnd_ != nullptr;
 }
@@ -511,7 +503,6 @@ void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
              ownerHwnd_);
 }
 
-
 void CandidateWindow::Destroy() {
   if (hwnd_) {
     DestroyWindow(hwnd_);
@@ -523,7 +514,8 @@ void CandidateWindow::UpdateUI(const UpdateUIRequest& request) {
   if (!hwnd_) return;
 
   LogMessage(
-      "CandidateWindow UpdateUI hwnd=%p owner=%p candidates=%llu cursorIndex=%d forceVertical=%d vertical=%d hintLen=%llu",
+      "CandidateWindow UpdateUI hwnd=%p owner=%p candidates=%llu "
+      "cursorIndex=%d forceVertical=%d vertical=%d hintLen=%llu",
       hwnd_, ownerHwnd_,
       static_cast<unsigned long long>(request.candidates.size()),
       request.cursorIndex, request.forceVertical ? 1 : 0,
@@ -706,14 +698,12 @@ void CandidateWindow::rebuildLayoutAndResize_() {
             if (globalPos >= rangeStart && globalPos < rangeEnd) {
               inKeyRange = true;
               nextBoundary = std::min(
-                  nextBoundary,
-                  static_cast<size_t>(rangeEnd - globalStart));
+                  nextBoundary, static_cast<size_t>(rangeEnd - globalStart));
               break;
             }
             if (rangeStart > globalPos) {
               nextBoundary = std::min(
-                  nextBoundary,
-                  static_cast<size_t>(rangeStart - globalStart));
+                  nextBoundary, static_cast<size_t>(rangeStart - globalStart));
             }
           }
 
@@ -733,19 +723,19 @@ void CandidateWindow::rebuildLayoutAndResize_() {
         return measuredWidth;
       };
 
-      const int textLineHeight =
-          std::max(fontLineHeight(fonts.textFont), fontLineHeight(fonts.keyFont));
+      const int textLineHeight = std::max(fontLineHeight(fonts.textFont),
+                                          fontLineHeight(fonts.keyFont));
       const int hintLineHeight = fontLineHeight(fonts.hintFont);
       const int lineGap = static_cast<int>(std::lround(4.0f * dpiScale_));
 
       int contentWidth = 0;
       int contentHeight = 0;
       if (!hint_.empty()) {
-        contentWidth = std::max(
-            contentWidth,
-            DrawOrMeasureTextRun(screenDc, hint_, 0, 0, fonts.hintFont,
-                                 fonts.hintEmojiFont, ToColorRef(colors_.text),
-                                 false));
+        contentWidth =
+            std::max(contentWidth,
+                     DrawOrMeasureTextRun(screenDc, hint_, 0, 0, fonts.hintFont,
+                                          fonts.hintEmojiFont,
+                                          ToColorRef(colors_.text), false));
         contentHeight += std::max(hintLineHeight, 14);
       }
 
@@ -755,8 +745,8 @@ void CandidateWindow::rebuildLayoutAndResize_() {
       }
       for (size_t i = 0; i < lines.size(); ++i) {
         const auto& [globalStart, lineText] = lines[i];
-        contentWidth = std::max(contentWidth,
-                                measureCandidateLine(globalStart, lineText));
+        contentWidth =
+            std::max(contentWidth, measureCandidateLine(globalStart, lineText));
         contentHeight += textLineHeight;
         if (i + 1 < lines.size()) {
           contentHeight += lineGap;
@@ -803,7 +793,8 @@ void CandidateWindow::rebuildLayoutAndResize_() {
   height = std::max(height, (int)(24 * dpiScale_));
 
   LogMessage(
-      "CandidateWindow layout hwnd=%p width=%d height=%d dpi=%.3f pageIndex=%d pageSize=%d totalCandidates=%llu selectedStart=%lu selectedLength=%lu",
+      "CandidateWindow layout hwnd=%p width=%d height=%d dpi=%.3f pageIndex=%d "
+      "pageSize=%d totalCandidates=%llu selectedStart=%lu selectedLength=%lu",
       hwnd_, width, height, dpiScale_, pageIndex, pageSize,
       static_cast<unsigned long long>(candidates_.size()),
       static_cast<unsigned long>(selectedRange_.start),
@@ -842,7 +833,7 @@ void CandidateWindow::Hide() {
 }
 
 LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
-                                          LPARAM lParam) {
+                                           LPARAM lParam) {
   CandidateWindow* pThis = nullptr;
 
   if (uMsg == WM_NCCREATE) {
@@ -859,9 +850,8 @@ LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
     } else if (uMsg == WM_ERASEBKGND) {
       return 1;
     } else if (uMsg == WM_SETTINGCHANGE) {
-      if (lParam != 0 &&
-          wcscmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") ==
-              0) {
+      if (lParam != 0 && wcscmp(reinterpret_cast<LPCWSTR>(lParam),
+                                L"ImmersiveColorSet") == 0) {
         pThis->reloadServerControlledSettings_();
         return 0;
       }
@@ -916,7 +906,7 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
         static_cast<int>(std::lround(2.0f * dpiScale_));
     const bool drawVertical = isVertical_ || forceVertical_;
 
-      auto fontLineHeight = [hdc](HFONT font) -> int {
+    auto fontLineHeight = [hdc](HFONT font) -> int {
       if (!font) {
         return 0;
       }
@@ -995,8 +985,7 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
         std::wstring_view segment =
             lineText.substr(localPos, nextBoundary - localPos);
         width += DrawOrMeasureTextRun(
-            hdc, segment, 0, 0,
-            inKeyRange ? fonts.keyFont : fonts.textFont,
+            hdc, segment, 0, 0, inKeyRange ? fonts.keyFont : fonts.textFont,
             inKeyRange ? fonts.keyEmojiFont : fonts.emojiFont,
             ToColorRef(colors_.text), false);
         localPos = nextBoundary;
@@ -1029,7 +1018,8 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
         const UINT32 localEnd = std::min(selEnd, lineEnd) - globalStart;
 
         std::wstring_view prefix = lineText.substr(0, localStart);
-        std::wstring_view selected = lineText.substr(localStart, localEnd - localStart);
+        std::wstring_view selected =
+            lineText.substr(localStart, localEnd - localStart);
         std::wstring_view suffix = lineText.substr(localEnd);
 
         cursorX += drawCandidateLine(globalStart, prefix, cursorX, currentY,
@@ -1039,25 +1029,24 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
             measureCandidateLine(globalStart + localStart, selected);
         const int fullLineWidth = measureCandidateLine(globalStart, lineText);
         RECT highlightRect = {
-            cursorX - highlightPaddingX,
-            currentY - highlightPaddingY,
+            cursorX - highlightPaddingX, currentY - highlightPaddingY,
             drawVertical ? rc.right - (originX - highlightPaddingX)
                          : cursorX + selectedWidth + highlightPaddingX,
             currentY + lineHeight + highlightPaddingY};
         if (drawVertical) {
           highlightRect.left = originX - highlightPaddingX;
-          highlightRect.right =
-              std::max(highlightRect.left + fullLineWidth + highlightPaddingX * 2,
-                       rc.right - (originX - highlightPaddingX));
+          highlightRect.right = std::max(
+              highlightRect.left + fullLineWidth + highlightPaddingX * 2,
+              rc.right - (originX - highlightPaddingX));
         }
         HBRUSH highlightBrush =
             CreateSolidBrush(ToColorRef(colors_.highlightBackground));
         FillRect(hdc, &highlightRect, highlightBrush);
         DeleteObject(highlightBrush);
 
-        cursorX += drawCandidateLine(globalStart + localStart, selected, cursorX,
-                                     currentY,
-                                     ToColorRef(colors_.highlightText));
+        cursorX +=
+            drawCandidateLine(globalStart + localStart, selected, cursorX,
+                              currentY, ToColorRef(colors_.highlightText));
         drawCandidateLine(globalStart + localEnd, suffix, cursorX, currentY,
                           ToColorRef(colors_.text));
       } else {
@@ -1099,8 +1088,8 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
         if (selectedRange_.length > 0 && pHighlightBgBrush_) {
           UINT32 actualHitTestCount = 0;
           pTextLayout_->HitTestTextRange(selectedRange_.start,
-                                         selectedRange_.length, 0, 0, nullptr, 0,
-                                         &actualHitTestCount);
+                                         selectedRange_.length, 0, 0, nullptr,
+                                         0, &actualHitTestCount);
 
           if (actualHitTestCount > 0) {
             std::vector<DWRITE_HIT_TEST_METRICS> hitTestMetrics(

@@ -22,11 +22,12 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #include "TsfUiElement.h"
+
 #include "Globals.h"
-#include "McBopomofoTIP.h"
-#include "UTFHelper.h"
-#include "NamedPipe.h"
 #include "Ipc.h"
+#include "McBopomofoTIP.h"
+#include "NamedPipe.h"
+#include "UTFHelper.h"
 
 namespace {
 bool GetFocusedContext(ITfThreadMgr* threadMgr, ITfContext** context) {
@@ -58,18 +59,22 @@ CCandidateListUIElement::~CCandidateListUIElement() {
   DllRelease();
 }
 
-STDMETHODIMP CCandidateListUIElement::QueryInterface(REFIID riid, void** ppvObj) {
+STDMETHODIMP CCandidateListUIElement::QueryInterface(REFIID riid,
+                                                     void** ppvObj) {
   if (ppvObj == nullptr) {
     return E_INVALIDARG;
   }
   *ppvObj = nullptr;
 
   if (IsEqualIID(riid, IID_IUnknown)) {
-    *ppvObj = static_cast<IUnknown*>(static_cast<ITfCandidateListUIElementBehavior*>(this));
+    *ppvObj = static_cast<IUnknown*>(
+        static_cast<ITfCandidateListUIElementBehavior*>(this));
   } else if (IsEqualIID(riid, IID_ITfUIElement)) {
-    *ppvObj = static_cast<ITfUIElement*>(static_cast<ITfCandidateListUIElementBehavior*>(this));
+    *ppvObj = static_cast<ITfUIElement*>(
+        static_cast<ITfCandidateListUIElementBehavior*>(this));
   } else if (IsEqualIID(riid, IID_ITfCandidateListUIElement)) {
-    *ppvObj = static_cast<ITfCandidateListUIElement*>(static_cast<ITfCandidateListUIElementBehavior*>(this));
+    *ppvObj = static_cast<ITfCandidateListUIElement*>(
+        static_cast<ITfCandidateListUIElementBehavior*>(this));
   } else if (IsEqualIID(riid, IID_ITfCandidateListUIElementBehavior)) {
     *ppvObj = static_cast<ITfCandidateListUIElementBehavior*>(this);
   }
@@ -178,7 +183,8 @@ STDMETHODIMP CCandidateListUIElement::GetString(UINT uIndex, BSTR* pbstr) {
   return *pbstr ? S_OK : E_OUTOFMEMORY;
 }
 
-STDMETHODIMP CCandidateListUIElement::GetPageIndex(UINT* puIndex, UINT uSize, UINT* puPageCnt) {
+STDMETHODIMP CCandidateListUIElement::GetPageIndex(UINT* puIndex, UINT uSize,
+                                                   UINT* puPageCnt) {
   if (puPageCnt == nullptr) {
     return E_INVALIDARG;
   }
@@ -201,7 +207,8 @@ STDMETHODIMP CCandidateListUIElement::GetPageIndex(UINT* puIndex, UINT uSize, UI
   return S_OK;
 }
 
-STDMETHODIMP CCandidateListUIElement::SetPageIndex(UINT* puIndex, UINT uPageCnt) {
+STDMETHODIMP CCandidateListUIElement::SetPageIndex(UINT* puIndex,
+                                                   UINT uPageCnt) {
   noteHostInteraction_("SetPageIndex");
   UNREFERENCED_PARAMETER(puIndex);
   UNREFERENCED_PARAMETER(uPageCnt);
@@ -265,10 +272,9 @@ STDMETHODIMP CCandidateListUIElement::Abort(void) {
   return S_OK;
 }
 
-void CCandidateListUIElement::UpdateData(const std::vector<std::string>& candidates,
-                                         int selectionIndex,
-                                         const std::string& candidateKeys,
-                                         int candidateKeysCount) {
+void CCandidateListUIElement::UpdateData(
+    const std::vector<std::string>& candidates, int selectionIndex,
+    const std::string& candidateKeys, int candidateKeysCount) {
   candidates_.clear();
   for (const auto& cand : candidates) {
     candidates_.push_back(McBopomofo::Utf8ToUtf16(cand));
@@ -277,7 +283,8 @@ void CCandidateListUIElement::UpdateData(const std::vector<std::string>& candida
   candidateKeys_ = McBopomofo::Utf8ToUtf16(candidateKeys);
   candidateKeysCount_ = candidateKeysCount;
   LogMessage(
-      "CCandidateListUIElement::UpdateData count=%llu selectionIndex=%d candidateKeysCount=%d",
+      "CCandidateListUIElement::UpdateData count=%llu selectionIndex=%d "
+      "candidateKeysCount=%d",
       static_cast<unsigned long long>(candidates_.size()), selectionIndex_,
       candidateKeysCount_);
 }
@@ -294,13 +301,9 @@ void CCandidateListUIElement::SetActiveContext(ITfContext* pContext) {
              pActiveContext_);
 }
 
-void CCandidateListUIElement::SetShown(BOOL fShow) {
-  fShown_ = fShow;
-}
+void CCandidateListUIElement::SetShown(BOOL fShow) { fShown_ = fShow; }
 
-void CCandidateListUIElement::ClearTip() {
-  pTIP_ = nullptr;
-}
+void CCandidateListUIElement::ClearTip() { pTIP_ = nullptr; }
 
 void CCandidateListUIElement::ResetDiagnostics() {
   hostInteractionCount_ = 0;
@@ -341,16 +344,19 @@ CReadingInformationUIElement::~CReadingInformationUIElement() {
   DllRelease();
 }
 
-STDMETHODIMP CReadingInformationUIElement::QueryInterface(REFIID riid, void** ppvObj) {
+STDMETHODIMP CReadingInformationUIElement::QueryInterface(REFIID riid,
+                                                          void** ppvObj) {
   if (ppvObj == nullptr) {
     return E_INVALIDARG;
   }
   *ppvObj = nullptr;
 
   if (IsEqualIID(riid, IID_IUnknown)) {
-    *ppvObj = static_cast<IUnknown*>(static_cast<ITfReadingInformationUIElement*>(this));
+    *ppvObj = static_cast<IUnknown*>(
+        static_cast<ITfReadingInformationUIElement*>(this));
   } else if (IsEqualIID(riid, IID_ITfUIElement)) {
-    *ppvObj = static_cast<ITfUIElement*>(static_cast<ITfReadingInformationUIElement*>(this));
+    *ppvObj = static_cast<ITfUIElement*>(
+        static_cast<ITfReadingInformationUIElement*>(this));
   } else if (IsEqualIID(riid, IID_ITfReadingInformationUIElement)) {
     *ppvObj = static_cast<ITfReadingInformationUIElement*>(this);
   }
@@ -407,8 +413,9 @@ STDMETHODIMP CReadingInformationUIElement::GetUpdatedFlags(DWORD* pdwFlags) {
   if (pdwFlags == nullptr) {
     return E_INVALIDARG;
   }
-  *pdwFlags = TF_RIUIE_CONTEXT | TF_RIUIE_STRING | TF_RIUIE_MAXREADINGSTRINGLENGTH |
-              TF_RIUIE_ERRORINDEX | TF_RIUIE_VERTICALORDER;
+  *pdwFlags = TF_RIUIE_CONTEXT | TF_RIUIE_STRING |
+              TF_RIUIE_MAXREADINGSTRINGLENGTH | TF_RIUIE_ERRORINDEX |
+              TF_RIUIE_VERTICALORDER;
   return S_OK;
 }
 
@@ -431,7 +438,8 @@ STDMETHODIMP CReadingInformationUIElement::GetString(BSTR* pbstr) {
   return *pbstr ? S_OK : E_OUTOFMEMORY;
 }
 
-STDMETHODIMP CReadingInformationUIElement::GetMaxReadingStringLength(UINT* puMaxLen) {
+STDMETHODIMP CReadingInformationUIElement::GetMaxReadingStringLength(
+    UINT* puMaxLen) {
   if (puMaxLen == nullptr) {
     return E_INVALIDARG;
   }
@@ -447,7 +455,8 @@ STDMETHODIMP CReadingInformationUIElement::GetErrorIndex(UINT* puErrorIndex) {
   return S_OK;
 }
 
-STDMETHODIMP CReadingInformationUIElement::IsVerticalOrderPreferred(BOOL* pfVertical) {
+STDMETHODIMP CReadingInformationUIElement::IsVerticalOrderPreferred(
+    BOOL* pfVertical) {
   if (pfVertical == nullptr) {
     return E_INVALIDARG;
   }
@@ -455,7 +464,8 @@ STDMETHODIMP CReadingInformationUIElement::IsVerticalOrderPreferred(BOOL* pfVert
   return S_OK;
 }
 
-void CReadingInformationUIElement::UpdateData(const std::string& readingString) {
+void CReadingInformationUIElement::UpdateData(
+    const std::string& readingString) {
   readingString_ = McBopomofo::Utf8ToUtf16(readingString);
 }
 
@@ -469,10 +479,6 @@ void CReadingInformationUIElement::SetActiveContext(ITfContext* pContext) {
   }
 }
 
-void CReadingInformationUIElement::SetShown(BOOL fShow) {
-  fShown_ = fShow;
-}
+void CReadingInformationUIElement::SetShown(BOOL fShow) { fShown_ = fShow; }
 
-void CReadingInformationUIElement::ClearTip() {
-  pTIP_ = nullptr;
-}
+void CReadingInformationUIElement::ClearTip() { pTIP_ = nullptr; }

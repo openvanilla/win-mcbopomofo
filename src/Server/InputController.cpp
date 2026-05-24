@@ -364,14 +364,14 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
     }
   }
 
-  FCITX_MCBOPOMOFO_INFO()
-      << "Server buildStateUpdatePayload state=" << StateName(state)
-      << " composingLen=" << payload.composingBuffer.size()
-      << " cursorIndex=" << payload.cursorIndex
-      << " candidateCount=" << payload.candidates.size()
-      << " candidateIndex=" << payload.candidateIndex
-      << " tooltipLen=" << payload.tooltip.size()
-      << " forceVertical=" << payload.forceVertical;
+  FCITX_MCBOPOMOFO_INFO() << "Server buildStateUpdatePayload state="
+                          << StateName(state)
+                          << " composingLen=" << payload.composingBuffer.size()
+                          << " cursorIndex=" << payload.cursorIndex
+                          << " candidateCount=" << payload.candidates.size()
+                          << " candidateIndex=" << payload.candidateIndex
+                          << " tooltipLen=" << payload.tooltip.size()
+                          << " forceVertical=" << payload.forceVertical;
 
   return payload;
 }
@@ -535,8 +535,8 @@ bool InputController::handleCandidateKey_(
   }
 
   bool useShiftKey = numberInput != nullptr || associatedPlain != nullptr;
-  char ascii = static_cast<char>(std::tolower(
-      static_cast<unsigned char>(static_cast<char>(key.ascii))));
+  char ascii = static_cast<char>(
+      std::tolower(static_cast<unsigned char>(static_cast<char>(key.ascii))));
   if (canHandleChoosingCandidate && !useShiftKey) {
     if (selectionAction_ == "JK") {
       if (ascii == 'j') {
@@ -615,10 +615,11 @@ bool InputController::handleCandidateKey_(
 
     if (auto* customMenu =
             dynamic_cast<InputStates::CustomMenu*>(currentState_.get())) {
-      if (auto* previousChoosing = dynamic_cast<InputStates::ChoosingCandidate*>(
-              customMenu->previousState.get())) {
-        stateCallback(
-            std::make_unique<InputStates::ChoosingCandidate>(*previousChoosing));
+      if (auto* previousChoosing =
+              dynamic_cast<InputStates::ChoosingCandidate*>(
+                  customMenu->previousState.get())) {
+        stateCallback(std::make_unique<InputStates::ChoosingCandidate>(
+            *previousChoosing));
       } else {
         stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
       }
@@ -626,10 +627,11 @@ bool InputController::handleCandidateKey_(
     }
 
     if (associated != nullptr) {
-      if (auto* previousChoosing = dynamic_cast<InputStates::ChoosingCandidate*>(
-              associated->previousState.get())) {
-        stateCallback(
-            std::make_unique<InputStates::ChoosingCandidate>(*previousChoosing));
+      if (auto* previousChoosing =
+              dynamic_cast<InputStates::ChoosingCandidate*>(
+                  associated->previousState.get())) {
+        stateCallback(std::make_unique<InputStates::ChoosingCandidate>(
+            *previousChoosing));
       } else if (auto* inputting = dynamic_cast<InputStates::Inputting*>(
                      associated->previousState.get())) {
         stateCallback(std::make_unique<InputStates::Inputting>(*inputting));
@@ -705,7 +707,8 @@ bool InputController::handleCandidateKey_(
       if (dictionaryServices != nullptr && dictionaryServices->hasServices()) {
         const auto& candidate = choosing->candidates[candidateIndex_];
         if (!HasInvalidDictionaryPrefix(candidate.reading)) {
-          auto copy = std::make_unique<InputStates::ChoosingCandidate>(*choosing);
+          auto copy =
+              std::make_unique<InputStates::ChoosingCandidate>(*choosing);
           auto newState = keyHandler_->buildSelectingDictionaryState(
               std::move(copy), candidate.value,
               static_cast<size_t>(candidateIndex_));
@@ -745,15 +748,13 @@ bool InputController::handleCandidateKey_(
                 stateCallback(keyHandler_->buildInputtingState());
               });
         }
-        entries.emplace_back(localizedStrings_->cancel(),
-                             [this, stateCallback]() {
-                               auto inputting = keyHandler_->buildInputtingState();
-                               auto newChoosing =
-                                   keyHandler_->buildChoosingCandidateState(
-                                       inputting.get(),
-                                       keyHandler_->candidateCursorIndex());
-                               stateCallback(std::move(newChoosing));
-                             });
+        entries.emplace_back(
+            localizedStrings_->cancel(), [this, stateCallback]() {
+              auto inputting = keyHandler_->buildInputtingState();
+              auto newChoosing = keyHandler_->buildChoosingCandidateState(
+                  inputting.get(), keyHandler_->candidateCursorIndex());
+              stateCallback(std::move(newChoosing));
+            });
 
         auto copy = std::make_unique<InputStates::ChoosingCandidate>(*choosing);
         auto menu = std::make_unique<InputStates::CustomMenu>(
@@ -1069,12 +1070,14 @@ void InputController::refreshUI() { notifyUI_(); }
 
 void InputController::enterNewState_(std::unique_ptr<InputState> previousState,
                                      std::unique_ptr<InputState> newState) {
-  FCITX_MCBOPOMOFO_INFO()
-      << "Server enterNewState from=" << StateName(previousState.get())
-      << " to=" << StateName(newState.get())
-      << " prevCandidateCount=" << CandidateCount(previousState.get())
-      << " newCandidateCount=" << CandidateCount(newState.get())
-      << " currentCandidateIndex=" << candidateIndex_;
+  FCITX_MCBOPOMOFO_INFO() << "Server enterNewState from="
+                          << StateName(previousState.get())
+                          << " to=" << StateName(newState.get())
+                          << " prevCandidateCount="
+                          << CandidateCount(previousState.get())
+                          << " newCandidateCount="
+                          << CandidateCount(newState.get())
+                          << " currentCandidateIndex=" << candidateIndex_;
 
   if (auto* sequence =
           dynamic_cast<InputStates::StateSequence*>(newState.get())) {
@@ -1145,10 +1148,11 @@ void InputController::enterNewState_(std::unique_ptr<InputState> previousState,
   }
 
   currentState_ = std::move(newState);
-  FCITX_MCBOPOMOFO_INFO()
-      << "Server state committed current=" << StateName(currentState_.get())
-      << " candidateIndex=" << candidateIndex_
-      << " candidateCount=" << CandidateCount(currentState_.get());
+  FCITX_MCBOPOMOFO_INFO() << "Server state committed current="
+                          << StateName(currentState_.get())
+                          << " candidateIndex=" << candidateIndex_
+                          << " candidateCount="
+                          << CandidateCount(currentState_.get());
   notifyUI_();
 }
 

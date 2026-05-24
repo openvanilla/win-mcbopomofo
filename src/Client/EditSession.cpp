@@ -63,4 +63,3 @@ STDAPI_(ULONG) CEditSessionBase::Release() {
   }
   return cr;
 }
-

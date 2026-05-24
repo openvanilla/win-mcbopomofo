@@ -156,21 +156,31 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   TooltipWindow* GetTooltipWindow() { return &tooltipWindow_; }
 
   ITfUIElementMgr* GetUIElementMgr() const { return pUIElementMgr_; }
-  CCandidateListUIElement* GetCandidateUIElement() const { return pCandidateUIElement_; }
-  CReadingInformationUIElement* GetReadingUIElement() const { return pReadingUIElement_; }
-  
+  CCandidateListUIElement* GetCandidateUIElement() const {
+    return pCandidateUIElement_;
+  }
+  CReadingInformationUIElement* GetReadingUIElement() const {
+    return pReadingUIElement_;
+  }
+
   DWORD GetCandidateUIElementId() const { return dwCandidateUIElementId_; }
   DWORD GetReadingUIElementId() const { return dwReadingUIElementId_; }
   void SetCandidateUIElementId(DWORD id) { dwCandidateUIElementId_ = id; }
   void SetReadingUIElementId(DWORD id) { dwReadingUIElementId_ = id; }
-  
+
   ITfThreadMgr* GetThreadMgr() const { return ptim_; }
   TfClientId GetClientId() const { return tid_; }
 
-  bool IsShowCustomCandidateWindow() const { return showCustomCandidateWindow_; }
-  void SetShowCustomCandidateWindow(bool show) { showCustomCandidateWindow_ = show; }
+  bool IsShowCustomCandidateWindow() const {
+    return showCustomCandidateWindow_;
+  }
+  void SetShowCustomCandidateWindow(bool show) {
+    showCustomCandidateWindow_ = show;
+  }
   bool IsShowCustomTooltipWindow() const { return showCustomTooltipWindow_; }
-  void SetShowCustomTooltipWindow(bool show) { showCustomTooltipWindow_ = show; }
+  void SetShowCustomTooltipWindow(bool show) {
+    showCustomTooltipWindow_ = show;
+  }
 
  private:
   ITfUIElementMgr* pUIElementMgr_ = nullptr;

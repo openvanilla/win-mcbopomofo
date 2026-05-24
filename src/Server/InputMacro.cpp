@@ -22,15 +22,17 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #include "InputMacro.h"
-#include "UTFHelper.h"
 
 #include <icu.h>
+
+#include <cmath>
 #include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <cmath>
+
+#include "UTFHelper.h"
 
 namespace McBopomofo {
 
@@ -38,8 +40,7 @@ namespace {
 std::string FormatDate(const std::string& calendarName, int dayOffset,
                        UDateFormatStyle dateStyle);
 std::string FormatWithPattern(const std::string& calendarName, int yearOffset,
-                              int dateOffset,
-                              const std::wstring& pattern);
+                              int dateOffset, const std::wstring& pattern);
 std::string FormatTime(UDateFormatStyle timeStyle);
 std::string FormatTimeZone(UCalendarDisplayNameType type);
 int GetCurrentYear();
@@ -196,13 +197,15 @@ class InputMacroDateTodayMediumRoc : public InputMacroDate {
 class InputMacroDateTodayMediumChinese : public InputMacroDate {
  public:
   InputMacroDateTodayMediumChinese()
-      : InputMacroDate("MACRO@DATE_TODAY_MEDIUM_CHINESE", "chinese", 0, UDAT_MEDIUM) {}
+      : InputMacroDate("MACRO@DATE_TODAY_MEDIUM_CHINESE", "chinese", 0,
+                       UDAT_MEDIUM) {}
 };
 
 class InputMacroDateTodayMediumJapanese : public InputMacroDate {
  public:
   InputMacroDateTodayMediumJapanese()
-      : InputMacroDate("MACRO@DATE_TODAY_MEDIUM_JAPANESE", "japanese", 0, UDAT_MEDIUM) {}
+      : InputMacroDate("MACRO@DATE_TODAY_MEDIUM_JAPANESE", "japanese", 0,
+                       UDAT_MEDIUM) {}
 };
 
 class InputMacroDateYesterdayShort : public InputMacroDate {
@@ -220,19 +223,22 @@ class InputMacroDateYesterdayMedium : public InputMacroDate {
 class InputMacroDateYesterdayMediumRoc : public InputMacroDate {
  public:
   InputMacroDateYesterdayMediumRoc()
-      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_ROC", "roc", -1, UDAT_MEDIUM) {}
+      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_ROC", "roc", -1,
+                       UDAT_MEDIUM) {}
 };
 
 class InputMacroDateYesterdayMediumChinese : public InputMacroDate {
  public:
   InputMacroDateYesterdayMediumChinese()
-      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_CHINESE", "chinese", -1, UDAT_MEDIUM) {}
+      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_CHINESE", "chinese", -1,
+                       UDAT_MEDIUM) {}
 };
 
 class InputMacroDateYesterdayMediumJapanese : public InputMacroDate {
  public:
   InputMacroDateYesterdayMediumJapanese()
-      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_JAPANESE", "japanese", -1, UDAT_MEDIUM) {}
+      : InputMacroDate("MACRO@DATE_YESTERDAY_MEDIUM_JAPANESE", "japanese", -1,
+                       UDAT_MEDIUM) {}
 };
 
 class InputMacroDateTomorrowShort : public InputMacroDate {
@@ -250,19 +256,22 @@ class InputMacroDateTomorrowMedium : public InputMacroDate {
 class InputMacroDateTomorrowMediumRoc : public InputMacroDate {
  public:
   InputMacroDateTomorrowMediumRoc()
-      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_ROC", "roc", 1, UDAT_MEDIUM) {}
+      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_ROC", "roc", 1,
+                       UDAT_MEDIUM) {}
 };
 
 class InputMacroDateTomorrowMediumChinese : public InputMacroDate {
  public:
   InputMacroDateTomorrowMediumChinese()
-      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_CHINESE", "chinese", 1, UDAT_MEDIUM) {}
+      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_CHINESE", "chinese", 1,
+                       UDAT_MEDIUM) {}
 };
 
 class InputMacroDateTomorrowMediumJapanese : public InputMacroDate {
  public:
   InputMacroDateTomorrowMediumJapanese()
-      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_JAPANESE", "japanese", 1, UDAT_MEDIUM) {}
+      : InputMacroDate("MACRO@DATE_TOMORROW_MEDIUM_JAPANESE", "japanese", 1,
+                       UDAT_MEDIUM) {}
 };
 
 class InputMacroThisYearPlain : public InputMacroYear {
@@ -376,8 +385,8 @@ class InputMacroWeekdayYesterdayShort : public InputMacroDayOfTheWeek {
 class InputMacroWeekdayYesterday : public InputMacroDayOfTheWeek {
  public:
   InputMacroWeekdayYesterday()
-      : InputMacroDayOfTheWeek("MACRO@DATE_YESTERDAY_WEEKDAY", "", -1, L"EEEE") {
-  }
+      : InputMacroDayOfTheWeek("MACRO@DATE_YESTERDAY_WEEKDAY", "", -1,
+                               L"EEEE") {}
 };
 
 class InputMacroWeekdayYesterday2 : public InputMacroDayOfTheWeek {
@@ -414,7 +423,8 @@ class InputMacroWeekdayTomorrow : public InputMacroDayOfTheWeek {
 class InputMacroWeekdayTomorrow2 : public InputMacroDayOfTheWeek {
  public:
   InputMacroWeekdayTomorrow2()
-      : InputMacroDayOfTheWeek("MACRO@DATE_TOMORROW2_WEEKDAY", "", 1, L"EEEE") {}
+      : InputMacroDayOfTheWeek("MACRO@DATE_TOMORROW2_WEEKDAY", "", 1, L"EEEE") {
+  }
   [[nodiscard]] std::string replacement() const override {
     std::string original(InputMacroDayOfTheWeek::replacement());
     return ConvertWeekdayUnit(original);
@@ -449,7 +459,8 @@ class InputMacroTimeZoneStandard : public InputMacroTimeZone {
 class InputMacroTimeZoneShortGeneric : public InputMacroTimeZone {
  public:
   InputMacroTimeZoneShortGeneric()
-      : InputMacroTimeZone("MACRO@TIMEZONE_GENERIC_SHORT", UCAL_SHORT_STANDARD) {}
+      : InputMacroTimeZone("MACRO@TIMEZONE_GENERIC_SHORT",
+                           UCAL_SHORT_STANDARD) {}
 };
 
 class InputMacroThisYearGanZhi : public InputMacroGanZhi {
@@ -561,7 +572,8 @@ std::string FormatWithStyle(const std::string& calendarName, int yearOffset,
   UErrorCode status = U_ZERO_ERROR;
   std::string locale = CreateLocaleName(calendarName);
 
-  UCalendar* cal = ucal_open(nullptr, -1, locale.c_str(), UCAL_DEFAULT, &status);
+  UCalendar* cal =
+      ucal_open(nullptr, -1, locale.c_str(), UCAL_DEFAULT, &status);
   if (U_FAILURE(status)) return "";
 
   ucal_setMillis(cal, ucal_getNow(), &status);
@@ -573,14 +585,16 @@ std::string FormatWithStyle(const std::string& calendarName, int yearOffset,
     ucal_add(cal, UCAL_DATE, dayOffset, &status);
   }
 
-  UDateFormat* df = udat_open(timeStyle, dateStyle, locale.c_str(), nullptr, -1, nullptr, 0, &status);
+  UDateFormat* df = udat_open(timeStyle, dateStyle, locale.c_str(), nullptr, -1,
+                              nullptr, 0, &status);
   if (U_FAILURE(status)) {
     ucal_close(cal);
     return "";
   }
 
   UChar result[256] = {0};
-  int32_t len = udat_format(df, ucal_getMillis(cal, &status), result, 256, nullptr, &status);
+  int32_t len = udat_format(df, ucal_getMillis(cal, &status), result, 256,
+                            nullptr, &status);
 
   udat_close(df);
   ucal_close(cal);
@@ -591,12 +605,12 @@ std::string FormatWithStyle(const std::string& calendarName, int yearOffset,
 }
 
 std::string FormatWithPattern(const std::string& calendarName, int yearOffset,
-                              int dateOffset,
-                              const std::wstring& pattern) {
+                              int dateOffset, const std::wstring& pattern) {
   UErrorCode status = U_ZERO_ERROR;
   std::string locale = CreateLocaleName(calendarName);
 
-  UCalendar* cal = ucal_open(nullptr, -1, locale.c_str(), UCAL_DEFAULT, &status);
+  UCalendar* cal =
+      ucal_open(nullptr, -1, locale.c_str(), UCAL_DEFAULT, &status);
   if (U_FAILURE(status)) return "";
 
   ucal_setMillis(cal, ucal_getNow(), &status);
@@ -608,15 +622,18 @@ std::string FormatWithPattern(const std::string& calendarName, int yearOffset,
     ucal_add(cal, UCAL_DATE, dateOffset, &status);
   }
 
-  UDateFormat* df = udat_open(UDAT_PATTERN, UDAT_PATTERN, locale.c_str(), nullptr, -1, 
-                              reinterpret_cast<const UChar*>(pattern.c_str()), (int32_t)pattern.length(), &status);
+  UDateFormat* df =
+      udat_open(UDAT_PATTERN, UDAT_PATTERN, locale.c_str(), nullptr, -1,
+                reinterpret_cast<const UChar*>(pattern.c_str()),
+                (int32_t)pattern.length(), &status);
   if (U_FAILURE(status)) {
     ucal_close(cal);
     return "";
   }
 
   UChar result[256] = {0};
-  int32_t len = udat_format(df, ucal_getMillis(cal, &status), result, 256, nullptr, &status);
+  int32_t len = udat_format(df, ucal_getMillis(cal, &status), result, 256,
+                            nullptr, &status);
 
   udat_close(df);
   ucal_close(cal);
@@ -634,8 +651,7 @@ std::string FormatDate(const std::string& calendarName, int dayOffset,
 
 std::string FormatTime(UDateFormatStyle timeStyle) {
   return FormatWithStyle(/*calendarName*/ "", /*yearOffset*/ 0, /*dayOffset*/ 0,
-                         /*dateStyle*/ UDAT_NONE,
-                         timeStyle);
+                         /*dateStyle*/ UDAT_NONE, timeStyle);
 }
 
 std::string FormatTimeZone(UCalendarDisplayNameType type) {
@@ -644,7 +660,8 @@ std::string FormatTimeZone(UCalendarDisplayNameType type) {
   if (U_FAILURE(status)) return "";
 
   UChar result[256] = {0};
-  int32_t len = ucal_getTimeZoneDisplayName(cal, type, "zh_Hant_TW", result, 256, &status);
+  int32_t len = ucal_getTimeZoneDisplayName(cal, type, "zh_Hant_TW", result,
+                                            256, &status);
 
   ucal_close(cal);
 
@@ -655,7 +672,8 @@ std::string FormatTimeZone(UCalendarDisplayNameType type) {
 
 int GetCurrentYear() {
   UErrorCode status = U_ZERO_ERROR;
-  UCalendar* cal = ucal_open(nullptr, -1, "zh_Hant_TW", UCAL_GREGORIAN, &status);
+  UCalendar* cal =
+      ucal_open(nullptr, -1, "zh_Hant_TW", UCAL_GREGORIAN, &status);
   if (U_FAILURE(status)) return 0;
 
   ucal_setMillis(cal, ucal_getNow(), &status);

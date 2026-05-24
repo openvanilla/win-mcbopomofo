@@ -24,12 +24,13 @@
 #include "Register.h"
 
 #include <strsafe.h>
+
 #include <string>
 
 #include "DisplayAttributeInfo.h"
 #include "Globals.h"
-#include "resource.h"
 #include "UTFHelper.h"
+#include "resource.h"
 
 // Profile GUID for McBopomofo (Genereted a new random one)
 // {A3668853-2ED4-4D4B-A951-DE1C8B4C0A29}
@@ -71,7 +72,8 @@ BOOL RegisterServer() {
 
   if (!SetRegString(
           HKEY_CLASSES_ROOT, szKey, nullptr,
-          McBopomofo::LoadLocalizedStringW(g_hInst, IDS_WIN_MCBOPOMOFO).c_str()))
+          McBopomofo::LoadLocalizedStringW(g_hInst, IDS_WIN_MCBOPOMOFO)
+              .c_str()))
     return FALSE;
 
   WCHAR szInProcKey[256];
@@ -192,18 +194,16 @@ void UnregisterCategories() {
   pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
                                    GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
                                    c_clsidMcBopomofoTIP);
-  pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
-                                   GUID_TFCAT_TIPCAP_SECUREMODE,
-                                   c_clsidMcBopomofoTIP);
+  pCategoryMgr->UnregisterCategory(
+      c_clsidMcBopomofoTIP, GUID_TFCAT_TIPCAP_SECUREMODE, c_clsidMcBopomofoTIP);
   pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
                                    GUID_TFCAT_TIPCAP_UIELEMENTENABLED,
                                    c_clsidMcBopomofoTIP);
-  pCategoryMgr->UnregisterCategory(
-      c_clsidMcBopomofoTIP, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT,
-      c_clsidMcBopomofoTIP);
   pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
-                                   GUID_TFCAT_TIPCAP_COMLESS,
+                                   GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT,
                                    c_clsidMcBopomofoTIP);
+  pCategoryMgr->UnregisterCategory(
+      c_clsidMcBopomofoTIP, GUID_TFCAT_TIPCAP_COMLESS, c_clsidMcBopomofoTIP);
   pCategoryMgr->UnregisterCategory(c_clsidMcBopomofoTIP,
                                    GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT,
                                    c_clsidMcBopomofoTIP);

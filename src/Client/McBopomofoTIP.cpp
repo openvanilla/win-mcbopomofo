@@ -189,9 +189,8 @@ bool IsShiftKey(WPARAM wParam) {
 bool IsAltPressed(const BYTE keyboardState[256]) {
   return (keyboardState[VK_MENU] & 0x80) != 0 ||
          (keyboardState[VK_LMENU] & 0x80) != 0 ||
-         (keyboardState[VK_RMENU] & 0x80) != 0 ||
-         IsVirtualKeyDown(VK_MENU) || IsVirtualKeyDown(VK_LMENU) ||
-         IsVirtualKeyDown(VK_RMENU);
+         (keyboardState[VK_RMENU] & 0x80) != 0 || IsVirtualKeyDown(VK_MENU) ||
+         IsVirtualKeyDown(VK_LMENU) || IsVirtualKeyDown(VK_RMENU);
 }
 
 bool IsOnlyShiftKeyEvent(WPARAM wParam, const BYTE keyboardState[256]) {
@@ -440,7 +439,8 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     pCompMgr->Release();
   }
 
-  if (SUCCEEDED(ptim_->QueryInterface(IID_ITfUIElementMgr, (void**)&pUIElementMgr_))) {
+  if (SUCCEEDED(ptim_->QueryInterface(IID_ITfUIElementMgr,
+                                      (void**)&pUIElementMgr_))) {
     pCandidateUIElement_ = new CCandidateListUIElement(this);
     pReadingUIElement_ = new CReadingInformationUIElement(this);
     LogMessage("ITfUIElementMgr successfully acquired.");
@@ -916,11 +916,11 @@ bool McBopomofoTIP::handleStandaloneShiftKeyDown_(
   return false;
 }
 
-bool McBopomofoTIP::handleStandaloneShiftKeyUp_(
-    WPARAM wParam, const BYTE keyboardState[256]) {
-  const bool shouldToggle =
-      IsOnlyShiftKeyEvent(wParam, keyboardState) && shiftToggleKeyPending_ &&
-      shouldToggleOpenCloseWithShift_();
+bool McBopomofoTIP::handleStandaloneShiftKeyUp_(WPARAM wParam,
+                                                const BYTE keyboardState[256]) {
+  const bool shouldToggle = IsOnlyShiftKeyEvent(wParam, keyboardState) &&
+                            shiftToggleKeyPending_ &&
+                            shouldToggleOpenCloseWithShift_();
   shiftToggleKeyPending_ = false;
   if (!shouldToggle) {
     return false;

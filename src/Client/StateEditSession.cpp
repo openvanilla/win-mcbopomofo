@@ -82,7 +82,7 @@ void MoveAuxiliaryWindowsInternal(McBopomofoTIP* tip, const RECT& rc) {
   MONITORINFO mi = {0};
   mi.cbSize = sizeof(MONITORINFO);
   GetMonitorInfoW(hMonitor, &mi);
-  
+
   const int screenBottom = mi.rcWork.bottom;
   const int screenRight = mi.rcWork.right;
   const int screenLeft = mi.rcWork.left;
@@ -92,9 +92,10 @@ void MoveAuxiliaryWindowsInternal(McBopomofoTIP* tip, const RECT& rc) {
   int tooltipHeight = tooltipVisible ? tooltipWin->GetHeight() : 0;
   int tooltipWidth = tooltipVisible ? tooltipWin->GetWidth() : 0;
 
-  int totalRequiredHeight = tooltipHeight + (tooltipVisible && candVisible ? 4 : 0) + candHeight;
+  int totalRequiredHeight =
+      tooltipHeight + (tooltipVisible && candVisible ? 4 : 0) + candHeight;
   int yBelow = rc.bottom + 10;
-  
+
   int finalCandY = 0;
   int finalTooltipY = 0;
   bool showAbove = false;
@@ -107,7 +108,8 @@ void MoveAuxiliaryWindowsInternal(McBopomofoTIP* tip, const RECT& rc) {
     // If going above, candidate window is at the bottom, tooltip above it.
     // cand_win.y = input_text_rect.top - cand_win.height - 10
     finalCandY = rc.top - candHeight - 10;
-    finalTooltipY = finalCandY - tooltipHeight - (tooltipVisible && candVisible ? 4 : 0);
+    finalTooltipY =
+        finalCandY - tooltipHeight - (tooltipVisible && candVisible ? 4 : 0);
   } else {
     // Default below
     finalTooltipY = yBelow;
@@ -172,7 +174,8 @@ bool MoveWindowsToSelection(TfEditCookie ec, ITfContext* context,
       context->GetSelection(ec, TF_DEFAULT_SELECTION, 1, &selection, &fetched);
   if (FAILED(hr) || fetched != 1 || !selection.range) {
     LogMessage(
-        "MoveWindowsToSelection GetSelection failed hr=0x%08X fetched=%lu range=%p",
+        "MoveWindowsToSelection GetSelection failed hr=0x%08X fetched=%lu "
+        "range=%p",
         hr, static_cast<unsigned long>(fetched), selection.range);
     return false;
   }
@@ -195,7 +198,7 @@ void MoveWindowsToCaretFallback(McBopomofoTIP* tip) {
     POINT ptBottomRight = {caretRect.right, caretRect.bottom};
     ClientToScreen(gti.hwndCaret, &ptTopLeft);
     ClientToScreen(gti.hwndCaret, &ptBottomRight);
-    
+
     RECT screenRect;
     screenRect.left = ptTopLeft.x;
     screenRect.top = ptTopLeft.y;
@@ -465,7 +468,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             DWORD dwId = pTIP_->GetReadingUIElementId();
             if (dwId == 0) {
               BOOL bShow = TRUE;
-              if (SUCCEEDED(pUIElementMgr->BeginUIElement(pReadingElement, &bShow, &dwId))) {
+              if (SUCCEEDED(pUIElementMgr->BeginUIElement(pReadingElement,
+                                                          &bShow, &dwId))) {
                 pTIP_->SetReadingUIElementId(dwId);
                 pTIP_->SetShowCustomTooltipWindow(bShow ? true : false);
               }
@@ -485,7 +489,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         }
 
         if (showCustomTooltip && !state_.tooltip.empty()) {
-          pTIP_->GetTooltipWindow()->SetOwnerWindow(GetContextWindow(pContext_));
+          pTIP_->GetTooltipWindow()->SetOwnerWindow(
+              GetContextWindow(pContext_));
           pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
         } else {
           pTIP_->GetTooltipWindow()->Hide();
@@ -500,7 +505,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           if (!state_.candidates.empty()) {
             LogContextWindowInfo("CandidateUI composition host", pContext_);
             pCandElement->UpdateData(state_.candidates, state_.candidateIndex,
-                                     state_.candidateKeys, state_.candidateKeysCount);
+                                     state_.candidateKeys,
+                                     state_.candidateKeysCount);
             pCandElement->SetShown(TRUE);
 
             DWORD dwId = pTIP_->GetCandidateUIElementId();
@@ -510,7 +516,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
               HRESULT hr =
                   pUIElementMgr->BeginUIElement(pCandElement, &bShow, &dwId);
               LogMessage(
-                  "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s",
+                  "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d "
+                  "dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s",
                   hr, bShow ? 1 : 0, static_cast<unsigned long>(dwId),
                   static_cast<unsigned long long>(state_.candidates.size()),
                   pCandElement->HostInteractionCount(),
@@ -522,7 +529,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             } else {
               HRESULT hr = pUIElementMgr->UpdateUIElement(dwId);
               LogMessage(
-                  "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s",
+                  "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu "
+                  "hostInteractions=%lu lastHostMethod=%s",
                   hr, static_cast<unsigned long>(dwId),
                   static_cast<unsigned long long>(state_.candidates.size()),
                   pCandElement->HostInteractionCount(),
@@ -530,7 +538,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             }
             showCustomCand = pTIP_->IsShowCustomCandidateWindow();
             LogMessage(
-                "CandidateUI customFallback=%d hostInteracted=%d hostInteractions=%lu lastHostMethod=%s after TSF routing",
+                "CandidateUI customFallback=%d hostInteracted=%d "
+                "hostInteractions=%lu lastHostMethod=%s after TSF routing",
                 showCustomCand ? 1 : 0,
                 pCandElement->HasHostInteraction() ? 1 : 0,
                 pCandElement->HostInteractionCount(),
@@ -547,7 +556,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         }
 
         if (showCustomCand && !state_.candidates.empty()) {
-          pTIP_->GetCandidateWindow()->SetOwnerWindow(GetContextWindow(pContext_));
+          pTIP_->GetCandidateWindow()->SetOwnerWindow(
+              GetContextWindow(pContext_));
           CandidateWindow::UpdateUIRequest request;
           request.candidates = state_.candidates;
           request.cursorIndex = state_.candidateIndex;
@@ -566,7 +576,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
 
         // Now move the auxiliary windows
         if (!directCommitWithoutComposition &&
-            ((showCustomCand && !state_.candidates.empty()) || (showCustomTooltip && !state_.tooltip.empty()))) {
+            ((showCustomCand && !state_.candidates.empty()) ||
+             (showCustomTooltip && !state_.tooltip.empty()))) {
           MoveAuxiliaryWindows(ec, pContext_, pCursorRange, pTIP_);
         }
         pCursorRange->Release();
@@ -598,7 +609,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
   // (e.g. from ChoosingPunctuationList triggered from Empty state)
   if (!directCommitWithoutComposition && pTIP_->GetComposition() == nullptr &&
       (!state_.candidates.empty() || !state_.tooltip.empty())) {
-    
     bool showCustomTooltip = true;
     if (pTIP_->GetUIElementMgr() && pTIP_->GetReadingUIElement()) {
       auto* pUIElementMgr = pTIP_->GetUIElementMgr();
@@ -612,7 +622,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         DWORD dwId = pTIP_->GetReadingUIElementId();
         if (dwId == 0) {
           BOOL bShow = TRUE;
-          if (SUCCEEDED(pUIElementMgr->BeginUIElement(pReadingElement, &bShow, &dwId))) {
+          if (SUCCEEDED(pUIElementMgr->BeginUIElement(pReadingElement, &bShow,
+                                                      &dwId))) {
             pTIP_->SetReadingUIElementId(dwId);
             pTIP_->SetShowCustomTooltipWindow(bShow ? true : false);
           }
@@ -647,7 +658,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       if (!state_.candidates.empty()) {
         LogContextWindowInfo("CandidateUI no-composition host", pContext_);
         pCandElement->UpdateData(state_.candidates, state_.candidateIndex,
-                                 state_.candidateKeys, state_.candidateKeysCount);
+                                 state_.candidateKeys,
+                                 state_.candidateKeysCount);
         pCandElement->SetShown(TRUE);
 
         DWORD dwId = pTIP_->GetCandidateUIElementId();
@@ -657,7 +669,9 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           HRESULT hr =
               pUIElementMgr->BeginUIElement(pCandElement, &bShow, &dwId);
           LogMessage(
-              "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s (no composition)",
+              "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d "
+              "dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s (no "
+              "composition)",
               hr, bShow ? 1 : 0, static_cast<unsigned long>(dwId),
               static_cast<unsigned long long>(state_.candidates.size()),
               pCandElement->HostInteractionCount(),
@@ -669,7 +683,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         } else {
           HRESULT hr = pUIElementMgr->UpdateUIElement(dwId);
           LogMessage(
-              "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s (no composition)",
+              "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu "
+              "hostInteractions=%lu lastHostMethod=%s (no composition)",
               hr, static_cast<unsigned long>(dwId),
               static_cast<unsigned long long>(state_.candidates.size()),
               pCandElement->HostInteractionCount(),
@@ -677,9 +692,10 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         }
         showCustomCand = pTIP_->IsShowCustomCandidateWindow();
         LogMessage(
-            "CandidateUI customFallback=%d hostInteracted=%d hostInteractions=%lu lastHostMethod=%s after TSF routing (no composition)",
-            showCustomCand ? 1 : 0,
-            pCandElement->HasHostInteraction() ? 1 : 0,
+            "CandidateUI customFallback=%d hostInteracted=%d "
+            "hostInteractions=%lu lastHostMethod=%s after TSF routing (no "
+            "composition)",
+            showCustomCand ? 1 : 0, pCandElement->HasHostInteraction() ? 1 : 0,
             pCandElement->HostInteractionCount(),
             pCandElement->LastHostMethod());
       } else {
@@ -711,7 +727,8 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       pTIP_->GetCandidateWindow()->Hide();
     }
 
-    if ((showCustomCand && !state_.candidates.empty()) || (showCustomTooltip && !state_.tooltip.empty())) {
+    if ((showCustomCand && !state_.candidates.empty()) ||
+        (showCustomTooltip && !state_.tooltip.empty())) {
       MoveAuxiliaryWindows(ec, pContext_, nullptr, pTIP_);
     }
   }

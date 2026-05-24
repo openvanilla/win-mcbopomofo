@@ -70,7 +70,9 @@ class LanguageModelLoader : public UserPhraseAdder {
 
   std::string userDataPath() const { return userDataPath_; }
 
-  std::string userPhrasesPath() const { return userPhrasesPath_.path().string(); }
+  std::string userPhrasesPath() const {
+    return userPhrasesPath_.path().string();
+  }
 
   std::string excludedPhrasesPath() const {
     return excludedPhrasesPath_.path().string();

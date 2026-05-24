@@ -132,8 +132,7 @@ void Settings::load() {
                 candidateFontSize_) == std::end(kFontSizes)) {
     candidateFontSize_ = 16;
   }
-  shiftToggleOpenClose_ =
-      readBool_(L"General", L"ShiftToggleOpenClose", true);
+  shiftToggleOpenClose_ = readBool_(L"General", L"ShiftToggleOpenClose", true);
   beepOnError_ = readBool_(L"General", L"BeepOnError", true);
 }
 
