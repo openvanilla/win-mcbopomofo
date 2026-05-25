@@ -26,6 +26,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <dwmapi.h>
+
+#ifdef _DEBUG
 #include <string.h>
 #include <string>
 
@@ -145,6 +147,15 @@ void LogMessageFileOnly(const char* format, ...) {
   LogMessageImpl(false, format, args);
   va_end(args);
 }
+#else
+void LogMessage(const char* format, ...) {
+  (void)format;
+}
+
+void LogMessageFileOnly(const char* format, ...) {
+  (void)format;
+}
+#endif
 
 float GetDpiScaleForWindow(HWND hwnd) {
   if (!hwnd) return 1.0f;
