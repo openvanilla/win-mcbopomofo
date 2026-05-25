@@ -248,7 +248,7 @@ bool TooltipWindow::recreateWindow_() {
   }
 
   if (!Create(hInstance_)) {
-    LogMessage("TooltipWindow recreate failed owner=%p", ownerHwnd_);
+    // LogMessage("TooltipWindow recreate failed owner=%p", ownerHwnd_);
     return false;
   }
 
@@ -257,8 +257,8 @@ bool TooltipWindow::recreateWindow_() {
                  rc.bottom - rc.top, SWP_NOACTIVATE);
   }
 
-  LogMessage("TooltipWindow recreated hwnd=%p owner=%p wasVisible=%d", hwnd_,
-             ownerHwnd_, wasVisible ? 1 : 0);
+  // LogMessage("TooltipWindow recreated hwnd=%p owner=%p wasVisible=%d", hwnd_,
+  //            ownerHwnd_, wasVisible ? 1 : 0);
   return true;
 }
 
@@ -267,8 +267,8 @@ void TooltipWindow::updateRenderMode_() {
       IsCoreWindowHost(ownerHwnd_) ? RenderMode::kGDI : RenderMode::kD2D;
   if (renderMode_ != newMode) {
     renderMode_ = newMode;
-    LogMessage("TooltipWindow renderer=%s owner=%p",
-               renderMode_ == RenderMode::kGDI ? "GDI" : "D2D", ownerHwnd_);
+    // LogMessage("TooltipWindow renderer=%s owner=%p",
+    //            renderMode_ == RenderMode::kGDI ? "GDI" : "D2D", ownerHwnd_);
   }
 }
 
@@ -296,7 +296,8 @@ void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
 
   SetWindowLongPtrW(hwnd_, GWLP_HWNDPARENT,
                     reinterpret_cast<LONG_PTR>(ownerHwnd_));
-  LogMessage("TooltipWindow owner updated hwnd=%p owner=%p", hwnd_, ownerHwnd_);
+  // LogMessage("TooltipWindow owner updated hwnd=%p owner=%p", hwnd_,
+  // ownerHwnd_);
 }
 
 void TooltipWindow::Destroy() {
@@ -310,13 +311,14 @@ void TooltipWindow::UpdateUI(const std::string& tooltipText) {
   if (!hwnd_) return;
 
   if (tooltipText.empty()) {
-    LogMessage("TooltipWindow UpdateUI empty text -> hide");
+    // LogMessage("TooltipWindow UpdateUI empty text -> hide");
     Hide();
     return;
   }
 
-  LogMessage("TooltipWindow UpdateUI hwnd=%p owner=%p textLen=%llu", hwnd_,
-             ownerHwnd_, static_cast<unsigned long long>(tooltipText.size()));
+  // LogMessage("TooltipWindow UpdateUI hwnd=%p owner=%p textLen=%llu", hwnd_,
+  //            ownerHwnd_, static_cast<unsigned long
+  //            long>(tooltipText.size()));
   dpiScale_ = GetDpiScaleForWindow(hwnd_);
   displayString_ = McBopomofo::Utf8ToUtf16(tooltipText);
   rebuildLayoutAndResize_();
@@ -381,8 +383,9 @@ void TooltipWindow::rebuildLayoutAndResize_() {
   width = std::max(width, (int)(20 * dpiScale_));
   height = std::max(height, (int)(20 * dpiScale_));
 
-  LogMessage("TooltipWindow layout hwnd=%p width=%d height=%d dpi=%.3f", hwnd_,
-             width, height, dpiScale_);
+  // LogMessage("TooltipWindow layout hwnd=%p width=%d height=%d dpi=%.3f",
+  // hwnd_,
+  //            width, height, dpiScale_);
 
   SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOACTIVATE);
@@ -395,8 +398,8 @@ void TooltipWindow::rebuildLayoutAndResize_() {
 
 void TooltipWindow::Move(int x, int y) {
   if (hwnd_) {
-    LogMessage("TooltipWindow Move hwnd=%p owner=%p x=%d y=%d", hwnd_,
-               ownerHwnd_, x, y);
+    // LogMessage("TooltipWindow Move hwnd=%p owner=%p x=%d y=%d", hwnd_,
+    //            ownerHwnd_, x, y);
     const float oldScale = dpiScale_;
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
@@ -411,7 +414,7 @@ void TooltipWindow::Move(int x, int y) {
 
 void TooltipWindow::Hide() {
   if (hwnd_) {
-    LogMessage("TooltipWindow Hide hwnd=%p owner=%p", hwnd_, ownerHwnd_);
+    // LogMessage("TooltipWindow Hide hwnd=%p owner=%p", hwnd_, ownerHwnd_);
     ShowWindow(hwnd_, SW_HIDE);
   }
 }

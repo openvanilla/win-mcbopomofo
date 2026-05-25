@@ -282,11 +282,11 @@ void CCandidateListUIElement::UpdateData(
   selectionIndex_ = (selectionIndex >= 0) ? selectionIndex : 0;
   candidateKeys_ = McBopomofo::Utf8ToUtf16(candidateKeys);
   candidateKeysCount_ = candidateKeysCount;
-  LogMessage(
-      "CCandidateListUIElement::UpdateData count=%llu selectionIndex=%d "
-      "candidateKeysCount=%d",
-      static_cast<unsigned long long>(candidates_.size()), selectionIndex_,
-      candidateKeysCount_);
+  // LogMessage(
+  //     "CCandidateListUIElement::UpdateData count=%llu selectionIndex=%d "
+  //     "candidateKeysCount=%d",
+  //     static_cast<unsigned long long>(candidates_.size()), selectionIndex_,
+  //     candidateKeysCount_);
 }
 
 void CCandidateListUIElement::SetActiveContext(ITfContext* pContext) {
@@ -297,8 +297,8 @@ void CCandidateListUIElement::SetActiveContext(ITfContext* pContext) {
   if (pActiveContext_) {
     pActiveContext_->AddRef();
   }
-  LogMessage("CCandidateListUIElement::SetActiveContext context=%p",
-             pActiveContext_);
+  // LogMessage("CCandidateListUIElement::SetActiveContext context=%p",
+  //            pActiveContext_);
 }
 
 void CCandidateListUIElement::SetShown(BOOL fShow) { fShown_ = fShow; }

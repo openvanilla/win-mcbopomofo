@@ -45,9 +45,9 @@ void LogContextWindowInfo(const char* prefix, ITfContext* context) {
     GetWindowThreadProcessId(hwnd, &pid);
   }
 
-  LogMessage("%s hwnd=%p pid=%lu class=%s title=%s", prefix, hwnd,
-             static_cast<unsigned long>(pid), className[0] ? className : "-",
-             title[0] ? title : "-");
+  // LogMessage("%s hwnd=%p pid=%lu class=%s title=%s", prefix, hwnd,
+  //            static_cast<unsigned long>(pid), className[0] ? className : "-",
+  //            title[0] ? title : "-");
 }
 
 HWND GetContextWindow(ITfContext* context) {
@@ -145,7 +145,7 @@ bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
   ITfContextView* pView = nullptr;
   HRESULT hr = context->GetActiveView(&pView);
   if (FAILED(hr)) {
-    LogMessage("MoveWindowsToRange GetActiveView failed hr=0x%08X", hr);
+    // LogMessage("MoveWindowsToRange GetActiveView failed hr=0x%08X", hr);
     return false;
   }
 
@@ -154,13 +154,13 @@ bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
   bool moved = false;
   hr = pView->GetTextExt(ec, range, &rc, &fClipped);
   if (SUCCEEDED(hr)) {
-    LogMessage(
-        "MoveWindowsToRange GetTextExt ok clipped=%d rect=(%ld,%ld,%ld,%ld)",
-        fClipped ? 1 : 0, rc.left, rc.top, rc.right, rc.bottom);
+    // LogMessage(
+    //     "MoveWindowsToRange GetTextExt ok clipped=%d rect=(%ld,%ld,%ld,%ld)",
+    //     fClipped ? 1 : 0, rc.left, rc.top, rc.right, rc.bottom);
     MoveAuxiliaryWindowsInternal(tip, rc);
     moved = true;
   } else {
-    LogMessage("MoveWindowsToRange GetTextExt failed hr=0x%08X", hr);
+    // LogMessage("MoveWindowsToRange GetTextExt failed hr=0x%08X", hr);
   }
   pView->Release();
   return moved;
@@ -173,10 +173,10 @@ bool MoveWindowsToSelection(TfEditCookie ec, ITfContext* context,
   HRESULT hr =
       context->GetSelection(ec, TF_DEFAULT_SELECTION, 1, &selection, &fetched);
   if (FAILED(hr) || fetched != 1 || !selection.range) {
-    LogMessage(
-        "MoveWindowsToSelection GetSelection failed hr=0x%08X fetched=%lu "
-        "range=%p",
-        hr, static_cast<unsigned long>(fetched), selection.range);
+    // LogMessage(
+    //     "MoveWindowsToSelection GetSelection failed hr=0x%08X fetched=%lu "
+    //     "range=%p",
+    //     hr, static_cast<unsigned long>(fetched), selection.range);
     return false;
   }
 
@@ -205,12 +205,12 @@ void MoveWindowsToCaretFallback(McBopomofoTIP* tip) {
     screenRect.right = ptBottomRight.x;
     screenRect.bottom = ptBottomRight.y;
 
-    LogMessage("MoveWindowsToCaretFallback caret rect=(%ld,%ld,%ld,%ld)",
-               screenRect.left, screenRect.top, screenRect.right,
-               screenRect.bottom);
+    // LogMessage("MoveWindowsToCaretFallback caret rect=(%ld,%ld,%ld,%ld)",
+    //            screenRect.left, screenRect.top, screenRect.right,
+    //            screenRect.bottom);
     MoveAuxiliaryWindowsInternal(tip, screenRect);
   } else {
-    LogMessage("MoveWindowsToCaretFallback no caret info");
+    // LogMessage("MoveWindowsToCaretFallback no caret info");
   }
 }
 
@@ -515,35 +515,36 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
               BOOL bShow = TRUE;
               HRESULT hr =
                   pUIElementMgr->BeginUIElement(pCandElement, &bShow, &dwId);
-              LogMessage(
-                  "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d "
-                  "dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s",
-                  hr, bShow ? 1 : 0, static_cast<unsigned long>(dwId),
-                  static_cast<unsigned long long>(state_.candidates.size()),
-                  pCandElement->HostInteractionCount(),
-                  pCandElement->LastHostMethod());
+              // LogMessage(
+              //     "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d "
+              //     "dwId=%lu count=%llu hostInteractions=%lu
+              //     lastHostMethod=%s", hr, bShow ? 1 : 0, static_cast<unsigned
+              //     long>(dwId), static_cast<unsigned long
+              //     long>(state_.candidates.size()),
+              //     pCandElement->HostInteractionCount(),
+              //     pCandElement->LastHostMethod());
               if (SUCCEEDED(hr)) {
                 pTIP_->SetCandidateUIElementId(dwId);
                 pTIP_->SetShowCustomCandidateWindow(bShow ? true : false);
               }
             } else {
               HRESULT hr = pUIElementMgr->UpdateUIElement(dwId);
-              LogMessage(
-                  "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu "
-                  "hostInteractions=%lu lastHostMethod=%s",
-                  hr, static_cast<unsigned long>(dwId),
-                  static_cast<unsigned long long>(state_.candidates.size()),
-                  pCandElement->HostInteractionCount(),
-                  pCandElement->LastHostMethod());
+              // LogMessage(
+              //     "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu
+              //     " "hostInteractions=%lu lastHostMethod=%s", hr,
+              //     static_cast<unsigned long>(dwId), static_cast<unsigned long
+              //     long>(state_.candidates.size()),
+              //     pCandElement->HostInteractionCount(),
+              //     pCandElement->LastHostMethod());
             }
             showCustomCand = pTIP_->IsShowCustomCandidateWindow();
-            LogMessage(
-                "CandidateUI customFallback=%d hostInteracted=%d "
-                "hostInteractions=%lu lastHostMethod=%s after TSF routing",
-                showCustomCand ? 1 : 0,
-                pCandElement->HasHostInteraction() ? 1 : 0,
-                pCandElement->HostInteractionCount(),
-                pCandElement->LastHostMethod());
+            // LogMessage(
+            //     "CandidateUI customFallback=%d hostInteracted=%d "
+            //     "hostInteractions=%lu lastHostMethod=%s after TSF routing",
+            //     showCustomCand ? 1 : 0,
+            //     pCandElement->HasHostInteraction() ? 1 : 0,
+            //     pCandElement->HostInteractionCount(),
+            //     pCandElement->LastHostMethod());
           } else {
             pCandElement->SetShown(FALSE);
             DWORD dwId = pTIP_->GetCandidateUIElementId();
@@ -668,36 +669,36 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           BOOL bShow = TRUE;
           HRESULT hr =
               pUIElementMgr->BeginUIElement(pCandElement, &bShow, &dwId);
-          LogMessage(
-              "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d "
-              "dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s (no "
-              "composition)",
-              hr, bShow ? 1 : 0, static_cast<unsigned long>(dwId),
-              static_cast<unsigned long long>(state_.candidates.size()),
-              pCandElement->HostInteractionCount(),
-              pCandElement->LastHostMethod());
+          // LogMessage(
+          //     "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d "
+          //     "dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s (no
+          //     " "composition)", hr, bShow ? 1 : 0, static_cast<unsigned
+          //     long>(dwId), static_cast<unsigned long
+          //     long>(state_.candidates.size()),
+          //     pCandElement->HostInteractionCount(),
+          //     pCandElement->LastHostMethod());
           if (SUCCEEDED(hr)) {
             pTIP_->SetCandidateUIElementId(dwId);
             pTIP_->SetShowCustomCandidateWindow(bShow ? true : false);
           }
         } else {
           HRESULT hr = pUIElementMgr->UpdateUIElement(dwId);
-          LogMessage(
-              "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu "
-              "hostInteractions=%lu lastHostMethod=%s (no composition)",
-              hr, static_cast<unsigned long>(dwId),
-              static_cast<unsigned long long>(state_.candidates.size()),
-              pCandElement->HostInteractionCount(),
-              pCandElement->LastHostMethod());
+          // LogMessage(
+          //     "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu "
+          //     "hostInteractions=%lu lastHostMethod=%s (no composition)",
+          //     hr, static_cast<unsigned long>(dwId),
+          //     static_cast<unsigned long long>(state_.candidates.size()),
+          //     pCandElement->HostInteractionCount(),
+          //     pCandElement->LastHostMethod());
         }
         showCustomCand = pTIP_->IsShowCustomCandidateWindow();
-        LogMessage(
-            "CandidateUI customFallback=%d hostInteracted=%d "
-            "hostInteractions=%lu lastHostMethod=%s after TSF routing (no "
-            "composition)",
-            showCustomCand ? 1 : 0, pCandElement->HasHostInteraction() ? 1 : 0,
-            pCandElement->HostInteractionCount(),
-            pCandElement->LastHostMethod());
+        // LogMessage(
+        //     "CandidateUI customFallback=%d hostInteracted=%d "
+        //     "hostInteractions=%lu lastHostMethod=%s after TSF routing (no "
+        //     "composition)",
+        //     showCustomCand ? 1 : 0, pCandElement->HasHostInteraction() ? 1 :
+        //     0, pCandElement->HostInteractionCount(),
+        //     pCandElement->LastHostMethod());
       } else {
         pCandElement->SetShown(FALSE);
         DWORD dwId = pTIP_->GetCandidateUIElementId();

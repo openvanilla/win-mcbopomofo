@@ -374,7 +374,7 @@ STDAPI McBopomofoTIP::Activate(ITfThreadMgr* ptim, TfClientId tid) {
 
 STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
                                  DWORD dwFlags) {
-  LogMessage("McBopomofoTIP::ActivateEx called with flags: %u", dwFlags);
+  // LogMessage("McBopomofoTIP::ActivateEx called with flags: %u", dwFlags);
 
   if (ptim == nullptr) {
     return E_INVALIDARG;
@@ -385,20 +385,20 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
   tid_ = tid;
 
   if (!initKeyEventSink_()) {
-    LogMessage("Failed to init KeyEventSink");
+    // LogMessage("Failed to init KeyEventSink");
     return E_FAIL;
   }
 
   if (!initCompartmentEventSink_()) {
-    LogMessage("Failed to init CompartmentEventSink");
+    // LogMessage("Failed to init CompartmentEventSink");
     return E_FAIL;
   }
   if (!initThreadMgrEventSink_()) {
-    LogMessage("Failed to init ThreadMgrEventSink");
+    // LogMessage("Failed to init ThreadMgrEventSink");
     return E_FAIL;
   }
   if (!initThreadFocusSink_()) {
-    LogMessage("Failed to init ThreadFocusSink");
+    // LogMessage("Failed to init ThreadFocusSink");
     return E_FAIL;
   }
 
@@ -443,17 +443,17 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
                                       (void**)&pUIElementMgr_))) {
     pCandidateUIElement_ = new CCandidateListUIElement(this);
     pReadingUIElement_ = new CReadingInformationUIElement(this);
-    LogMessage("ITfUIElementMgr successfully acquired.");
+    // LogMessage("ITfUIElementMgr successfully acquired.");
   } else {
-    LogMessage("Failed to acquire ITfUIElementMgr.");
+    // LogMessage("Failed to acquire ITfUIElementMgr.");
   }
 
-  LogMessage("McBopomofoTIP::ActivateEx succeeded");
+  // LogMessage("McBopomofoTIP::ActivateEx succeeded");
   return S_OK;
 }
 
 STDAPI McBopomofoTIP::Deactivate() {
-  LogMessage("McBopomofoTIP::Deactivate called");
+  // LogMessage("McBopomofoTIP::Deactivate called");
 
   if (pUIElementMgr_) {
     if (pCandidateUIElement_) {
@@ -629,26 +629,26 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   std::string response;
 
   std::string payload = McBopomofo::IPC::SerializeKeyEvent(req);
-  LogMessage("Sending IPC request: %s", payload.c_str());
+  // LogMessage("Sending IPC request: %s", payload.c_str());
 
   if (pipe.Call(payload, response)) {
-    LogMessage("Received IPC response: %s", response.c_str());
+    // LogMessage("Received IPC response: %s", response.c_str());
     if (McBopomofo::IPC::DeserializeStateUpdate(response, lastState_)) {
       *pfEaten = lastState_.consumed ? TRUE : FALSE;
-      LogMessage(
-          "State deserialized. Consumed: %d, CommitStr: '%s', CompStr: '%s'",
-          lastState_.consumed, lastState_.commitString.c_str(),
-          lastState_.composingBuffer.c_str());
+      // LogMessage(
+      //     "State deserialized. Consumed: %d, CommitStr: '%s', CompStr: '%s'",
+      //     lastState_.consumed, lastState_.commitString.c_str(),
+      //     lastState_.composingBuffer.c_str());
 
       if (lastState_.consumed) {
         applyStateToContext_(pic, lastState_, "");
       }
     } else {
-      LogMessage("Failed to deserialize state update");
+      // LogMessage("Failed to deserialize state update");
       *pfEaten = FALSE;
     }
   } else {
-    LogMessage("IPC Call failed");
+    // LogMessage("IPC Call failed");
     *pfEaten = FALSE;
   }
 
@@ -704,8 +704,8 @@ STDAPI McBopomofoTIP::OnChange(REFGUID rguid) {
   }
 
   const bool isOpen = IsOpen();
-  LogMessage("GUID_COMPARTMENT_KEYBOARD_OPENCLOSE changed: %s",
-             isOpen ? "OPEN" : "CLOSED");
+  // LogMessage("GUID_COMPARTMENT_KEYBOARD_OPENCLOSE changed: %s",
+  //            isOpen ? "OPEN" : "CLOSED");
   if (!isOpen) {
     resetServerState_();
   }
@@ -831,7 +831,7 @@ void McBopomofoTIP::applyStateToContext_(
     ITfContext* context, const McBopomofo::IPC::StateUpdatePayload& state,
     const char* logPrefix) {
   if (!context) {
-    LogMessage("%sRequestEditSession skipped: null context", logPrefix);
+    // LogMessage("%sRequestEditSession skipped: null context", logPrefix);
     return;
   }
 
@@ -841,32 +841,33 @@ void McBopomofoTIP::applyStateToContext_(
   HRESULT hr = E_FAIL;
   context->RequestEditSession(tid_, pEditSession, TF_ES_SYNC | TF_ES_READWRITE,
                               &hr);
-  LogMessage("%sRequestEditSession returned: 0x%08X", logPrefix, hr);
+  // LogMessage("%sRequestEditSession returned: 0x%08X", logPrefix, hr);
   pEditSession->Release();
 }
 
 void McBopomofoTIP::resetServerState_() {
-  LogMessage("Sending RESET command to server");
+  // LogMessage("Sending RESET command to server");
   McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
   std::string response;
   if (pipe.Call(McBopomofo::IPC::SerializeReset(), response)) {
-    LogMessage("Reset response received");
+    // LogMessage("Reset response received");
     McBopomofo::IPC::StateUpdatePayload state;
     if (McBopomofo::IPC::DeserializeStateUpdate(response, state)) {
       lastState_ = state;
-      LogMessage("Reset state: CommitStr='%s', CompStr='%s'",
-                 state.commitString.c_str(), state.composingBuffer.c_str());
+      // LogMessage("Reset state: CommitStr='%s', CompStr='%s'",
+      //            state.commitString.c_str(), state.composingBuffer.c_str());
 
       ITfContext* pContext = nullptr;
       if (GetFocusedContext(ptim_, &pContext)) {
         applyStateToContext_(pContext, state, "Reset ");
         pContext->Release();
       } else {
-        LogMessage("Reset could not acquire focused context for edit session");
+        // LogMessage("Reset could not acquire focused context for edit
+        // session");
       }
     }
   } else {
-    LogMessage("Failed to send RESET command");
+    // LogMessage("Failed to send RESET command");
   }
 
   candidateWindow_.Hide();
@@ -875,15 +876,15 @@ void McBopomofoTIP::resetServerState_() {
 
 void McBopomofoTIP::RefreshLangBar() {
   if (pModeIconButton_) {
-    LogMessage("Refreshing mode icon button");
+    // LogMessage("Refreshing mode icon button");
     pModeIconButton_->Update();
   }
   if (pSwitchLangButton_) {
-    LogMessage("Refreshing switch lang button");
+    // LogMessage("Refreshing switch lang button");
     pSwitchLangButton_->Update();
   }
   if (pSettingsButton_) {
-    LogMessage("Refreshing settings button");
+    // LogMessage("Refreshing settings button");
     pSettingsButton_->Update();
   }
 }
@@ -892,13 +893,14 @@ bool McBopomofoTIP::shouldToggleOpenCloseWithShift_() const {
   McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
   std::string response;
   if (!pipe.Call(McBopomofo::IPC::SerializeGetSettings(), response)) {
-    LogMessage("GET_SETTINGS IPC Call failed, fallback to enabled");
+    // LogMessage("GET_SETTINGS IPC Call failed, fallback to enabled");
     return true;
   }
 
   McBopomofo::IPC::ClientSettingsPayload payload;
   if (!McBopomofo::IPC::DeserializeClientSettings(response, payload)) {
-    LogMessage("GET_SETTINGS response deserialize failed, fallback to enabled");
+    // LogMessage("GET_SETTINGS response deserialize failed, fallback to
+    // enabled");
     return true;
   }
 
@@ -933,9 +935,9 @@ bool McBopomofoTIP::handleStandaloneShiftKeyUp_(WPARAM wParam,
 void McBopomofoTIP::ToggleOpenClose() {
   if (ptim_) {
     bool currentOpen = IsOpen();
-    LogMessage("ToggleOpenClose: current state = %s, toggling to %s",
-               currentOpen ? "OPEN" : "CLOSED",
-               currentOpen ? "CLOSED" : "OPEN");
+    // LogMessage("ToggleOpenClose: current state = %s, toggling to %s",
+    //            currentOpen ? "OPEN" : "CLOSED",
+    //            currentOpen ? "CLOSED" : "OPEN");
 
     ITfCompartmentMgr* pCompMgr = nullptr;
     if (SUCCEEDED(
@@ -949,7 +951,7 @@ void McBopomofoTIP::ToggleOpenClose() {
         pComp->SetValue(tid_, &var);
         pComp->Release();
 
-        LogMessage("Compartment value set to: %d", var.lVal);
+        // LogMessage("Compartment value set to: %d", var.lVal);
         RefreshLangBar();
       }
       pCompMgr->Release();

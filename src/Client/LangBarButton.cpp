@@ -435,7 +435,7 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON* phIcon) {
   *phIcon = nullptr;
 
   const wchar_t* label = CurrentModeLabel(pTIP_);
-  LogMessage("CLangBarButton::GetIcon called with label: %ls", label);
+  // LogMessage("CLangBarButton::GetIcon called with label: %ls", label);
 
   HDC hdc = GetDC(NULL);
   HDC hMemDC = CreateCompatibleDC(hdc);
@@ -472,7 +472,7 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON* phIcon) {
   DeleteDC(hMemDC);
   ReleaseDC(NULL, hdc);
 
-  LogMessage("CLangBarButton::GetIcon created icon: %p", *phIcon);
+  // LogMessage("CLangBarButton::GetIcon created icon: %p", *phIcon);
 
   return S_OK;
 }
@@ -514,8 +514,8 @@ STDMETHODIMP CLangBarButton::UnadviseSink(DWORD dwCookie) {
 }
 
 void CLangBarButton::Update() {
-  LogMessage("CLangBarButton::Update called, sink count: %lu",
-             static_cast<unsigned long>(sinks_.size()));
+  // LogMessage("CLangBarButton::Update called, sink count: %lu",
+  //            static_cast<unsigned long>(sinks_.size()));
 
   std::vector<ITfLangBarItemSink*> sinkSnapshot;
   sinkSnapshot.reserve(sinks_.size());
@@ -529,7 +529,7 @@ void CLangBarButton::Update() {
 
   for (ITfLangBarItemSink* sink : sinkSnapshot) {
     HRESULT hr = sink->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
-    LogMessage("Sink OnUpdate returned: 0x%08X", hr);
+    // LogMessage("Sink OnUpdate returned: 0x%08X", hr);
     sink->Release();
   }
 }

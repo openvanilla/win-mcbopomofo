@@ -451,7 +451,7 @@ bool CandidateWindow::recreateWindow_() {
   }
 
   if (!Create(hInstance_)) {
-    LogMessage("CandidateWindow recreate failed owner=%p", ownerHwnd_);
+    // LogMessage("CandidateWindow recreate failed owner=%p", ownerHwnd_);
     return false;
   }
 
@@ -460,8 +460,9 @@ bool CandidateWindow::recreateWindow_() {
                  rc.bottom - rc.top, SWP_NOACTIVATE);
   }
 
-  LogMessage("CandidateWindow recreated hwnd=%p owner=%p wasVisible=%d", hwnd_,
-             ownerHwnd_, wasVisible ? 1 : 0);
+  // LogMessage("CandidateWindow recreated hwnd=%p owner=%p wasVisible=%d",
+  // hwnd_,
+  //            ownerHwnd_, wasVisible ? 1 : 0);
   return true;
 }
 
@@ -470,8 +471,8 @@ void CandidateWindow::updateRenderMode_() {
       IsCoreWindowHost(ownerHwnd_) ? RenderMode::kGDI : RenderMode::kD2D;
   if (renderMode_ != newMode) {
     renderMode_ = newMode;
-    LogMessage("CandidateWindow renderer=%s owner=%p",
-               renderMode_ == RenderMode::kGDI ? "GDI" : "D2D", ownerHwnd_);
+    // LogMessage("CandidateWindow renderer=%s owner=%p",
+    //            renderMode_ == RenderMode::kGDI ? "GDI" : "D2D", ownerHwnd_);
   }
 }
 
@@ -499,8 +500,8 @@ void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
 
   SetWindowLongPtrW(hwnd_, GWLP_HWNDPARENT,
                     reinterpret_cast<LONG_PTR>(ownerHwnd_));
-  LogMessage("CandidateWindow owner updated hwnd=%p owner=%p", hwnd_,
-             ownerHwnd_);
+  // LogMessage("CandidateWindow owner updated hwnd=%p owner=%p", hwnd_,
+  //            ownerHwnd_);
 }
 
 void CandidateWindow::Destroy() {
@@ -513,14 +514,14 @@ void CandidateWindow::Destroy() {
 void CandidateWindow::UpdateUI(const UpdateUIRequest& request) {
   if (!hwnd_) return;
 
-  LogMessage(
-      "CandidateWindow UpdateUI hwnd=%p owner=%p candidates=%llu "
-      "cursorIndex=%d forceVertical=%d vertical=%d hintLen=%llu",
-      hwnd_, ownerHwnd_,
-      static_cast<unsigned long long>(request.candidates.size()),
-      request.cursorIndex, request.forceVertical ? 1 : 0,
-      request.candidateWindowVertical ? 1 : 0,
-      static_cast<unsigned long long>(request.hint.size()));
+  // LogMessage(
+  //     "CandidateWindow UpdateUI hwnd=%p owner=%p candidates=%llu "
+  //     "cursorIndex=%d forceVertical=%d vertical=%d hintLen=%llu",
+  //     hwnd_, ownerHwnd_,
+  //     static_cast<unsigned long long>(request.candidates.size()),
+  //     request.cursorIndex, request.forceVertical ? 1 : 0,
+  //     request.candidateWindowVertical ? 1 : 0,
+  //     static_cast<unsigned long long>(request.hint.size()));
 
   applyCandidateWindowSettings_(request.candidateWindowVertical,
                                 request.candidateKeys,
@@ -536,7 +537,7 @@ void CandidateWindow::UpdateUI(const UpdateUIRequest& request) {
   hint_ = McBopomofo::Utf8ToUtf16(request.hint);
 
   if (request.candidates.empty()) {
-    LogMessage("CandidateWindow UpdateUI empty candidates -> hide");
+    // LogMessage("CandidateWindow UpdateUI empty candidates -> hide");
     Hide();
     return;
   }
@@ -792,13 +793,13 @@ void CandidateWindow::rebuildLayoutAndResize_() {
   width = std::max(width, (int)(50 * dpiScale_));
   height = std::max(height, (int)(24 * dpiScale_));
 
-  LogMessage(
-      "CandidateWindow layout hwnd=%p width=%d height=%d dpi=%.3f pageIndex=%d "
-      "pageSize=%d totalCandidates=%llu selectedStart=%lu selectedLength=%lu",
-      hwnd_, width, height, dpiScale_, pageIndex, pageSize,
-      static_cast<unsigned long long>(candidates_.size()),
-      static_cast<unsigned long>(selectedRange_.start),
-      static_cast<unsigned long>(selectedRange_.length));
+  // LogMessage(
+  //     "CandidateWindow layout hwnd=%p width=%d height=%d dpi=%.3f
+  //     pageIndex=%d " "pageSize=%d totalCandidates=%llu selectedStart=%lu
+  //     selectedLength=%lu", hwnd_, width, height, dpiScale_, pageIndex,
+  //     pageSize, static_cast<unsigned long long>(candidates_.size()),
+  //     static_cast<unsigned long>(selectedRange_.start),
+  //     static_cast<unsigned long>(selectedRange_.length));
 
   SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, width, height,
                SWP_NOMOVE | SWP_NOACTIVATE);
@@ -811,8 +812,8 @@ void CandidateWindow::rebuildLayoutAndResize_() {
 
 void CandidateWindow::Move(int x, int y) {
   if (hwnd_) {
-    LogMessage("CandidateWindow Move hwnd=%p owner=%p x=%d y=%d", hwnd_,
-               ownerHwnd_, x, y);
+    // LogMessage("CandidateWindow Move hwnd=%p owner=%p x=%d y=%d", hwnd_,
+    //            ownerHwnd_, x, y);
     const float oldScale = dpiScale_;
     SetWindowPos(hwnd_, HWND_TOPMOST, x, y, 0, 0,
                  SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
