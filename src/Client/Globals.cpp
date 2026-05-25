@@ -35,6 +35,8 @@
 
 namespace {
 
+#ifndef NDEBUG
+
 thread_local bool g_isRelayingClientLog = false;
 
 ULONGLONG ElapsedMsSinceProcessStart() {
@@ -131,20 +133,30 @@ void LogMessageImpl(bool relayToServer, const char* format, va_list args) {
   }
 }
 
+#endif  // !NDEBUG
+
 }  // namespace
 
 void LogMessage(const char* format, ...) {
+#ifndef NDEBUG
   va_list args;
   va_start(args, format);
   LogMessageImpl(true, format, args);
   va_end(args);
+#else
+  (void)format;
+#endif
 }
 
 void LogMessageFileOnly(const char* format, ...) {
+#ifndef NDEBUG
   va_list args;
   va_start(args, format);
   LogMessageImpl(false, format, args);
   va_end(args);
+#else
+  (void)format;
+#endif
 }
 
 float GetDpiScaleForWindow(HWND hwnd) {
