@@ -52,15 +52,12 @@ using namespace McBopomofo;
 
 namespace {
 
-constexpr const wchar_t* kClassName = L"McBopomofoConfigClass";
 constexpr const wchar_t* kSingleInstanceMutexName =
     L"Local\\WinMcBopomofoConfigSingleInstance";
-constexpr int kReloadCommand = 1;
-constexpr int kManualLinkCommand = 2;
-constexpr int kProjectHomepageCommand = 3;
+constexpr int kReloadCommand = IDC_RELOAD_BUTTON;
+constexpr int kManualLinkCommand = IDC_MANUAL_LINK;
+constexpr int kProjectHomepageCommand = IDC_PROJECT_HOMEPAGE_LINK;
 constexpr int kScrollLineHeight = 20;  // pixels per scroll line
-constexpr const wchar_t* kCheckedStateProp =
-    L"McBopomofoConfigCheckedState";
 constexpr const wchar_t* kManualUrl =
     L"https://github.com/openvanilla/McBopomofo/wiki/"
     L"%E4%BD%BF%E7%94%A8%E6%89%8B%E5%86%8A";
@@ -205,12 +202,17 @@ HFONT hTitleFont = nullptr;
 HFONT hLinkFont = nullptr;
 Settings settings;
 std::vector<HWND> g_ThemedControls;
+std::vector<HWND> g_TextControls;
 std::vector<HWND> g_GroupBoxes;
-std::vector<HWND> g_CheckBoxes;
-std::vector<HWND> g_RadioButtons;
 std::vector<HWND> g_LinkLabels;
 std::vector<HWND> g_ComboBoxes;
 std::vector<HWND> g_Separators;
+
+bool IsRadioButton(HWND hwnd) {
+  return hwnd == hVerticalRadio || hwnd == hHorizontalRadio ||
+         hwnd == hSelectBeforeRadio || hwnd == hSelectAfterRadio ||
+         hwnd == hLowercaseRadio || hwnd == hUppercaseRadio;
+}
 
 int Scale(int value);
 bool ContainsControl(const std::vector<HWND>& controls, HWND hwnd);
@@ -222,6 +224,7 @@ int MaxScrollPos(const SCROLLINFO& si) {
 
 void CacheChildBaseRects(HWND hwnd) {
   g_ChildBaseRects.clear();
+  g_ContentHeight = 0;
   for (HWND child = GetWindow(hwnd, GW_CHILD); child != nullptr;
        child = GetWindow(child, GW_HWNDNEXT)) {
     RECT rect{};
@@ -235,10 +238,13 @@ void CacheChildBaseRects(HWND hwnd) {
     rect.right = bottomRight.x;
     rect.bottom = bottomRight.y + g_ScrollPos;
     g_ChildBaseRects.emplace_back(child, rect);
+    g_ContentHeight =
+        std::max(g_ContentHeight, static_cast<int>(rect.bottom));
   }
+  g_ContentHeight += Scale(20);
 }
 
-void ReflowChildControls(HWND hwnd, int scrollPos) {
+void ReflowChildControls(int scrollPos) {
   HDWP hdwp = BeginDeferWindowPos(static_cast<int>(g_ChildBaseRects.size()));
   if (!hdwp) {
     return;
@@ -273,7 +279,7 @@ void ApplyVerticalScroll(HWND hwnd, int requestedPos) {
   si.nPos = newPos;
   SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
   g_ScrollPos = newPos;
-  ReflowChildControls(hwnd, g_ScrollPos);
+  ReflowChildControls(g_ScrollPos);
   InvalidateRect(hwnd, nullptr, TRUE);
 }
 
@@ -323,15 +329,29 @@ HWND TrackControl(HWND hwnd, HFONT font = nullptr) {
   return hwnd;
 }
 
+HWND TrackTextControl(HWND hwnd, HFONT font = nullptr) {
+  ApplyFont(hwnd, font);
+  g_TextControls.push_back(hwnd);
+  return hwnd;
+}
+
 void ApplyThemeToControls() {
   const wchar_t* theme = g_DarkMode ? L"DarkMode_Explorer" : L"Explorer";
   for (HWND control : g_ThemedControls) {
     if (control && IsWindow(control)) {
       if (ContainsControl(g_ComboBoxes, control)) {
         ApplyThemeToCombo(control);
+      } else if (IsRadioButton(control)) {
+        SetWindowTheme(control, L"", L"");
       } else {
         SetWindowTheme(control, theme, nullptr);
       }
+      InvalidateRect(control, nullptr, TRUE);
+    }
+  }
+  for (HWND control : g_TextControls) {
+    if (control && IsWindow(control)) {
+      SetWindowTheme(control, L"", L"");
       InvalidateRect(control, nullptr, TRUE);
     }
   }
@@ -347,16 +367,11 @@ int ComboSelection(HWND combo, int fallback) {
 }
 
 bool IsChecked(HWND control) {
-  return GetPropW(control, kCheckedStateProp) != nullptr;
+  return SendMessageW(control, BM_GETCHECK, 0, 0) == BST_CHECKED;
 }
 
 void SetChecked(HWND control, bool checked) {
-  if (checked) {
-    SetPropW(control, kCheckedStateProp, reinterpret_cast<HANDLE>(1));
-  } else {
-    RemovePropW(control, kCheckedStateProp);
-  }
-  InvalidateRect(control, nullptr, TRUE);
+  SendMessageW(control, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
 }
 
 HWND CreateLabel(HWND parent, const wchar_t* text, int x, int y, int width) {
@@ -399,13 +414,10 @@ HWND CreateCombo(HWND parent, int x, int y, int width) {
 
 HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
   TrackContentBottom(y, 24);
-  HWND check = CreateWindowW(
-      L"Button",
-      text,
-      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX | BS_OWNERDRAW,
-      Scale(x), Scale(y), Scale(width), Scale(24), parent, nullptr, nullptr,
-      nullptr);
-  g_CheckBoxes.push_back(check);
+  HWND check = CreateWindowW(L"Button", text,
+                             WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX,
+                             Scale(x), Scale(y), Scale(width), Scale(24), parent,
+                             nullptr, nullptr, nullptr);
   return TrackControl(check);
 }
 
@@ -413,14 +425,13 @@ HWND CreateRadio(HWND parent, const wchar_t* text, int x, int y, int width,
                  bool startsGroup) {
   TrackContentBottom(y, 24);
   DWORD style =
-      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON | BS_OWNERDRAW;
+      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON;
   if (startsGroup) {
     style |= WS_GROUP;
   }
   HWND radio =
       CreateWindowW(L"Button", text, style, Scale(x), Scale(y), Scale(width),
                     Scale(24), parent, nullptr, nullptr, nullptr);
-  g_RadioButtons.push_back(radio);
   return TrackControl(radio);
 }
 
@@ -546,6 +557,28 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
   RECT rect = item->rcItem;
   FillRect(hdc, &rect, g_WindowBrush);
 
+  if (IsRadioButton(item->hwndItem)) {
+    RECT glyphRect = rect;
+    glyphRect.right = glyphRect.left + Scale(16);
+    int glyphHeight = Scale(16);
+    int controlHeight = rect.bottom - rect.top;
+    glyphRect.top = rect.top + (controlHeight - glyphHeight) / 2;
+    glyphRect.bottom = glyphRect.top + glyphHeight;
+
+    bool checked = IsChecked(item->hwndItem);
+    DrawRadioGlyph(hdc, glyphRect, checked);
+
+    RECT textRect = rect;
+    textRect.left = glyphRect.right + Scale(8);
+    DrawControlText(hdc, item->hwndItem, textRect,
+                    DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+
+    if ((item->itemState & ODS_FOCUS) != 0) {
+      DrawFocusRect(hdc, &textRect);
+    }
+    return;
+  }
+
   if (ContainsControl(g_Separators, item->hwndItem)) {
     RECT lineRect = rect;
     lineRect.top = rect.top + ((rect.bottom - rect.top) / 2);
@@ -569,37 +602,8 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
     return;
   }
 
-  bool pushed = (item->itemState & ODS_SELECTED) != 0;
-  bool focused = (item->itemState & ODS_FOCUS) != 0;
-  bool checked = IsChecked(item->hwndItem);
-  bool isRadio = ContainsControl(g_RadioButtons, item->hwndItem);
-  bool isCheck = ContainsControl(g_CheckBoxes, item->hwndItem);
-
-  if (isRadio || isCheck) {
-    int glyph = Scale(16);
-    RECT glyphRect = {rect.left + Scale(2),
-                      rect.top + (rect.bottom - rect.top - glyph) / 2,
-                      rect.left + Scale(2) + glyph,
-                      rect.top + (rect.bottom - rect.top + glyph) / 2};
-    if (isRadio) {
-      DrawRadioGlyph(hdc, glyphRect, checked);
-    } else {
-      DrawCheckGlyph(hdc, glyphRect, checked);
-    }
-
-    RECT textRect = rect;
-    textRect.left += Scale(26);
-    DrawControlText(hdc, item->hwndItem, textRect,
-                    DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
-    if (focused) {
-      DrawFocusRect(hdc, &textRect);
-    }
-    return;
-  }
-
   COLORREF buttonColor =
-      g_DarkMode ? (pushed ? RGB(66, 68, 73) : RGB(55, 57, 62))
-                 : (pushed ? RGB(229, 232, 236) : RGB(255, 255, 255));
+      g_DarkMode ? RGB(55, 57, 62) : RGB(255, 255, 255);
   HBRUSH buttonBrush = CreateSolidBrush(buttonColor);
   FillRect(hdc, &rect, buttonBrush);
   DeleteObject(buttonBrush);
@@ -613,12 +617,9 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
   SelectObject(hdc, oldPen);
   DeleteObject(pen);
 
-  if (pushed) {
-    OffsetRect(&rect, Scale(1), Scale(1));
-  }
   DrawControlText(hdc, item->hwndItem, rect,
                   DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_END_ELLIPSIS);
-  if (focused) {
+  if ((item->itemState & ODS_FOCUS) != 0) {
     InflateRect(&rect, -Scale(4), -Scale(4));
     DrawFocusRect(hdc, &rect);
   }
@@ -712,6 +713,7 @@ void UpdateUI() {
   SetChecked(hLowercaseRadio, putLowercase);
 
   SetChecked(hEscClearCheck, settings.escKeyClearsEntireComposingBuffer());
+  SetChecked(hShiftEnterCheck, settings.shiftEnterEnabled());
   SetCtrlEnterSelection();
   SetCandidateFontSizeSelection();
   SetChecked(hShiftToggleCheck, settings.shiftToggleOpenClose());
@@ -750,6 +752,7 @@ void SaveAndNotify() {
   settings.setMoveCursorAfterSelection(IsChecked(hMoveCursorCheck));
   settings.setPutLowercaseLettersToComposingBuffer(IsChecked(hLowercaseRadio));
   settings.setEscKeyClearsEntireComposingBuffer(IsChecked(hEscClearCheck));
+  settings.setShiftEnterEnabled(IsChecked(hShiftEnterCheck));
   settings.setShiftToggleOpenClose(IsChecked(hShiftToggleCheck));
   int candidateFontIdx = ComboSelection(hCandidateFontSizeCombo, 3);
   settings.setCandidateFontSize(kCandidateFontSizes[candidateFontIdx]);
@@ -766,225 +769,188 @@ void SaveAndNotify() {
   NotifyServer();
 }
 
-void CreateControls(HWND hwnd) {
-  g_ContentHeight = 0;
-  HINSTANCE hInst = GetModuleHandle(nullptr);
-
-  constexpr int kLeft = 12;
-  constexpr int kTop = 12;
-  constexpr int kWidth = 520;
-  constexpr int kLabelX = 18;
-  constexpr int kControlX = 150;
-  constexpr int kRightX = 426;
-  constexpr int kRowGap = 26;
-
-  CreateSectionTitle(hwnd,
-                     LoadLocalizedStringW(hInst, IDS_CONFIG_TITLE).c_str(),
-                     kLeft, kTop, 300);
-
-  hReloadBtn = CreateWindowW(
-      L"Button", LoadLocalizedStringW(hInst, IDS_RELOAD).c_str(),
-      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_OWNERDRAW, Scale(kRightX),
-      Scale(kTop - 1), Scale(90), Scale(24), hwnd,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(kReloadCommand)), nullptr,
-      nullptr);
-  TrackControl(hReloadBtn);
-  TrackContentBottom(kTop - 1, 24);
-
-  int y = 42;
-
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_INPUT_MODE).c_str(),
-              kLabelX, y, 124);
-  hModeCombo = CreateCombo(hwnd, kControlX, y - 4, 230);
-  for (const auto id : kInputModeLabels) {
-    AddComboString(hModeCombo, LoadLocalizedStringW(hInst, id).c_str());
+HWND BindControl(HWND parent, int id, HFONT font = nullptr) {
+  HWND control = GetDlgItem(parent, id);
+  if (control == nullptr) {
+    return nullptr;
   }
+  TrackControl(control, font);
+  return control;
+}
 
-  y += kRowGap;
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_KEYBOARD_LAYOUT).c_str(),
-              kLabelX, y, 124);
-  hLayoutCombo = CreateCombo(hwnd, kControlX, y - 4, 130);
+void LocalizeControls(HWND hwnd) {
+  HINSTANCE hInst = GetModuleHandle(nullptr);
+  auto set = [&](int id, UINT strId) {
+    SetDlgItemTextW(hwnd, id, LoadLocalizedStringW(hInst, strId).c_str());
+  };
+
+  set(IDC_RELOAD_BUTTON, IDS_RELOAD);
+  set(IDC_INPUT_MODE_LABEL, IDS_INPUT_MODE);
+  set(IDC_KEYBOARD_LAYOUT_LABEL, IDS_KEYBOARD_LAYOUT);
+  set(IDC_SELECTION_KEYS_LABEL, IDS_CANDIDATE_KEYS);
+  set(IDC_CHOOSE_SPACE_CHECK, IDS_CHOOSE_SPACE);
+  set(IDC_CANDIDATES_PER_PAGE_LABEL, IDS_CANDIDATES_PER_PAGE);
+  set(IDC_SELECTION_ACTION_LABEL, IDS_SELECTION_ACTION);
+  set(IDC_SELECTION_CURSOR_LABEL, IDS_SELECTION_CURSOR);
+  set(IDC_SELECT_BEFORE_RADIO, IDS_SELECT_BEFORE);
+  set(IDC_SELECT_AFTER_RADIO, IDS_SELECT_AFTER);
+  set(IDC_MOVE_CURSOR_CHECK, IDS_MOVE_CURSOR);
+  set(IDC_CANDIDATE_PRESENTATION_LABEL, IDS_CANDIDATE_PRESENTATION);
+  set(IDC_VERTICAL_RADIO, IDS_VERTICAL);
+  set(IDC_HORIZONTAL_RADIO, IDS_HORIZONTAL);
+  set(IDC_CANDIDATE_FONT_SIZE_LABEL, IDS_CANDIDATE_FONT_SIZE);
+  set(IDC_SHIFT_TOGGLE_LABEL, IDS_SHIFT_TOGGLE);
+  set(IDC_SHIFT_TOGGLE_CHECK, IDS_SHIFT_TOGGLE_OPEN_CLOSE);
+  set(IDC_SHIFT_LETTER_LABEL, IDS_SHIFT_LETTER);
+  set(IDC_SHIFT_LETTER_UPPER_RADIO, IDS_SHIFT_LETTER_UPPER);
+  set(IDC_SHIFT_LETTER_LOWER_RADIO, IDS_SHIFT_LETTER_LOWER);
+  set(IDC_SHIFT_ENTER_LABEL, IDS_SHIFT_ENTER);
+  set(IDC_SHIFT_ENTER_CHECK, IDS_SHIFT_ENTER);
+  set(IDC_ESC_LABEL, IDS_ESC_CLEAR);
+  set(IDC_ESC_CLEAR_CHECK, IDS_ESC_CLEAR);
+  set(IDC_CTRL_ENTER_LABEL, IDS_CTRL_ENTER);
+  set(IDC_CANDIDATES_PUNCTUATION_LABEL, IDS_CANDIDATES_PUNCTUATION);
+  set(IDC_REPEATED_PUNCTUATION_CHECK, IDS_REPEATED_PUNCTUATION);
+  set(IDC_ERROR_BEEP_LABEL, IDS_ERROR_BEEP);
+  set(IDC_ERROR_BEEP_CHECK, IDS_ERROR_BEEP);
+  set(IDC_MANUAL_LINK, IDS_MANUAL_LINK);
+  set(IDC_PROJECT_HOMEPAGE_LINK, IDS_PROJECT_HOMEPAGE);
+  SetWindowTextW(hwnd, LoadLocalizedStringW(hInst, IDS_CONFIG_TITLE).c_str());
+}
+
+void InitializeComboContents() {
+  for (const auto id : kInputModeLabels) {
+    AddComboString(hModeCombo, LoadLocalizedStringW(GetModuleHandle(nullptr), id).c_str());
+  }
   for (const auto& option : kLayoutOptions) {
     AddComboString(hLayoutCombo,
-                   LoadLocalizedStringW(hInst, option.labelId).c_str());
+                   LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
   }
-
-  y += 30;
-  CreateSeparator(hwnd, kLeft, y, kWidth - 12);
-  y += 12;
-
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CANDIDATE_KEYS).c_str(),
-              kLabelX, y, 124);
-  hCandidateKeysCombo = CreateCombo(hwnd, kControlX, y - 4, 118);
   for (const auto& option : kCandidateKeyOptions) {
     std::wstring ws(option.value, option.value + strlen(option.value));
     AddComboString(hCandidateKeysCombo, ws.c_str());
   }
-  hChooseSpaceCheck =
-      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_CHOOSE_SPACE).c_str(),
-                  kControlX, y + 22, 280);
-
-  y += kRowGap + 22;
-  CreateLabel(hwnd,
-              LoadLocalizedStringW(hInst, IDS_CANDIDATES_PER_PAGE).c_str(),
-              kLabelX, y, 124);
-  hCandidateKeysCountCombo = CreateCombo(hwnd, kControlX, y - 4, 56);
   for (int count = 4; count <= 9; ++count) {
     wchar_t text[4] = {};
     _itow_s(count, text, 10);
     AddComboString(hCandidateKeysCountCombo, text);
   }
-
-  y += kRowGap;
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SELECTION_ACTION).c_str(),
-              kLabelX, y, 124);
-  hSelectionActionCombo = CreateCombo(hwnd, kControlX, y - 4, 190);
   for (const auto& option : kSelectionActionOptions) {
     AddComboString(hSelectionActionCombo,
-                   LoadLocalizedStringW(hInst, option.labelId).c_str());
+                   LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
   }
-
-  y += kRowGap;
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SELECTION_CURSOR).c_str(),
-              kLabelX, y, 124);
-  hSelectBeforeRadio =
-      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_SELECT_BEFORE).c_str(),
-                  kControlX, y - 2, 270, true);
-  hSelectAfterRadio =
-      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_SELECT_AFTER).c_str(),
-                  kControlX, y + 20, 270, false);
-  hMoveCursorCheck =
-      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_MOVE_CURSOR).c_str(),
-                  kControlX, y + 44, 200);
-
-  y += 78;
-  CreateSeparator(hwnd, kLeft, y, kWidth - 12);
-  y += 12;
-
-  CreateLabel(hwnd,
-              LoadLocalizedStringW(hInst, IDS_CANDIDATE_PRESENTATION).c_str(),
-              kLabelX, y, 124);
-  hVerticalRadio =
-      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_VERTICAL).c_str(),
-                  kControlX, y - 2, 100, true);
-  hHorizontalRadio =
-      CreateRadio(hwnd, LoadLocalizedStringW(hInst, IDS_HORIZONTAL).c_str(),
-                  kControlX, y + 20, 100, false);
-
-  y += 54;
-  CreateLabel(hwnd,
-              LoadLocalizedStringW(hInst, IDS_CANDIDATE_FONT_SIZE).c_str(),
-              kLabelX, y, 124);
-  hCandidateFontSizeCombo = CreateCombo(hwnd, kControlX, y - 4, 56);
   for (int fontSize : kCandidateFontSizes) {
     wchar_t text[4] = {};
     _itow_s(fontSize, text, 10);
     AddComboString(hCandidateFontSizeCombo, text);
   }
-
-  y += 34;
-  CreateSeparator(hwnd, kLeft, y, kWidth - 12);
-  y += 12;
-
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_TOGGLE).c_str(),
-              kLabelX, y, 124);
-  hShiftToggleCheck = CreateCheck(
-      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_TOGGLE_OPEN_CLOSE).c_str(),
-      kControlX, y - 2, 320);
-
-  y += kRowGap;
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER).c_str(),
-              kLabelX, y, 124);
-  hUppercaseRadio = CreateRadio(
-      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER_UPPER).c_str(),
-      kControlX, y - 2, 250, true);
-  hLowercaseRadio = CreateRadio(
-      hwnd, LoadLocalizedStringW(hInst, IDS_SHIFT_LETTER_LOWER).c_str(),
-      kControlX, y + 20, 260, false);
-
-  y += 50;
-  CreateLabel(hwnd, L"ESC", kLabelX, y, 124);
-  hEscClearCheck =
-      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_ESC_CLEAR).c_str(),
-                  kControlX, y - 2, 250);
-
-  y += kRowGap;
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CTRL_ENTER).c_str(),
-              kLabelX, y, 124);
-  hCtrlEnterCombo = CreateCombo(hwnd, kControlX, y - 4, 220);
   for (const auto& option : kCtrlEnterOptions) {
     AddComboString(hCtrlEnterCombo,
-                   LoadLocalizedStringW(hInst, option.labelId).c_str());
+                   LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
   }
-
-  y += 30;
-  CreateLabel(hwnd,
-              LoadLocalizedStringW(hInst, IDS_CANDIDATES_PUNCTUATION).c_str(),
-              kLabelX, y, 124);
-  hRepeatedPunctuationCheck = CreateCheck(
-      hwnd, LoadLocalizedStringW(hInst, IDS_REPEATED_PUNCTUATION).c_str(),
-      kControlX, y - 2, 280);
-
-  y += kRowGap;
-  CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_ERROR_BEEP).c_str(),
-              kLabelX, y, 124);
-  hErrorBeepCheck =
-      CreateCheck(hwnd, LoadLocalizedStringW(hInst, IDS_ERROR_BEEP).c_str(),
-                  kControlX, y - 2, 180);
-
-  y += 34;
-  hManualLink =
-      CreateLink(hwnd, LoadLocalizedStringW(hInst, IDS_MANUAL_LINK).c_str(),
-                 kControlX, y, 200, kManualLinkCommand);
-  y += 20;
-  hProjectHomepageLink = CreateLink(
-      hwnd, LoadLocalizedStringW(hInst, IDS_PROJECT_HOMEPAGE).c_str(),
-      kControlX, y, 120, kProjectHomepageCommand);
-
-  UpdateUI();
-  ApplyThemeToControls();
-  g_ContentHeight += Scale(20);
-  CacheChildBaseRects(hwnd);
-  ReflowChildControls(hwnd, g_ScrollPos);
 }
 
-bool HandleOwnerDrawClick(HWND control) {
-  if (ContainsControl(g_CheckBoxes, control)) {
-    SetChecked(control, !IsChecked(control));
-    return true;
-  }
+void BindControls(HWND hwnd) {
+  g_ThemedControls.clear();
+  g_TextControls.clear();
+  g_GroupBoxes.clear();
+  g_LinkLabels.clear();
+  g_ComboBoxes.clear();
+  g_Separators.clear();
 
-  if (!ContainsControl(g_RadioButtons, control)) {
-    return false;
-  }
+  hReloadBtn = BindControl(hwnd, IDC_RELOAD_BUTTON);
+  TrackTextControl(BindControl(hwnd, IDC_INPUT_MODE_LABEL));
+  hModeCombo = BindControl(hwnd, IDC_INPUT_MODE_COMBO);
+  g_ComboBoxes.push_back(hModeCombo);
+  TrackTextControl(BindControl(hwnd, IDC_KEYBOARD_LAYOUT_LABEL));
+  hLayoutCombo = BindControl(hwnd, IDC_KEYBOARD_LAYOUT_COMBO);
+  g_ComboBoxes.push_back(hLayoutCombo);
+  TrackTextControl(BindControl(hwnd, IDC_SELECTION_KEYS_LABEL));
+  hCandidateKeysCombo = BindControl(hwnd, IDC_SELECTION_KEYS_COMBO);
+  g_ComboBoxes.push_back(hCandidateKeysCombo);
+  hChooseSpaceCheck = BindControl(hwnd, IDC_CHOOSE_SPACE_CHECK);
+  TrackTextControl(BindControl(hwnd, IDC_CANDIDATES_PER_PAGE_LABEL));
+  hCandidateKeysCountCombo = BindControl(hwnd, IDC_CANDIDATES_PER_PAGE_COMBO);
+  g_ComboBoxes.push_back(hCandidateKeysCountCombo);
+  TrackTextControl(BindControl(hwnd, IDC_SELECTION_ACTION_LABEL));
+  hSelectionActionCombo = BindControl(hwnd, IDC_SELECTION_ACTION_COMBO);
+  g_ComboBoxes.push_back(hSelectionActionCombo);
+  TrackTextControl(BindControl(hwnd, IDC_SELECTION_CURSOR_LABEL));
+  hSelectBeforeRadio = BindControl(hwnd, IDC_SELECT_BEFORE_RADIO);
+  hSelectAfterRadio = BindControl(hwnd, IDC_SELECT_AFTER_RADIO);
+  hMoveCursorCheck = BindControl(hwnd, IDC_MOVE_CURSOR_CHECK);
+  TrackTextControl(BindControl(hwnd, IDC_CANDIDATE_PRESENTATION_LABEL));
+  hVerticalRadio = BindControl(hwnd, IDC_VERTICAL_RADIO);
+  hHorizontalRadio = BindControl(hwnd, IDC_HORIZONTAL_RADIO);
+  TrackTextControl(BindControl(hwnd, IDC_CANDIDATE_FONT_SIZE_LABEL));
+  hCandidateFontSizeCombo = BindControl(hwnd, IDC_CANDIDATE_FONT_SIZE_COMBO);
+  g_ComboBoxes.push_back(hCandidateFontSizeCombo);
+  TrackTextControl(BindControl(hwnd, IDC_SHIFT_TOGGLE_LABEL));
+  hShiftToggleCheck = BindControl(hwnd, IDC_SHIFT_TOGGLE_CHECK);
+  TrackTextControl(BindControl(hwnd, IDC_SHIFT_LETTER_LABEL));
+  hUppercaseRadio = BindControl(hwnd, IDC_SHIFT_LETTER_UPPER_RADIO);
+  hLowercaseRadio = BindControl(hwnd, IDC_SHIFT_LETTER_LOWER_RADIO);
+  TrackTextControl(BindControl(hwnd, IDC_SHIFT_ENTER_LABEL));
+  hShiftEnterCheck = BindControl(hwnd, IDC_SHIFT_ENTER_CHECK);
+  TrackTextControl(BindControl(hwnd, IDC_ESC_LABEL));
+  hEscClearCheck = BindControl(hwnd, IDC_ESC_CLEAR_CHECK);
+  TrackTextControl(BindControl(hwnd, IDC_CTRL_ENTER_LABEL));
+  hCtrlEnterCombo = BindControl(hwnd, IDC_CTRL_ENTER_COMBO);
+  g_ComboBoxes.push_back(hCtrlEnterCombo);
+  TrackTextControl(BindControl(hwnd, IDC_CANDIDATES_PUNCTUATION_LABEL));
+  hRepeatedPunctuationCheck = BindControl(hwnd, IDC_REPEATED_PUNCTUATION_CHECK);
+  TrackTextControl(BindControl(hwnd, IDC_ERROR_BEEP_LABEL));
+  hErrorBeepCheck = BindControl(hwnd, IDC_ERROR_BEEP_CHECK);
+  hManualLink = TrackTextControl(BindControl(hwnd, IDC_MANUAL_LINK, hLinkFont));
+  hProjectHomepageLink =
+      TrackTextControl(BindControl(hwnd, IDC_PROJECT_HOMEPAGE_LINK, hLinkFont));
+  g_LinkLabels.push_back(hManualLink);
+  g_LinkLabels.push_back(hProjectHomepageLink);
 
-  const std::vector<std::vector<HWND>> groups = {
-      {hVerticalRadio, hHorizontalRadio},
-      {hSelectBeforeRadio, hSelectAfterRadio},
-      {hUppercaseRadio, hLowercaseRadio},
-  };
-  for (const auto& group : groups) {
-    if (!ContainsControl(group, control)) {
-      continue;
+  for (HWND control : {hSelectBeforeRadio, hSelectAfterRadio, hVerticalRadio,
+                       hHorizontalRadio, hUppercaseRadio, hLowercaseRadio}) {
+    if (control != nullptr) {
+      LONG_PTR style = GetWindowLongPtrW(control, GWL_STYLE);
+      SetWindowLongPtrW(control, GWL_STYLE, (style & ~BS_TYPEMASK) | BS_OWNERDRAW);
     }
-    for (HWND radio : group) {
-      SetChecked(radio, radio == control);
-    }
-    return true;
   }
 
-  SetChecked(control, true);
-  return true;
+  for (HWND control : {hReloadBtn, hModeCombo, hLayoutCombo, hCandidateKeysCombo,
+                       hChooseSpaceCheck, hCandidateKeysCountCombo,
+                       hSelectionActionCombo, hSelectBeforeRadio,
+                       hSelectAfterRadio, hMoveCursorCheck, hVerticalRadio,
+                       hHorizontalRadio, hCandidateFontSizeCombo,
+                       hShiftToggleCheck, hUppercaseRadio, hLowercaseRadio,
+                       hShiftEnterCheck, hEscClearCheck, hCtrlEnterCombo,
+                       hRepeatedPunctuationCheck, hErrorBeepCheck}) {
+    if (control != nullptr) {
+      SetWindowTheme(control, g_DarkMode ? L"DarkMode_Explorer" : L"Explorer",
+                     nullptr);
+    }
+  }
+
+  InitializeComboContents();
+  LocalizeControls(hwnd);
+  UpdateUI();
+  ApplyThemeToControls();
+  CacheChildBaseRects(hwnd);
+  ReflowChildControls(g_ScrollPos);
 }
 
 }  // namespace
 
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+INT_PTR CALLBACK DlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   switch (msg) {
-    case WM_CREATE:
+    case WM_INITDIALOG:
       ApplyThemeToWindow(hwnd);
-      CreateControls(hwnd);
-      break;
+      BindControls(hwnd);
+      return TRUE;
+    case WM_DRAWITEM:
+      DrawOwnerDrawButton(reinterpret_cast<const DRAWITEMSTRUCT*>(lParam));
+      return TRUE;
+    case WM_CLOSE:
+      DestroyWindow(hwnd);
+      return TRUE;
     case WM_GETMINMAXINFO: {
       MINMAXINFO* pMinMaxInfo = reinterpret_cast<MINMAXINFO*>(lParam);
       // Fix window width - cannot be resized horizontally
@@ -1011,7 +977,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
       ShowScrollBar(hwnd, SB_HORZ, FALSE);
       g_ScrollPos = si.nPos;
-      ReflowChildControls(hwnd, g_ScrollPos);
+      ReflowChildControls(g_ScrollPos);
       InvalidateRect(hwnd, nullptr, TRUE);
       break;
     }
@@ -1084,9 +1050,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       SetTextColor(hdc, g_TextColor);
       return reinterpret_cast<LRESULT>(g_ControlBrush);
     }
-    case WM_DRAWITEM:
-      DrawOwnerDrawButton(reinterpret_cast<DRAWITEMSTRUCT*>(lParam));
-      return TRUE;
     case WM_ERASEBKGND: {
       RECT rect;
       GetClientRect(hwnd, &rect);
@@ -1106,12 +1069,37 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                       SW_SHOWNORMAL);
       } else if (HIWORD(wParam) == BN_CLICKED ||
                  HIWORD(wParam) == CBN_SELCHANGE) {
-        if (HIWORD(wParam) == BN_CLICKED) {
-          HandleOwnerDrawClick(reinterpret_cast<HWND>(lParam));
+        HWND clickedControl = reinterpret_cast<HWND>(lParam);
+        if (clickedControl == hVerticalRadio) {
+          SetChecked(hVerticalRadio, true);
+          SetChecked(hHorizontalRadio, false);
+        } else if (clickedControl == hHorizontalRadio) {
+          SetChecked(hVerticalRadio, false);
+          SetChecked(hHorizontalRadio, true);
+        } else if (clickedControl == hSelectBeforeRadio) {
+          SetChecked(hSelectBeforeRadio, true);
+          SetChecked(hSelectAfterRadio, false);
+        } else if (clickedControl == hSelectAfterRadio) {
+          SetChecked(hSelectBeforeRadio, false);
+          SetChecked(hSelectAfterRadio, true);
+        } else if (clickedControl == hUppercaseRadio) {
+          SetChecked(hUppercaseRadio, true);
+          SetChecked(hLowercaseRadio, false);
+        } else if (clickedControl == hLowercaseRadio) {
+          SetChecked(hUppercaseRadio, false);
+          SetChecked(hLowercaseRadio, true);
         }
         SaveAndNotify();
+        if (IsRadioButton(clickedControl)) {
+          InvalidateRect(hVerticalRadio, nullptr, TRUE);
+          InvalidateRect(hHorizontalRadio, nullptr, TRUE);
+          InvalidateRect(hSelectBeforeRadio, nullptr, TRUE);
+          InvalidateRect(hSelectAfterRadio, nullptr, TRUE);
+          InvalidateRect(hUppercaseRadio, nullptr, TRUE);
+          InvalidateRect(hLowercaseRadio, nullptr, TRUE);
+        }
       }
-      break;
+      return TRUE;
     case WM_DESTROY:
       DeleteObject(hUiFont);
       DeleteObject(hTitleFont);
@@ -1119,18 +1107,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       DeleteObject(g_WindowBrush);
       DeleteObject(g_ControlBrush);
       PostQuitMessage(0);
-      break;
+      return TRUE;
     default:
-      return DefWindowProcW(hwnd, msg, wParam, lParam);
+      return FALSE;
   }
-  return 0;
+  return FALSE;
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
   HANDLE hSingleInstanceMutex =
       CreateMutexW(nullptr, TRUE, kSingleInstanceMutexName);
   if (hSingleInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
-    HWND existingWindow = FindWindowW(kClassName, nullptr);
+    std::wstring windowTitle = LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE);
+    HWND existingWindow = FindWindowW(L"#32770", windowTitle.c_str());
     if (existingWindow) {
       ShowWindow(existingWindow, SW_RESTORE);
       SetForegroundWindow(existingWindow);
@@ -1148,23 +1137,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
   hUiFont = CreateUIFont(11, FW_NORMAL);
   hTitleFont = CreateUIFont(11, FW_BOLD);
   hLinkFont = CreateUIFont(11, FW_NORMAL, true);
-
-  WNDCLASSEXW wcex = {sizeof(WNDCLASSEXW)};
-  wcex.lpfnWndProc = WndProc;
-  wcex.hInstance = hInstance;
-  wcex.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
-  wcex.hIcon = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
-  wcex.hIconSm = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_ICON_APP));
-  wcex.hbrBackground = g_WindowBrush;
-  wcex.lpszClassName = kClassName;
-  RegisterClassExW(&wcex);
-
   std::wstring windowTitle = LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE);
-  HWND hwnd =
-      CreateWindowExW(WS_EX_CONTROLPARENT, kClassName, windowTitle.c_str(),
-                      WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX | WS_VSCROLL,
-                      CW_USEDEFAULT, CW_USEDEFAULT, Scale(650), Scale(560),
-                      nullptr, nullptr, hInstance, nullptr);
+  HWND hwnd = CreateDialogParamW(hInstance, MAKEINTRESOURCEW(IDD_CONFIG_DIALOG),
+                                 nullptr, DlgProc, 0);
+  if (hwnd == nullptr) {
+    if (hSingleInstanceMutex) {
+      ReleaseMutex(hSingleInstanceMutex);
+      CloseHandle(hSingleInstanceMutex);
+    }
+    DeleteObject(hUiFont);
+    DeleteObject(hTitleFont);
+    DeleteObject(hLinkFont);
+    DeleteObject(g_WindowBrush);
+    DeleteObject(g_ControlBrush);
+    return 0;
+  }
+  SetWindowTextW(hwnd, windowTitle.c_str());
+  SendMessageW(hwnd, WM_SETICON, ICON_BIG,
+               reinterpret_cast<LPARAM>(
+                   LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_ICON_APP))));
+  SendMessageW(hwnd, WM_SETICON, ICON_SMALL,
+               reinterpret_cast<LPARAM>(
+                   LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_ICON_APP))));
   ShowWindow(hwnd, nCmdShow);
 
   MSG msg;
