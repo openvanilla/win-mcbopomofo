@@ -367,10 +367,17 @@ int ComboSelection(HWND combo, int fallback) {
 }
 
 bool IsChecked(HWND control) {
+  if (IsRadioButton(control)) {
+    return GetWindowLongPtrW(control, GWLP_USERDATA) != 0;
+  }
   return SendMessageW(control, BM_GETCHECK, 0, 0) == BST_CHECKED;
 }
 
 void SetChecked(HWND control, bool checked) {
+  if (IsRadioButton(control)) {
+    SetWindowLongPtrW(control, GWLP_USERDATA, checked ? 1 : 0);
+    return;
+  }
   SendMessageW(control, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
 }
 
