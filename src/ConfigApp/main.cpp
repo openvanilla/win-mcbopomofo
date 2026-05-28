@@ -207,11 +207,30 @@ std::vector<HWND> g_GroupBoxes;
 std::vector<HWND> g_LinkLabels;
 std::vector<HWND> g_ComboBoxes;
 std::vector<HWND> g_Separators;
+int g_FixedWidth = 0;
 
 bool IsRadioButton(HWND hwnd) {
   return hwnd == hVerticalRadio || hwnd == hHorizontalRadio ||
          hwnd == hSelectBeforeRadio || hwnd == hSelectAfterRadio ||
          hwnd == hLowercaseRadio || hwnd == hUppercaseRadio;
+}
+
+void CenterWindow(HWND hwnd) {
+  RECT rect;
+  GetWindowRect(hwnd, &rect);
+  int width = rect.right - rect.left;
+  int height = rect.bottom - rect.top;
+
+  int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+  int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+  int x = (screenWidth - width) / 2;
+  int y = (screenHeight - height) / 2;
+
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+
+  SetWindowPos(hwnd, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
 }
 
 int Scale(int value);
@@ -951,6 +970,13 @@ INT_PTR CALLBACK DlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_INITDIALOG:
       ApplyThemeToWindow(hwnd);
       BindControls(hwnd);
+      CenterWindow(hwnd);
+      {
+        RECT rect;
+        if (GetWindowRect(hwnd, &rect)) {
+          g_FixedWidth = rect.right - rect.left;
+        }
+      }
       return TRUE;
     case WM_DRAWITEM:
       DrawOwnerDrawButton(reinterpret_cast<const DRAWITEMSTRUCT*>(lParam));
@@ -961,7 +987,7 @@ INT_PTR CALLBACK DlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_GETMINMAXINFO: {
       MINMAXINFO* pMinMaxInfo = reinterpret_cast<MINMAXINFO*>(lParam);
       // Fix window width - cannot be resized horizontally
-      int fixedWidth = Scale(550);
+      int fixedWidth = g_FixedWidth > 0 ? g_FixedWidth : Scale(550);
       pMinMaxInfo->ptMinTrackSize.x = fixedWidth;
       pMinMaxInfo->ptMaxTrackSize.x = fixedWidth;
       // Allow height adjustment while keeping the layout usable on smaller
