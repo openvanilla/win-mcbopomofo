@@ -65,7 +65,11 @@ enum class KeyHandlerCtrlEnter {
   OutputBpmfReadings,
   OutputHTMLRubyText,
   OutputHanyuPinyin,
+  OutputTaiwanBrailleUnicode,
+  OutputTaiwanBrailleAscii,
 };
+
+enum class BrailleType;
 
 class KeyHandler {
  public:
@@ -215,6 +219,7 @@ class KeyHandler {
   ComposedString getComposedString(size_t builderCursor);
   std::string getHTMLRubyText();
   std::string getHanyuPinyin();
+  std::string getTaiwanBraille(BrailleType type);
 
   std::unique_ptr<InputStates::Marking> buildMarkingState(
       size_t beginCursorIndex);

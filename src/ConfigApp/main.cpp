@@ -157,11 +157,15 @@ const std::array<ComboOption, 3> kCandidateKeyOptions = {{
     {0, "asdfzxcvb"},  // Not localized
 }};
 
-const std::array<CtrlEnterOption, 4> kCtrlEnterOptions = {{
+const std::array<CtrlEnterOption, 6> kCtrlEnterOptions = {{
     {IDS_CTRL_ENTER_DISABLED, KeyHandlerCtrlEnter::Disabled},
     {IDS_CTRL_ENTER_BPMF_READING, KeyHandlerCtrlEnter::OutputBpmfReadings},
     {IDS_CTRL_ENTER_HTML_RUBY, KeyHandlerCtrlEnter::OutputHTMLRubyText},
     {IDS_CTRL_ENTER_HANYU_PINYIN, KeyHandlerCtrlEnter::OutputHanyuPinyin},
+    {IDS_CTRL_ENTER_TAIWAN_BRAILLE_UNICODE,
+     KeyHandlerCtrlEnter::OutputTaiwanBrailleUnicode},
+    {IDS_CTRL_ENTER_TAIWAN_BRAILLE_ASCII,
+     KeyHandlerCtrlEnter::OutputTaiwanBrailleAscii},
 }};
 
 const std::array<ComboOption, 3> kSelectionActionOptions = {{
@@ -907,7 +911,7 @@ void CreateControls(HWND hwnd) {
   y += kRowGap;
   CreateLabel(hwnd, LoadLocalizedStringW(hInst, IDS_CTRL_ENTER).c_str(),
               kLabelX, y, 124);
-  hCtrlEnterCombo = CreateCombo(hwnd, kControlX, y - 4, 170);
+  hCtrlEnterCombo = CreateCombo(hwnd, kControlX, y - 4, 220);
   for (const auto& option : kCtrlEnterOptions) {
     AddComboString(hCtrlEnterCombo,
                    LoadLocalizedStringW(hInst, option.labelId).c_str());

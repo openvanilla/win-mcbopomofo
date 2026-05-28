@@ -2,6 +2,8 @@
 set(SERVER_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ENGINE_DIR ${SERVER_DIR}/Engine)
 
+add_subdirectory(BopomofoBraille)
+
 # Core Engine static library
 add_library(McBopomofoEngine STATIC
     ${ENGINE_DIR}/AssociatedPhrasesV2.cpp
@@ -39,6 +41,7 @@ target_include_directories(McBopomofoEngine PUBLIC
     ${CMAKE_SOURCE_DIR}/src/Common
     ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src
 )
+target_link_libraries(McBopomofoEngine PRIVATE BopomofoBraille)
 
 # Force C++17 for the engine to maintain compatibility with std::string_view iterators
 set_target_properties(McBopomofoEngine PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
