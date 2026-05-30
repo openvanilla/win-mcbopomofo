@@ -43,7 +43,7 @@
 // 1-pixel border in device space.
 class CandidateWindow {
  public:
-  // Some hosts, notably CoreWindow-based apps such as modern Notepads, do not
+  // Some hosts, notably CoreWindow-based apps and Chromium browsers, do not
   // reliably show the popup when it is rendered with our D2D path even though
   // the HWND is created, sized, and moved correctly. Use GDI as a compatibility
   // renderer for those hosts and keep D2D for normal desktop windows.

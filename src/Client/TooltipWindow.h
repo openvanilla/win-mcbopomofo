@@ -41,7 +41,8 @@ class TooltipWindow {
  public:
   // TooltipWindow follows the same host-compatibility split as CandidateWindow:
   // use D2D for typical desktop hosts and switch to GDI for CoreWindow-based
-  // hosts where D2D popups may exist but remain visually invisible.
+  // apps and Chromium browsers where D2D popups may exist but remain visually
+  // invisible.
   enum class RenderMode {
     kD2D,
     kGDI,

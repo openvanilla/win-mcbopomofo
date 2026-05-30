@@ -39,17 +39,6 @@ const wchar_t* const TOOLTIP_WINDOW_CLASS = L"WinMcBopomofoTooltipWindow";
 
 namespace {
 
-bool IsCoreWindowHost(HWND hwnd) {
-  if (!hwnd) {
-    return false;
-  }
-  wchar_t className[128] = {};
-  if (!GetClassNameW(hwnd, className, static_cast<int>(std::size(className)))) {
-    return false;
-  }
-  return wcscmp(className, L"Windows.UI.Core.CoreWindow") == 0;
-}
-
 bool IsEmojiCodePoint(char32_t cp) {
   return (cp >= 0x1F300 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF) ||
          (cp >= 0xFE00 && cp <= 0xFE0F);
@@ -264,7 +253,8 @@ bool TooltipWindow::recreateWindow_() {
 
 void TooltipWindow::updateRenderMode_() {
   const RenderMode newMode =
-      IsCoreWindowHost(ownerHwnd_) ? RenderMode::kGDI : RenderMode::kD2D;
+      ShouldUseGdiRendererForHost(ownerHwnd_) ? RenderMode::kGDI
+                                              : RenderMode::kD2D;
   if (renderMode_ != newMode) {
     renderMode_ = newMode;
     // LogMessage("TooltipWindow renderer=%s owner=%p",

@@ -295,6 +295,7 @@ If the custom popup is shown, there is a second-stage renderer decision:
 | Custom popup host | Renderer |
 | --- | --- |
 | `Windows.UI.Core.CoreWindow` | `GDI` |
+| Microsoft Edge / Google Chrome owner process | `GDI` |
 | other typical desktop hosts | `D2D` |
 
 ## One-Sentence Summary
