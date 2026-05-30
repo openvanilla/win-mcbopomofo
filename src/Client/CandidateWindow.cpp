@@ -881,7 +881,15 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
   PAINTSTRUCT ps;
   HDC hdc = BeginPaint(hwnd, &ps);
 
-  if (renderMode_ == RenderMode::kGDI) {
+  RenderMode activeMode = renderMode_;
+  if (activeMode == RenderMode::kD2D) {
+    createDeviceResources_();
+    if (!pRenderTarget_) {
+      activeMode = RenderMode::kGDI;
+    }
+  }
+
+  if (activeMode == RenderMode::kGDI) {
     RECT rc;
     GetClientRect(hwnd, &rc);
 
