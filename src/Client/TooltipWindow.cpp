@@ -458,6 +458,9 @@ LRESULT TooltipWindow::onPaint_(HWND hwnd) {
   RenderMode activeMode = renderMode_;
   if (activeMode == RenderMode::kD2D) {
     createDeviceResources_();
+    // Fall back to GDI rendering if Direct2D initialization fails.
+    // This is crucial in sandboxed processes (like Microsoft Edge or Chrome)
+    // where GPU/Direct3D device recreation can be blocked after device loss.
     if (!pRenderTarget_) {
       activeMode = RenderMode::kGDI;
     }
