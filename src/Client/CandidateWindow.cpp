@@ -888,6 +888,7 @@ LRESULT CandidateWindow::onPaint_(HWND hwnd) {
     // This is crucial in sandboxed processes (like Microsoft Edge or Chrome)
     // where GPU/Direct3D device recreation can be blocked after device loss.
     if (!pRenderTarget_) {
+      renderMode_ = RenderMode::kGDI;
       activeMode = RenderMode::kGDI;
     }
   }
