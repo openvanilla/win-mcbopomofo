@@ -455,7 +455,18 @@ LRESULT TooltipWindow::onPaint_(HWND hwnd) {
   PAINTSTRUCT ps;
   HDC hdc = BeginPaint(hwnd, &ps);
 
-  if (renderMode_ == RenderMode::kGDI) {
+  RenderMode activeMode = renderMode_;
+  if (activeMode == RenderMode::kD2D) {
+    createDeviceResources_();
+    // Fall back to GDI rendering if Direct2D initialization fails.
+    // This is crucial in sandboxed processes (like Microsoft Edge or Chrome)
+    // where GPU/Direct3D device recreation can be blocked after device loss.
+    if (!pRenderTarget_) {
+      activeMode = RenderMode::kGDI;
+    }
+  }
+
+  if (activeMode == RenderMode::kGDI) {
     RECT rc;
     GetClientRect(hwnd, &rc);
     HBRUSH bgBrush = CreateSolidBrush(RGB(255, 255, 224));
