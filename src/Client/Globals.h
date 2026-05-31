@@ -37,3 +37,5 @@ void LogMessageFileOnly(const char* format, ...);
 float GetDpiScaleForWindow(HWND hwnd);
 
 void EnableWindowDropShadow(HWND hwnd);
+
+bool ShouldUseGdiRendererForHost(HWND hwnd);

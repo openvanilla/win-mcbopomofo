@@ -24,10 +24,12 @@
 #include "Globals.h"
 
 #include <dwmapi.h>
+#include <cwchar>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
+#include <iterator>
 #include <string>
 
 #include "../Common/Ipc.h"
@@ -201,4 +203,50 @@ void EnableWindowDropShadow(HWND hwnd) {
   constexpr COLORREF kDwmColorNone = static_cast<COLORREF>(0xFFFFFFFE);
   DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &kDwmColorNone,
                         sizeof(kDwmColorNone));
+}
+
+bool ShouldUseGdiRendererForHost(HWND hwnd) {
+  if (!hwnd) {
+    return false;
+  }
+
+  wchar_t className[128] = {};
+  if (GetClassNameW(hwnd, className, static_cast<int>(std::size(className))) &&
+      wcscmp(className, L"Windows.UI.Core.CoreWindow") == 0) {
+    return true;
+  }
+
+  DWORD processId = 0;
+  GetWindowThreadProcessId(hwnd, &processId);
+  if (!processId) {
+    return false;
+  }
+
+  wchar_t imagePath[32768] = {};
+  DWORD imagePathLength = 0;
+  if (processId == GetCurrentProcessId()) {
+    imagePathLength = GetModuleFileNameW(
+        nullptr, imagePath, static_cast<DWORD>(std::size(imagePath)));
+  } else {
+    HANDLE process =
+        OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
+    if (!process) {
+      return false;
+    }
+    imagePathLength = static_cast<DWORD>(std::size(imagePath));
+    const BOOL gotImagePath =
+        QueryFullProcessImageNameW(process, 0, imagePath, &imagePathLength);
+    CloseHandle(process);
+    if (!gotImagePath) {
+      return false;
+    }
+  }
+  if (imagePathLength == 0 || imagePathLength >= std::size(imagePath)) {
+    return false;
+  }
+
+  const wchar_t* exeName = wcsrchr(imagePath, L'\\');
+  exeName = exeName ? exeName + 1 : imagePath;
+  return _wcsicmp(exeName, L"msedge.exe") == 0 ||
+         _wcsicmp(exeName, L"chrome.exe") == 0;
 }
