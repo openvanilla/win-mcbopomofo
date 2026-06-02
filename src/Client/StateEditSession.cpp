@@ -66,125 +66,6 @@ HWND GetContextWindow(ITfContext* context) {
   return GetFocus();
 }
 
-bool IsUsableLayoutRect(const RECT& rc) {
-  return rc.bottom > rc.top &&
-         (rc.left != 0 || rc.top != 0 || rc.right != 0 || rc.bottom != 0);
-}
-
-void SendUILayoutToServer(McBopomofoTIP* tip, ITfContext* context,
-                          const RECT& rc, bool showCandidateWindow,
-                          bool showTooltipWindow) {
-  if (!tip) {
-    return;
-  }
-  HWND hwnd = GetContextWindow(context);
-  tip->UpdateServerUILayout(hwnd, rc, showCandidateWindow, showTooltipWindow,
-                            GetDpiScaleForWindow(hwnd));
-}
-
-bool SendUILayoutForRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
-                          McBopomofoTIP* tip, bool showCandidateWindow,
-                          bool showTooltipWindow) {
-  if (!range || !tip) {
-    return false;
-  }
-
-  ITfContextView* pView = nullptr;
-  HRESULT hr = context->GetActiveView(&pView);
-  if (FAILED(hr)) {
-    // LogMessage("MoveWindowsToRange GetActiveView failed hr=0x%08X", hr);
-    return false;
-  }
-
-  RECT rc = {0};
-  BOOL fClipped = FALSE;
-  bool moved = false;
-  hr = pView->GetTextExt(ec, range, &rc, &fClipped);
-  if (SUCCEEDED(hr) && IsUsableLayoutRect(rc)) {
-    // LogMessage(
-    //     "MoveWindowsToRange GetTextExt ok clipped=%d rect=(%ld,%ld,%ld,%ld)",
-    //     fClipped ? 1 : 0, rc.left, rc.top, rc.right, rc.bottom);
-    SendUILayoutToServer(tip, context, rc, showCandidateWindow,
-                         showTooltipWindow);
-    moved = true;
-  } else {
-    // LogMessage(
-    //     "MoveWindowsToRange GetTextExt unusable hr=0x%08X clipped=%d "
-    //     "rect=(%ld,%ld,%ld,%ld)",
-    //     hr, fClipped ? 1 : 0, rc.left, rc.top, rc.right, rc.bottom);
-  }
-  pView->Release();
-  return moved;
-}
-
-bool SendUILayoutForSelection(TfEditCookie ec, ITfContext* context,
-                              McBopomofoTIP* tip, bool showCandidateWindow,
-                              bool showTooltipWindow) {
-  TF_SELECTION selection = {};
-  ULONG fetched = 0;
-  HRESULT hr =
-      context->GetSelection(ec, TF_DEFAULT_SELECTION, 1, &selection, &fetched);
-  if (FAILED(hr) || fetched != 1 || !selection.range) {
-    // LogMessage(
-    //     "MoveWindowsToSelection GetSelection failed hr=0x%08X fetched=%lu "
-    //     "range=%p",
-    //     hr, static_cast<unsigned long>(fetched), selection.range);
-    return false;
-  }
-
-  bool moved = SendUILayoutForRange(ec, context, selection.range, tip,
-                                    showCandidateWindow, showTooltipWindow);
-  selection.range->Release();
-  return moved;
-}
-
-void SendUILayoutForCaretFallback(McBopomofoTIP* tip, ITfContext* context,
-                                  bool showCandidateWindow,
-                                  bool showTooltipWindow) {
-  if (!tip) {
-    return;
-  }
-
-  GUITHREADINFO gti = {0};
-  gti.cbSize = sizeof(GUITHREADINFO);
-  if (GetGUIThreadInfo(GetCurrentThreadId(), &gti) && gti.hwndCaret) {
-    RECT caretRect = gti.rcCaret;
-    POINT ptTopLeft = {caretRect.left, caretRect.top};
-    POINT ptBottomRight = {caretRect.right, caretRect.bottom};
-    ClientToScreen(gti.hwndCaret, &ptTopLeft);
-    ClientToScreen(gti.hwndCaret, &ptBottomRight);
-
-    RECT screenRect;
-    screenRect.left = ptTopLeft.x;
-    screenRect.top = ptTopLeft.y;
-    screenRect.right = ptBottomRight.x;
-    screenRect.bottom = ptBottomRight.y;
-
-    // LogMessage("MoveWindowsToCaretFallback caret rect=(%ld,%ld,%ld,%ld)",
-    //            screenRect.left, screenRect.top, screenRect.right,
-    //            screenRect.bottom);
-    SendUILayoutToServer(tip, context, screenRect, showCandidateWindow,
-                         showTooltipWindow);
-  } else {
-    // LogMessage("MoveWindowsToCaretFallback no caret info");
-  }
-}
-
-void SendAuxiliaryUILayout(TfEditCookie ec, ITfContext* context,
-                           ITfRange* range, McBopomofoTIP* tip,
-                           bool showCandidateWindow, bool showTooltipWindow) {
-  bool moved = SendUILayoutForRange(ec, context, range, tip,
-                                    showCandidateWindow, showTooltipWindow);
-  if (!moved) {
-    moved = SendUILayoutForSelection(ec, context, tip, showCandidateWindow,
-                                     showTooltipWindow);
-  }
-  if (!moved) {
-    SendUILayoutForCaretFallback(tip, context, showCandidateWindow,
-                                 showTooltipWindow);
-  }
-}
-
 }  // namespace
 
 CStateEditSession::CStateEditSession(
@@ -297,14 +178,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       }
     }
 
-    // For direct commits without an active composition, stop here after
-    // insertion. Some TSF hosts, including recent Notepad builds, can
-    // crash if we continue touching the document in the same edit session.
-    // We still need to explicitly hide auxiliary UI first, otherwise the
-    // candidate window can be left visible after a direct commit.
     if (directCommitWithoutComposition) {
-      pTIP_->HideServerAuxiliaryUI();
-
       if (pTIP_->GetUIElementMgr()) {
         auto* pUIElementMgr = pTIP_->GetUIElementMgr();
         DWORD dwCandId = pTIP_->GetCandidateUIElementId();
@@ -414,7 +288,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         pContext_->SetSelection(ec, 1, &sel);
 
         // Update UI content first so windows have correct sizes
-        bool showCustomTooltip = true;
         if (pTIP_->GetUIElementMgr() && pTIP_->GetReadingUIElement()) {
           auto* pUIElementMgr = pTIP_->GetUIElementMgr();
           auto* pReadingElement = pTIP_->GetReadingUIElement();
@@ -430,12 +303,10 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
               if (SUCCEEDED(pUIElementMgr->BeginUIElement(pReadingElement,
                                                           &bShow, &dwId))) {
                 pTIP_->SetReadingUIElementId(dwId);
-                pTIP_->SetShowCustomTooltipWindow(bShow ? true : false);
               }
             } else {
               pUIElementMgr->UpdateUIElement(dwId);
             }
-            showCustomTooltip = pTIP_->IsShowCustomTooltipWindow();
           } else {
             pReadingElement->SetShown(FALSE);
             DWORD dwId = pTIP_->GetReadingUIElementId();
@@ -443,11 +314,9 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
               pUIElementMgr->EndUIElement(dwId);
               pTIP_->SetReadingUIElementId(0);
             }
-            showCustomTooltip = false;
           }
         }
 
-        bool showCustomCand = true;
         if (pTIP_->GetUIElementMgr() && pTIP_->GetCandidateUIElement()) {
           auto* pUIElementMgr = pTIP_->GetUIElementMgr();
           auto* pCandElement = pTIP_->GetCandidateUIElement();
@@ -466,36 +335,12 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
               BOOL bShow = TRUE;
               HRESULT hr =
                   pUIElementMgr->BeginUIElement(pCandElement, &bShow, &dwId);
-              // LogMessage(
-              //     "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d "
-              //     "dwId=%lu count=%llu hostInteractions=%lu
-              //     lastHostMethod=%s", hr, bShow ? 1 : 0, static_cast<unsigned
-              //     long>(dwId), static_cast<unsigned long
-              //     long>(state_.candidates.size()),
-              //     pCandElement->HostInteractionCount(),
-              //     pCandElement->LastHostMethod());
               if (SUCCEEDED(hr)) {
                 pTIP_->SetCandidateUIElementId(dwId);
-                pTIP_->SetShowCustomCandidateWindow(bShow ? true : false);
               }
             } else {
               pUIElementMgr->UpdateUIElement(dwId);
-              // LogMessage(
-              //     "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu
-              //     " "hostInteractions=%lu lastHostMethod=%s", hr,
-              //     static_cast<unsigned long>(dwId), static_cast<unsigned long
-              //     long>(state_.candidates.size()),
-              //     pCandElement->HostInteractionCount(),
-              //     pCandElement->LastHostMethod());
             }
-            showCustomCand = pTIP_->IsShowCustomCandidateWindow();
-            // LogMessage(
-            //     "CandidateUI customFallback=%d hostInteracted=%d "
-            //     "hostInteractions=%lu lastHostMethod=%s after TSF routing",
-            //     showCustomCand ? 1 : 0,
-            //     pCandElement->HasHostInteraction() ? 1 : 0,
-            //     pCandElement->HostInteractionCount(),
-            //     pCandElement->LastHostMethod());
           } else {
             pCandElement->SetShown(FALSE);
             DWORD dwId = pTIP_->GetCandidateUIElementId();
@@ -503,21 +348,9 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
               pUIElementMgr->EndUIElement(dwId);
               pTIP_->SetCandidateUIElementId(0);
             }
-            showCustomCand = false;
           }
         }
 
-        const bool showServerCand =
-            showCustomCand && !state_.candidates.empty();
-        const bool showServerTooltip =
-            showCustomTooltip && !state_.tooltip.empty();
-        if (!directCommitWithoutComposition &&
-            (showServerCand || showServerTooltip)) {
-          SendAuxiliaryUILayout(ec, pContext_, pCursorRange, pTIP_,
-                                showServerCand, showServerTooltip);
-        } else {
-          pTIP_->HideServerAuxiliaryUI();
-        }
         pCursorRange->Release();
       }
     }
@@ -547,7 +380,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
   // (e.g. from ChoosingPunctuationList triggered from Empty state)
   if (!directCommitWithoutComposition && pTIP_->GetComposition() == nullptr &&
       (!state_.candidates.empty() || !state_.tooltip.empty())) {
-    bool showCustomTooltip = true;
     if (pTIP_->GetUIElementMgr() && pTIP_->GetReadingUIElement()) {
       auto* pUIElementMgr = pTIP_->GetUIElementMgr();
       auto* pReadingElement = pTIP_->GetReadingUIElement();
@@ -563,12 +395,10 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           if (SUCCEEDED(pUIElementMgr->BeginUIElement(pReadingElement, &bShow,
                                                       &dwId))) {
             pTIP_->SetReadingUIElementId(dwId);
-            pTIP_->SetShowCustomTooltipWindow(bShow ? true : false);
           }
         } else {
           pUIElementMgr->UpdateUIElement(dwId);
         }
-        showCustomTooltip = pTIP_->IsShowCustomTooltipWindow();
       } else {
         pReadingElement->SetShown(FALSE);
         DWORD dwId = pTIP_->GetReadingUIElementId();
@@ -576,11 +406,9 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           pUIElementMgr->EndUIElement(dwId);
           pTIP_->SetReadingUIElementId(0);
         }
-        showCustomTooltip = false;
       }
     }
 
-    bool showCustomCand = true;
     if (pTIP_->GetUIElementMgr() && pTIP_->GetCandidateUIElement()) {
       auto* pUIElementMgr = pTIP_->GetUIElementMgr();
       auto* pCandElement = pTIP_->GetCandidateUIElement();
@@ -599,36 +427,12 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           BOOL bShow = TRUE;
           HRESULT hr =
               pUIElementMgr->BeginUIElement(pCandElement, &bShow, &dwId);
-          // LogMessage(
-          //     "CandidateUI BeginUIElement hr=0x%08X requestCustomUI=%d "
-          //     "dwId=%lu count=%llu hostInteractions=%lu lastHostMethod=%s (no
-          //     " "composition)", hr, bShow ? 1 : 0, static_cast<unsigned
-          //     long>(dwId), static_cast<unsigned long
-          //     long>(state_.candidates.size()),
-          //     pCandElement->HostInteractionCount(),
-          //     pCandElement->LastHostMethod());
           if (SUCCEEDED(hr)) {
             pTIP_->SetCandidateUIElementId(dwId);
-            pTIP_->SetShowCustomCandidateWindow(bShow ? true : false);
           }
         } else {
           pUIElementMgr->UpdateUIElement(dwId);
-          // LogMessage(
-          //     "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu "
-          //     "hostInteractions=%lu lastHostMethod=%s (no composition)",
-          //     hr, static_cast<unsigned long>(dwId),
-          //     static_cast<unsigned long long>(state_.candidates.size()),
-          //     pCandElement->HostInteractionCount(),
-          //     pCandElement->LastHostMethod());
         }
-        showCustomCand = pTIP_->IsShowCustomCandidateWindow();
-        // LogMessage(
-        //     "CandidateUI customFallback=%d hostInteracted=%d "
-        //     "hostInteractions=%lu lastHostMethod=%s after TSF routing (no "
-        //     "composition)",
-        //     showCustomCand ? 1 : 0, pCandElement->HasHostInteraction() ? 1 :
-        //     0, pCandElement->HostInteractionCount(),
-        //     pCandElement->LastHostMethod());
       } else {
         pCandElement->SetShown(FALSE);
         DWORD dwId = pTIP_->GetCandidateUIElementId();
@@ -636,18 +440,9 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           pUIElementMgr->EndUIElement(dwId);
           pTIP_->SetCandidateUIElementId(0);
         }
-        showCustomCand = false;
       }
     }
 
-    const bool showServerCand = showCustomCand && !state_.candidates.empty();
-    const bool showServerTooltip = showCustomTooltip && !state_.tooltip.empty();
-    if (showServerCand || showServerTooltip) {
-      SendAuxiliaryUILayout(ec, pContext_, nullptr, pTIP_, showServerCand,
-                            showServerTooltip);
-    } else {
-      pTIP_->HideServerAuxiliaryUI();
-    }
   }
 
   if (state_.candidates.empty()) {
@@ -671,9 +466,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
   }
 
-  if (state_.candidates.empty() && state_.tooltip.empty()) {
-    pTIP_->HideServerAuxiliaryUI();
-  }
+
 
   return S_OK;
 }

@@ -3,6 +3,7 @@
 #include "ParselessPhraseDB.h"
 #include "InputController.h"
 #include "KeyHandler.h"
+#include "LanguageModelLoader.h"
 #include "McBopomofoLM.h"
 #include "UIInterface.h"
 

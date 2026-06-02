@@ -33,7 +33,6 @@
 #include "InputMode.h"
 #include "InputState.h"
 #include "Key.h"
-#include "LanguageModelLoader.h"
 #include "Mandarin/Mandarin.h"
 #include "UserOverrideModel.h"
 #include "gramambular2/language_model.h"
@@ -42,6 +41,7 @@
 namespace McBopomofo {
 
 class VariantAnnotator;
+class UserPhraseAdder;
 
 class LocalizedStrings {
  public:

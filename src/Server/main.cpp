@@ -75,6 +75,17 @@ std::function<void()> g_ReloadSettingsCallback;
 
 class ServerPopupController {
  public:
+  struct PopupLayout {
+    bool showCandidateWindow = false;
+    bool showTooltipWindow = false;
+    float dpiScale = 1.0f;
+    uint64_t ownerHwnd = 0;
+    int anchorLeft = 0;
+    int anchorTop = 0;
+    int anchorRight = 0;
+    int anchorBottom = 0;
+  };
+
   void Create(HINSTANCE hInstance) {
     candidateWindow_.Create(hInstance);
     tooltipWindow_.Create(hInstance);
@@ -90,7 +101,7 @@ class ServerPopupController {
     state_ = state;
   }
 
-  void SetLayout(const IPC::ClientUILayoutPayload& layout) {
+  void SetLayout(const PopupLayout& layout) {
     std::lock_guard<std::mutex> lock(mutex_);
     layout_ = layout;
     hasLayout_ = true;
@@ -98,7 +109,7 @@ class ServerPopupController {
 
   void ApplyPending() {
     IPC::StateUpdatePayload state;
-    IPC::ClientUILayoutPayload layout;
+    PopupLayout layout;
     bool hasLayout = false;
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -208,7 +219,7 @@ class ServerPopupController {
 
   std::mutex mutex_;
   IPC::StateUpdatePayload state_;
-  IPC::ClientUILayoutPayload layout_;
+  PopupLayout layout_;
   bool hasLayout_ = false;
   CandidateWindow candidateWindow_;
   TooltipWindow tooltipWindow_;
@@ -245,31 +256,7 @@ void LogDataFileStatus(const char* label, const std::filesystem::path& path) {
                           << ", exists: " << std::filesystem::exists(path);
 }
 
-std::shared_ptr<VariantAnnotator> LoadVariantAnnotator(
-    const std::filesystem::path& exeDir) {
-  auto annotator = std::make_shared<VariantAnnotator>();
-  const std::filesystem::path puaPath = exeDir / "data" / "bpmfvs-pua.txt";
-  const std::filesystem::path variantsPath =
-      exeDir / "data" / "bpmfvs-variants.txt";
 
-  LogDataFileStatus("Bopomofo annotation file", puaPath);
-  LogDataFileStatus("Bopomofo annotation file", variantsPath);
-
-  const bool puaLoaded = annotator->loadPUAFile(puaPath);
-  const bool variantsLoaded = annotator->loadVariantsFile(variantsPath);
-
-  FCITX_MCBOPOMOFO_INFO() << "Bopomofo annotation PUA db loaded: " << puaLoaded;
-  FCITX_MCBOPOMOFO_INFO() << "Bopomofo annotation variants db loaded: "
-                          << variantsLoaded;
-
-  if (!puaLoaded && !variantsLoaded) {
-    FCITX_MCBOPOMOFO_WARN()
-        << "Bopomofo annotation data failed to load; annotation mode will"
-        << " remain inactive.";
-  }
-
-  return annotator;
-}
 
 void OpenFileInExplorer(const std::wstring& path) {
   std::wstring args = L"/select,\"" + path + L"\"";
@@ -354,54 +341,6 @@ static bool IsSystemColorSettingsChange(UINT msg, LPARAM lParam) {
   return wcscmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") == 0;
 }
 
-class WinUserPhraseAdder : public UserPhraseAdder {
- public:
-  WinUserPhraseAdder(std::shared_ptr<McBopomofoLM> lm) : lm_(lm) {
-    userPhrasesPath_ = fcitx5_compat::userDirectory() + "/user.txt";
-    excludedPhrasesPath_ = fcitx5_compat::userDirectory() + "/exclude.txt";
-  }
-
-  void addUserPhrase(const std::string_view& reading,
-                     const std::string_view& phrase) override {
-    std::ofstream ofs(userPhrasesPath_, std::ios::app);
-    if (ofs) {
-      ofs << phrase << " " << reading << "\n";
-      ofs.close();
-      lm_->loadUserPhrases(userPhrasesPath_.c_str(),
-                           excludedPhrasesPath_.c_str());
-    }
-  }
-
-  void removeUserPhrase(const std::string_view& reading,
-                        const std::string_view& phrase) override {
-    std::ifstream ifs(userPhrasesPath_);
-    if (!ifs) return;
-
-    std::vector<std::string> lines;
-    std::string line;
-    std::string target = std::string(phrase) + " " + std::string(reading);
-    while (std::getline(ifs, line)) {
-      if (!line.empty() && line != target) {
-        lines.push_back(line);
-      }
-    }
-    ifs.close();
-
-    std::ofstream ofs(userPhrasesPath_);
-    for (const auto& l : lines) {
-      ofs << l << "\n";
-    }
-    ofs.close();
-    lm_->loadUserPhrases(userPhrasesPath_.c_str(),
-                         excludedPhrasesPath_.c_str());
-  }
-
- private:
-  std::shared_ptr<McBopomofoLM> lm_;
-  std::string userPhrasesPath_;
-  std::string excludedPhrasesPath_;
-};
-
 class ServerUI : public UIInterface {
  public:
   IPC::StateUpdatePayload currentState;
@@ -428,11 +367,19 @@ class WinLocalizedStrings
       public McBopomofo::InputController::LocalizedStrings,
       public McBopomofo::LanguageModelLoader::LocalizedStrings {
  public:
+  // LanguageModelLoader::LocalizedStrings
+  std::string userPhraseFileHeader() override {
+    return "# McBopomofo User Phrases\n";
+  }
+  std::string excludedPhraseFileHeader() override {
+    return "# McBopomofo Excluded Phrases\n";
+  }
+
   // KeyHandler::LocalizedStrings
   std::string cursorIsBetweenSyllables(
       const std::string& prevReading, const std::string& nextReading) override {
     std::wstring fmt = LoadLocalizedStringW(GetModuleHandle(NULL),
-                                            IDS_CURSOR_BETWEEN_SYLLABLES);
+                                             IDS_CURSOR_BETWEEN_SYLLABLES);
     WCHAR buffer[256] = {};
     swprintf_s(buffer, fmt.c_str(), Utf8ToUtf16(prevReading).c_str(),
                Utf8ToUtf16(nextReading).c_str());
@@ -462,7 +409,7 @@ class WinLocalizedStrings
 
   std::string pressEnterToAddThePhrase() override {
     return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL),
-                                            IDS_PRESS_ENTER_TO_ADD_THE_PHRASE));
+                                             IDS_PRESS_ENTER_TO_ADD_THE_PHRASE));
   }
 
   std::string markedWithSyllablesAndStatus(const std::string&,
@@ -501,16 +448,6 @@ class WinLocalizedStrings
   std::string excludePrompt() override {
     return Utf16ToUtf8(
         LoadLocalizedStringW(GetModuleHandle(NULL), IDS_EXCLUDE_PROMPT));
-  }
-
-  // LanguageModelLoader::LocalizedStrings
-  std::string userPhraseFileHeader() override {
-    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL),
-                                            IDS_USER_PHRASE_FILE_HEADER));
-  }
-  std::string excludedPhraseFileHeader() override {
-    return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL),
-                                            IDS_EXCLUDED_PHRASE_FILE_HEADER));
   }
 };
 
@@ -570,23 +507,15 @@ class WatchedFile {
 class ServerFileReloader {
  public:
   ServerFileReloader(std::filesystem::path settingsPath,
-                     std::filesystem::path userPhrasesPath,
-                     std::filesystem::path excludedPhrasesPath,
                      std::function<void()> reloadSettings,
                      std::function<void()> reloadUserPhrases)
       : settingsFile_(std::move(settingsPath)),
-        userPhrasesFile_(std::move(userPhrasesPath)),
-        excludedPhrasesFile_(std::move(excludedPhrasesPath)),
         reloadSettings_(std::move(reloadSettings)),
         reloadUserPhrases_(std::move(reloadUserPhrases)) {}
 
   void LogWatchedFiles() const {
     FCITX_MCBOPOMOFO_INFO()
         << "Watching settings file: " << settingsFile_.Path().string();
-    FCITX_MCBOPOMOFO_INFO()
-        << "Watching user phrases file: " << userPhrasesFile_.Path().string();
-    FCITX_MCBOPOMOFO_INFO() << "Watching excluded phrases file: "
-                            << excludedPhrasesFile_.Path().string();
   }
 
   void Check() {
@@ -594,20 +523,11 @@ class ServerFileReloader {
       FCITX_MCBOPOMOFO_INFO() << "Settings file changed; reloading settings.";
       reloadSettings_();
     }
-
-    bool userPhrasesChanged = userPhrasesFile_.HasChanged();
-    bool excludedPhrasesChanged = excludedPhrasesFile_.HasChanged();
-    if (userPhrasesChanged || excludedPhrasesChanged) {
-      FCITX_MCBOPOMOFO_INFO()
-          << "User phrase files changed; reloading user phrases.";
-      reloadUserPhrases_();
-    }
+    reloadUserPhrases_();
   }
 
  private:
   WatchedFile settingsFile_;
-  WatchedFile userPhrasesFile_;
-  WatchedFile excludedPhrasesFile_;
   std::function<void()> reloadSettings_;
   std::function<void()> reloadUserPhrases_;
 };
@@ -736,46 +656,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   GetModuleFileNameW(NULL, szExePath, MAX_PATH);
   std::filesystem::path exeDir = std::filesystem::path(szExePath).parent_path();
 
-  std::string dataPath = (exeDir / "data" / "data.txt").string();
+  auto loader = std::make_shared<LanguageModelLoader>(
+      std::make_unique<WinLocalizedStrings>());
+
+  auto lm = loader->getLM();
+  auto variantAnnotator = loader->getVariantAnnotator();
+
   int argc = 0;
   LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
   if (argv != nullptr && argc >= 2) {
-    dataPath = Utf16ToUtf8(argv[1]);
+    std::string dataPath = Utf16ToUtf8(argv[1]);
+    LogDataFileStatus("Language model data file (custom override)", dataPath);
+    lm->loadLanguageModel(dataPath.c_str());
   }
   LocalFree(argv);
-  LogDataFileStatus("Language model data file", dataPath);
-
-  auto lm = std::make_shared<McBopomofoLM>();
-  lm->loadLanguageModel(dataPath.c_str());
-  FCITX_MCBOPOMOFO_INFO() << "Language model loaded: "
-                          << lm->isDataModelLoaded();
-
-  std::string assocPath =
-      (exeDir / "data" / "associated-phrases-v2.txt").string();
-  LogDataFileStatus("Associated phrases file", assocPath);
-  if (std::filesystem::exists(assocPath)) {
-    lm->loadAssociatedPhrasesV2(assocPath.c_str());
-    FCITX_MCBOPOMOFO_INFO() << "Associated phrases loaded from: " << assocPath;
-  } else {
-    FCITX_MCBOPOMOFO_WARN() << "Associated phrases file missing: " << assocPath;
-  }
-
-  std::string variantsPath = (exeDir / "data" / "bpmfvs-variants.txt").string();
-  LogDataFileStatus("Phrase replacement file", variantsPath);
-  if (std::filesystem::exists(variantsPath)) {
-    lm->loadPhraseReplacementMap(variantsPath.c_str());
-    FCITX_MCBOPOMOFO_INFO()
-        << "Phrase replacement map loaded from: " << variantsPath;
-  } else {
-    FCITX_MCBOPOMOFO_WARN()
-        << "Phrase replacement file missing: " << variantsPath;
-  }
-
-  auto variantAnnotator = LoadVariantAnnotator(exeDir);
 
   if (!lm->isDataModelLoaded()) {
     FCITX_MCBOPOMOFO_ERROR()
-        << "Failed to load language model from: " << dataPath;
+        << "Failed to load language model.";
     if (hSingleInstanceMutex) {
       ReleaseMutex(hSingleInstanceMutex);
       CloseHandle(hSingleInstanceMutex);
@@ -783,28 +681,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     return 1;
   }
 
-  std::string userDir = fcitx5_compat::userDirectory();
-  std::string userPhrasesPath = userDir + "/user.txt";
-  std::string excludedPhrasesPath = userDir + "/exclude.txt";
-
-  // Create empty files if they don't exist
-  if (!std::filesystem::exists(userPhrasesPath)) {
-    std::ofstream(userPhrasesPath).close();
-  }
-  if (!std::filesystem::exists(excludedPhrasesPath)) {
-    std::ofstream(excludedPhrasesPath).close();
-  }
-
-  lm->loadUserPhrases(userPhrasesPath.c_str(), excludedPhrasesPath.c_str());
-
-  // Set macro converter in LM
-  InputMacroController macroController;
-  lm->setMacroConverter([&macroController](const std::string& input) {
-    return macroController.handle(input);
-  });
-
   std::shared_ptr<KeyHandler> keyHandler(new KeyHandler(
-      lm, variantAnnotator, std::make_shared<WinUserPhraseAdder>(lm),
+      lm, variantAnnotator, loader,
       std::unique_ptr<LocalizedStrings>(new WinLocalizedStrings())));
 
   std::string dictionaryServiceJsonPath =
@@ -829,6 +707,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   controller.setCandidateWindowColors(ReadCandidateWindowColors());
   std::mutex reloadMutex;
 
+  std::string userDir = fcitx5_compat::userDirectory();
+
   auto reloadSettings = [&]() {
     FCITX_MCBOPOMOFO_INFO()
         << "Reloading settings from: "
@@ -843,23 +723,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     reloadSettings();
   };
 
-  auto reloadUserPhrases = [&]() {
-    FCITX_MCBOPOMOFO_INFO()
-        << "Reloading user phrase files from: " << userPhrasesPath << " and "
-        << excludedPhrasesPath;
-    lm->loadUserPhrases(userPhrasesPath.c_str(), excludedPhrasesPath.c_str());
-  };
-
   ServerFileReloader fileReloader(
-      std::filesystem::path(userDir) / "mcbopomofo.ini", userPhrasesPath,
-      excludedPhrasesPath,
+      std::filesystem::path(userDir) / "mcbopomofo.ini",
       [&]() {
         std::lock_guard<std::mutex> lock(reloadMutex);
         reloadSettings();
       },
       [&]() {
         std::lock_guard<std::mutex> lock(reloadMutex);
-        reloadUserPhrases();
+        loader->reloadUserModelsIfNeeded();
       });
   fileReloader.LogWatchedFiles();
 
@@ -880,8 +752,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       bool consumed = true;
       consumed = controller.handleKey(mapIpcKey(keyReq));
       ui.currentState.consumed = consumed;
-      if (keyReq.hasLayout) {
-        IPC::ClientUILayoutPayload layout;
+      if (keyReq.hasCoords) {
+        ServerPopupController::PopupLayout layout;
         layout.showCandidateWindow = !ui.currentState.candidates.empty();
         layout.showTooltipWindow = !ui.currentState.tooltip.empty();
         layout.dpiScale = keyReq.dpiScale;
@@ -960,14 +832,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       return std::string("1");
     }
 
-    IPC::ClientUILayoutPayload layoutReq;
-    if (IPC::DeserializeClientUILayout(req, layoutReq)) {
-      popupController.SetLayout(layoutReq);
-      if (hwndTray) {
-        PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);
-      }
-      return std::string("1");
-    }
+
 
     FCITX_MCBOPOMOFO_WARN() << "IPC Failed to deserialize request.";
     return std::string();

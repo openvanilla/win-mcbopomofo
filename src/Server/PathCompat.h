@@ -31,16 +31,31 @@
 #include <shlobj.h>
 #include <windows.h>
 
+#include "UTFHelper.h"
+
 namespace McBopomofo {
 namespace fcitx5_compat {
 
 // Minimal adaptation for Windows
 inline std::string locate(const std::string& path) {
-  // For now, assume data is in the same directory as the executable or a 'data'
-  // subfolder
+#ifdef _WIN32
+  wchar_t szExePath[MAX_PATH];
+  GetModuleFileNameW(NULL, szExePath, MAX_PATH);
+  std::filesystem::path exeDir = std::filesystem::path(szExePath).parent_path();
+  std::filesystem::path fullPath = exeDir / path;
+  if (std::filesystem::exists(fullPath)) {
+    return Utf16ToUtf8(fullPath.wstring());
+  }
+  // Try directly relative
+  if (std::filesystem::exists(path)) {
+    return Utf16ToUtf8(std::filesystem::absolute(path).wstring());
+  }
+  return Utf16ToUtf8(fullPath.wstring());
+#else
   if (std::filesystem::exists(path)) return path;
   if (std::filesystem::exists("data/" + path)) return "data/" + path;
   return path;
+#endif
 }
 
 inline std::string userDirectory() {
@@ -49,7 +64,7 @@ inline std::string userDirectory() {
     std::filesystem::path p(path);
     p /= "WinMcBopomofo";
     std::filesystem::create_directories(p);
-    return p.string();
+    return Utf16ToUtf8(p.wstring());
   }
   return "";
 }

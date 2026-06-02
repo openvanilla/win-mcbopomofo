@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #include "KeyHandler.h"
+#include "LanguageModelLoader.h"
 
 #include <algorithm>
 #include <chrono>

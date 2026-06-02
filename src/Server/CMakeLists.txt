@@ -56,6 +56,8 @@ add_executable(McBopomofoServer
     ../Client/Globals.cpp
     CandidateWindow.cpp
     main.cpp
+    LanguageModelLoader.cpp
+    TimestampedPath.cpp
     resource.h
     McBopomofoServer.rc
     CandidateWindowColors.cpp

@@ -99,11 +99,8 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   void uninitThreadMgrEventSink_();
   BOOL initThreadFocusSink_();
   void uninitThreadFocusSink_();
-  bool isDirectCommitWithoutComposition_(
-      const McBopomofo::IPC::StateUpdatePayload& state) const;
-  void hideAuxiliaryWindowsForDirectCommit_(
-      const McBopomofo::IPC::StateUpdatePayload& state);
-  void hideServerAuxiliaryUI_();
+
+
   void resetServerState_();
   bool shouldToggleOpenCloseWithShift_() const;
   bool handleStandaloneShiftKeyDown_(WPARAM wParam,
@@ -149,10 +146,7 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
  public:
   ITfComposition* GetComposition() const { return pComposition_; }
   void SetComposition(ITfComposition* pComp) { pComposition_ = pComp; }
-  void UpdateServerUILayout(HWND ownerHwnd, const RECT& anchor,
-                            bool showCandidateWindow, bool showTooltipWindow,
-                            float dpiScale);
-  void HideServerAuxiliaryUI() { hideServerAuxiliaryUI_(); }
+
 
   ITfUIElementMgr* GetUIElementMgr() const { return pUIElementMgr_; }
   CCandidateListUIElement* GetCandidateUIElement() const {
@@ -170,23 +164,10 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   ITfThreadMgr* GetThreadMgr() const { return ptim_; }
   TfClientId GetClientId() const { return tid_; }
 
-  bool IsShowCustomCandidateWindow() const {
-    return showCustomCandidateWindow_;
-  }
-  void SetShowCustomCandidateWindow(bool show) {
-    showCustomCandidateWindow_ = show;
-  }
-  bool IsShowCustomTooltipWindow() const { return showCustomTooltipWindow_; }
-  void SetShowCustomTooltipWindow(bool show) {
-    showCustomTooltipWindow_ = show;
-  }
-
  private:
   ITfUIElementMgr* pUIElementMgr_ = nullptr;
   CCandidateListUIElement* pCandidateUIElement_ = nullptr;
   CReadingInformationUIElement* pReadingUIElement_ = nullptr;
   DWORD dwCandidateUIElementId_ = 0;
   DWORD dwReadingUIElementId_ = 0;
-  bool showCustomCandidateWindow_ = true;
-  bool showCustomTooltipWindow_ = true;
 };

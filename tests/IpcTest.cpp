@@ -82,7 +82,7 @@ TEST(IpcTest, KeyEventRoundTripsLayoutAnchor) {
     payload.ascii = 'a';
     payload.shift = false;
     payload.ctrl = true;
-    payload.hasLayout = true;
+    payload.hasCoords = true;
     payload.ownerHwnd = 1234;
     payload.anchorLeft = 10;
     payload.anchorTop = 20;
@@ -97,7 +97,7 @@ TEST(IpcTest, KeyEventRoundTripsLayoutAnchor) {
     EXPECT_EQ(decoded.ascii, payload.ascii);
     EXPECT_EQ(decoded.shift, payload.shift);
     EXPECT_EQ(decoded.ctrl, payload.ctrl);
-    EXPECT_EQ(decoded.hasLayout, payload.hasLayout);
+    EXPECT_EQ(decoded.hasCoords, payload.hasCoords);
     EXPECT_EQ(decoded.ownerHwnd, payload.ownerHwnd);
     EXPECT_EQ(decoded.anchorLeft, payload.anchorLeft);
     EXPECT_EQ(decoded.anchorTop, payload.anchorTop);
@@ -119,7 +119,7 @@ TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithoutLayoutAnchor) {
     EXPECT_EQ(decoded.ascii, 97u);
     EXPECT_FALSE(decoded.shift);
     EXPECT_TRUE(decoded.ctrl);
-    EXPECT_FALSE(decoded.hasLayout);
+    EXPECT_FALSE(decoded.hasCoords);
 }
 
 TEST(IpcTest, KeyEventAcceptsExplicitNoLayoutAnchor) {
@@ -134,7 +134,7 @@ TEST(IpcTest, KeyEventAcceptsExplicitNoLayoutAnchor) {
     IPC::KeyEventPayload decoded;
     ASSERT_TRUE(IPC::DeserializeKeyEvent(noLayout, decoded));
     EXPECT_EQ(decoded.vk, 65u);
-    EXPECT_FALSE(decoded.hasLayout);
+    EXPECT_FALSE(decoded.hasCoords);
 }
 
 TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithLayoutAnchor) {
@@ -144,7 +144,7 @@ TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithLayoutAnchor) {
         "97\n"         // ascii
         "0\n"          // shift
         "1\n"          // ctrl
-        "1\n"          // hasLayout
+        "1\n"          // hasCoords
         "5678\n"       // ownerHwnd
         "100\n"        // anchorLeft
         "200\n"        // anchorTop
@@ -157,7 +157,7 @@ TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithLayoutAnchor) {
     EXPECT_EQ(decoded.ascii, 97u);
     EXPECT_FALSE(decoded.shift);
     EXPECT_TRUE(decoded.ctrl);
-    EXPECT_TRUE(decoded.hasLayout);
+    EXPECT_TRUE(decoded.hasCoords);
     EXPECT_EQ(decoded.dpiScale, 1.0f);
     EXPECT_EQ(decoded.ownerHwnd, 5678u);
     EXPECT_EQ(decoded.anchorLeft, 100);
@@ -166,51 +166,5 @@ TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithLayoutAnchor) {
     EXPECT_EQ(decoded.anchorBottom, 400);
 }
 
-TEST(IpcTest, ClientUILayoutRoundTrips) {
-    IPC::ClientUILayoutPayload payload;
-    payload.showCandidateWindow = true;
-    payload.showTooltipWindow = false;
-    payload.dpiScale = 1.5f;
-    payload.ownerHwnd = 5678;
-    payload.anchorLeft = 100;
-    payload.anchorTop = 200;
-    payload.anchorRight = 300;
-    payload.anchorBottom = 400;
 
-    std::string serialized = IPC::SerializeClientUILayout(payload);
-
-    IPC::ClientUILayoutPayload decoded;
-    ASSERT_TRUE(IPC::DeserializeClientUILayout(serialized, decoded));
-    EXPECT_EQ(decoded.showCandidateWindow, payload.showCandidateWindow);
-    EXPECT_EQ(decoded.showTooltipWindow, payload.showTooltipWindow);
-    EXPECT_EQ(decoded.dpiScale, payload.dpiScale);
-    EXPECT_EQ(decoded.ownerHwnd, payload.ownerHwnd);
-    EXPECT_EQ(decoded.anchorLeft, payload.anchorLeft);
-    EXPECT_EQ(decoded.anchorTop, payload.anchorTop);
-    EXPECT_EQ(decoded.anchorRight, payload.anchorRight);
-    EXPECT_EQ(decoded.anchorBottom, payload.anchorBottom);
-}
-
-TEST(IpcTest, ClientUILayoutAcceptsLegacyPayload) {
-    std::string legacy =
-        "7\n"          // CMD_UPDATE_UI_LAYOUT
-        "1\n"          // showCandidateWindow
-        "0\n"          // showTooltipWindow
-        "5678\n"       // ownerHwnd
-        "100\n"        // anchorLeft
-        "200\n"        // anchorTop
-        "300\n"        // anchorRight
-        "400\n";       // anchorBottom
-
-    IPC::ClientUILayoutPayload decoded;
-    ASSERT_TRUE(IPC::DeserializeClientUILayout(legacy, decoded));
-    EXPECT_TRUE(decoded.showCandidateWindow);
-    EXPECT_FALSE(decoded.showTooltipWindow);
-    EXPECT_EQ(decoded.dpiScale, 1.0f);
-    EXPECT_EQ(decoded.ownerHwnd, 5678u);
-    EXPECT_EQ(decoded.anchorLeft, 100);
-    EXPECT_EQ(decoded.anchorTop, 200);
-    EXPECT_EQ(decoded.anchorRight, 300);
-    EXPECT_EQ(decoded.anchorBottom, 400);
-}
 

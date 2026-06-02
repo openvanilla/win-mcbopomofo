@@ -27,6 +27,10 @@
 #include <filesystem>
 #include <string>
 
+#ifdef _WIN32
+#include "UTFHelper.h"
+#endif
+
 namespace McBopomofo {
 
 // Represents a path with a timestamp. The timestamp is not synced upon
@@ -38,7 +42,11 @@ namespace McBopomofo {
 class TimestampedPath {
  public:
   TimestampedPath() {}
+#ifdef _WIN32
+  explicit TimestampedPath(const std::string& path) : path_(Utf8ToUtf16(path)) {}
+#else
   explicit TimestampedPath(const std::string& path) : path_(path) {}
+#endif
 
   [[nodiscard]] std::filesystem::path path() const;
 

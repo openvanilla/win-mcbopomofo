@@ -34,6 +34,17 @@
 
 namespace McBopomofo {
 
+#ifdef _WIN32
+constexpr char kDataPath[] = "data/data.txt";
+constexpr char kDataPathPlainBPMF[] = "data/data-plain-bpmf.txt";
+constexpr char kUserPhraseFilename[] = "user.txt";
+constexpr char kExcludedPhraseFilename[] = "exclude.txt";
+constexpr char kAssociatedPhrasesV2Path[] =
+    "data/associated-phrases-v2.txt";
+constexpr char kPhrasesReplacementFilename[] = "phrases-replacement.txt";
+constexpr char kBpmfvPUAFilename[] = "data/bpmfvs-pua.txt";
+constexpr char kBpmfvVariantsFilename[] = "data/bpmfvs-variants.txt";
+#else
 constexpr char kDataPath[] = "data/mcbopomofo-data.txt";
 constexpr char kDataPathPlainBPMF[] = "data/mcbopomofo-data-plain-bpmf.txt";
 constexpr char kUserPhraseFilename[] = "data.txt";  // same as macOS version
@@ -43,6 +54,7 @@ constexpr char kAssociatedPhrasesV2Path[] =
 constexpr char kPhrasesReplacementFilename[] = "phrases-replacement.txt";
 constexpr char kBpmfvPUAFilename[] = "data/mcbopomofo-bpmfvs-pua.txt";
 constexpr char kBpmfvVariantsFilename[] = "data/mcbopomofo-bpmfvs-variants.txt";
+#endif
 
 LanguageModelLoader::LanguageModelLoader(
     std::unique_ptr<LocalizedStrings> localizedStrings)
@@ -99,6 +111,7 @@ LanguageModelLoader::LanguageModelLoader(
     }
   }
 
+#ifndef _WIN32
   userDataPath += "/mcbopomofo";
   if (!std::filesystem::exists(userDataPath, err)) {
     bool result = std::filesystem::create_directory(userDataPath, err);
@@ -112,6 +125,7 @@ LanguageModelLoader::LanguageModelLoader(
       return;
     }
   }
+#endif
 
   // We just use very simple file handling routines.
   userDataPath_ = userDataPath;
@@ -241,6 +255,21 @@ bool LanguageModelLoader::reloadUserModelsIfNeeded() {
     }
   }
 
+#ifdef _WIN32
+  // On Windows, std::filesystem::path::string() converts native UTF-16 to the active
+  // system ANSI code page (e.g., CP950/Big5 on Traditional Chinese locale), which
+  // corrupts paths containing characters outside that code page. Since MemoryMappedFile
+  // expects a UTF-8 encoded const char* path on all platforms, we explicitly convert
+  // the native UTF-16 path (wstring()) to UTF-8 using Utf16ToUtf8.
+  if (shouldReloadUserPhrases) {
+    lm_->loadUserPhrases(Utf16ToUtf8(userPhrasesPath_.path().wstring()).c_str(),
+                         Utf16ToUtf8(excludedPhrasesPath_.path().wstring()).c_str());
+  }
+
+  if (shouldReloadPhrasesReplacement) {
+    lm_->loadPhraseReplacementMap(Utf16ToUtf8(phrasesReplacementPath_.path().wstring()).c_str());
+  }
+#else
   if (shouldReloadUserPhrases) {
     lm_->loadUserPhrases(userPhrasesPath_.path().c_str(),
                          excludedPhrasesPath_.path().c_str());
@@ -249,6 +278,7 @@ bool LanguageModelLoader::reloadUserModelsIfNeeded() {
   if (shouldReloadPhrasesReplacement) {
     lm_->loadPhraseReplacementMap(phrasesReplacementPath_.path().c_str());
   }
+#endif
 
   return shouldReloadUserPhrases || shouldReloadPhrasesReplacement;
 }

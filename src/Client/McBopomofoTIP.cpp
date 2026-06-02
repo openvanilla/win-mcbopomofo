@@ -726,7 +726,7 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   req.ctrl = IsCtrlPressed(keyboardState);
   RECT keyLayout = {0};
   if (GetKeyDownLayout(pic, tid_, &keyLayout)) {
-    req.hasLayout = true;
+    req.hasCoords = true;
     req.ownerHwnd =
         static_cast<uint64_t>(reinterpret_cast<uintptr_t>(contextHwnd));
     req.dpiScale = GetDpiScaleForWindow(contextHwnd);
@@ -919,7 +919,6 @@ STDAPI McBopomofoTIP::OnSetThreadFocus() {
 
 STDAPI McBopomofoTIP::OnKillThreadFocus() {
   shiftToggleKeyPending_ = false;
-  hideServerAuxiliaryUI_();
   resetServerState_();
   return S_OK;
 }
@@ -933,43 +932,7 @@ bool McBopomofoTIP::IsOpen() {
   return true;
 }
 
-bool McBopomofoTIP::isDirectCommitWithoutComposition_(
-    const McBopomofo::IPC::StateUpdatePayload& state) const {
-  return !state.commitString.empty() && state.composingBuffer.empty() &&
-         pComposition_ == nullptr;
-}
 
-void McBopomofoTIP::hideAuxiliaryWindowsForDirectCommit_(
-    const McBopomofo::IPC::StateUpdatePayload& state) {
-  if (isDirectCommitWithoutComposition_(state)) {
-    hideServerAuxiliaryUI_();
-  }
-}
-
-void McBopomofoTIP::hideServerAuxiliaryUI_() {
-  RECT empty = {};
-  UpdateServerUILayout(nullptr, empty, false, false, 1.0f);
-}
-
-void McBopomofoTIP::UpdateServerUILayout(HWND ownerHwnd, const RECT& anchor,
-                                         bool showCandidateWindow,
-                                         bool showTooltipWindow,
-                                         float dpiScale) {
-  McBopomofo::IPC::ClientUILayoutPayload payload;
-  payload.showCandidateWindow = showCandidateWindow;
-  payload.showTooltipWindow = showTooltipWindow;
-  payload.dpiScale = dpiScale;
-  payload.ownerHwnd =
-      static_cast<uint64_t>(reinterpret_cast<uintptr_t>(ownerHwnd));
-  payload.anchorLeft = static_cast<int>(anchor.left);
-  payload.anchorTop = static_cast<int>(anchor.top);
-  payload.anchorRight = static_cast<int>(anchor.right);
-  payload.anchorBottom = static_cast<int>(anchor.bottom);
-
-  McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
-  std::string response;
-  pipe.Call(McBopomofo::IPC::SerializeClientUILayout(payload), response);
-}
 
 void McBopomofoTIP::applyStateToContext_(
     ITfContext* context, const McBopomofo::IPC::StateUpdatePayload& state,
@@ -979,8 +942,6 @@ void McBopomofoTIP::applyStateToContext_(
     // LogMessage("%sRequestEditSession skipped: null context", logPrefix);
     return;
   }
-
-  hideAuxiliaryWindowsForDirectCommit_(state);
 
   CStateEditSession* pEditSession = new CStateEditSession(context, this, state);
   HRESULT hr = E_FAIL;
@@ -1011,11 +972,7 @@ void McBopomofoTIP::resetServerState_() {
         // session");
       }
     }
-  } else {
-    // LogMessage("Failed to send RESET command");
   }
-
-  hideServerAuxiliaryUI_();
 }
 
 void McBopomofoTIP::RefreshLangBar() {
