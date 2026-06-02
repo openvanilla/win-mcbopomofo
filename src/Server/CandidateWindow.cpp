@@ -383,6 +383,9 @@ void CandidateWindow::applyCandidateWindowSettings_(
 }
 
 void CandidateWindow::reloadServerControlledSettings_() {
+#ifdef WINMCBOPOMOFO_SERVER_SIDE_POPUP
+  InvalidateRect(hwnd_, nullptr, FALSE);
+#else
   McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
   std::string response;
   if (!pipe.Call(McBopomofo::IPC::SerializeReloadSettings(), response)) {
@@ -398,6 +401,7 @@ void CandidateWindow::reloadServerControlledSettings_() {
                                 state.candidateKeys, state.candidateKeysCount,
                                 state.candidateWindowColors);
   InvalidateRect(hwnd_, nullptr, FALSE);
+#endif
 }
 
 bool CandidateWindow::Create(HINSTANCE hInstance) {
@@ -422,7 +426,12 @@ bool CandidateWindow::Create(HINSTANCE hInstance) {
   hwnd_ = CreateWindowExW(
       WS_EX_TOOLWINDOW | WS_EX_TOPMOST, CANDIDATE_WINDOW_CLASS, L"",
       WS_POPUP | WS_CLIPCHILDREN, 0, 0, 100, 30,  // Initial dummy size
-      ownerHwnd_, nullptr, hInstance_, this);
+#ifdef WINMCBOPOMOFO_SERVER_SIDE_POPUP
+      nullptr,
+#else
+      ownerHwnd_,
+#endif
+      nullptr, hInstance_, this);
 
   return hwnd_ != nullptr;
 }
@@ -477,9 +486,16 @@ void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
     return;
   }
 
+#ifndef WINMCBOPOMOFO_SERVER_SIDE_POPUP
   const HWND previousOwner = ownerHwnd_;
+#endif
   ownerHwnd_ = ownerHwnd;
   updateRenderMode_();
+#ifdef WINMCBOPOMOFO_SERVER_SIDE_POPUP
+  // Server-side popups live in McBopomofoServer.exe, not in the foreground
+  // app process. Keep ownerHwnd_ only as a host hint for renderer selection;
+  // do not owner-chain a server HWND to a cross-process foreground HWND.
+#else
   if (!hwnd_) {
     return;
   }
@@ -492,6 +508,7 @@ void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
                     reinterpret_cast<LONG_PTR>(ownerHwnd_));
   // LogMessage("CandidateWindow owner updated hwnd=%p owner=%p", hwnd_,
   //            ownerHwnd_);
+#endif
 }
 
 void CandidateWindow::Destroy() {

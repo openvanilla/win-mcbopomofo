@@ -40,6 +40,7 @@ enum class Command : int {
   CMD_OPEN_SETTINGS = 4,
   CMD_GET_SETTINGS = 5,
   CMD_CLIENT_LOG = 6,
+  CMD_UPDATE_UI_LAYOUT = 7,
 };
 
 enum class CandidateSelectionStyle : int {
@@ -67,6 +68,16 @@ struct ClientLogPayload {
   unsigned long processId = 0;
   uint64_t elapsedMs = 0;
   std::string message;
+};
+
+struct ClientUILayoutPayload {
+  bool showCandidateWindow = false;
+  bool showTooltipWindow = false;
+  uint64_t ownerHwnd = 0;
+  int anchorLeft = 0;
+  int anchorTop = 0;
+  int anchorRight = 0;
+  int anchorBottom = 0;
 };
 
 struct CandidateWindowColors {
@@ -139,6 +150,12 @@ bool DeserializeClientSettings(const std::string& data,
 std::string SerializeClientLog(const ClientLogPayload& payload);
 // Deserialize a relayed client log message
 bool DeserializeClientLog(const std::string& data, ClientLogPayload& payload);
+
+// Serialize a client-side UI layout update
+std::string SerializeClientUILayout(const ClientUILayoutPayload& payload);
+// Deserialize a client-side UI layout update
+bool DeserializeClientUILayout(const std::string& data,
+                               ClientUILayoutPayload& payload);
 
 // Serialize a state update to a string
 std::string SerializeStateUpdate(const StateUpdatePayload& payload);

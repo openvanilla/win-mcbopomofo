@@ -53,6 +53,8 @@ endif()
 
 # Server executable
 add_executable(McBopomofoServer 
+    ../Client/Globals.cpp
+    CandidateWindow.cpp
     main.cpp
     resource.h
     McBopomofoServer.rc
@@ -61,7 +63,9 @@ add_executable(McBopomofoServer
     WindowsKeyBridge.cpp
     Settings.cpp
     SettingsApp.cpp
+    TooltipWindow.cpp
 )
 set_target_properties(McBopomofoServer PROPERTIES WIN32_EXECUTABLE TRUE)
-target_include_directories(McBopomofoServer PRIVATE ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src ${WINMCBOPOMOFO_GENERATED_DIR})
-target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common libopencc dwmapi windowsapp icuuc icuin)
+target_include_directories(McBopomofoServer PRIVATE ${CMAKE_SOURCE_DIR}/src/Client ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src ${WINMCBOPOMOFO_GENERATED_DIR})
+target_compile_definitions(McBopomofoServer PRIVATE WINMCBOPOMOFO_SERVER_SIDE_POPUP)
+target_link_libraries(McBopomofoServer PRIVATE McBopomofoEngine Common libopencc dwmapi d2d1 dwrite windowsapp icuuc icuin)

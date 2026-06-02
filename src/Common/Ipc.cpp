@@ -227,6 +227,51 @@ bool DeserializeClientLog(const std::string& data, ClientLogPayload& payload) {
   return ReadSizedString(ss, payload.message);
 }
 
+std::string SerializeClientUILayout(const ClientUILayoutPayload& payload) {
+  std::ostringstream ss;
+  ss << (int)Command::CMD_UPDATE_UI_LAYOUT << "\n"
+     << (payload.showCandidateWindow ? 1 : 0) << "\n"
+     << (payload.showTooltipWindow ? 1 : 0) << "\n"
+     << payload.ownerHwnd << "\n"
+     << payload.anchorLeft << "\n"
+     << payload.anchorTop << "\n"
+     << payload.anchorRight << "\n"
+     << payload.anchorBottom << "\n";
+  return ss.str();
+}
+
+bool DeserializeClientUILayout(const std::string& data,
+                               ClientUILayoutPayload& payload) {
+  std::istringstream ss(data);
+  std::string line;
+
+  if (!std::getline(ss, line)) return false;
+  if (std::stoi(line) != (int)Command::CMD_UPDATE_UI_LAYOUT) return false;
+
+  if (!std::getline(ss, line)) return false;
+  payload.showCandidateWindow = (line == "1");
+
+  if (!std::getline(ss, line)) return false;
+  payload.showTooltipWindow = (line == "1");
+
+  if (!std::getline(ss, line)) return false;
+  payload.ownerHwnd = std::stoull(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.anchorLeft = std::stoi(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.anchorTop = std::stoi(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.anchorRight = std::stoi(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.anchorBottom = std::stoi(line);
+
+  return true;
+}
+
 // Format for StateUpdate:
 // CONSUMED(1/0)
 // CURSOR_INDEX

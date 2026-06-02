@@ -217,7 +217,12 @@ bool TooltipWindow::Create(HINSTANCE hInstance) {
   hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
                           TOOLTIP_WINDOW_CLASS, L"", WS_POPUP | WS_CLIPCHILDREN,
                           0, 0, 100, 30,  // Initial dummy size
-                          ownerHwnd_, nullptr, hInstance_, this);
+#ifdef WINMCBOPOMOFO_SERVER_SIDE_POPUP
+                          nullptr,
+#else
+                          ownerHwnd_,
+#endif
+                          nullptr, hInstance_, this);
 
   EnableWindowDropShadow(hwnd_);
 
@@ -273,9 +278,15 @@ void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
     return;
   }
 
+#ifndef WINMCBOPOMOFO_SERVER_SIDE_POPUP
   const HWND previousOwner = ownerHwnd_;
+#endif
   ownerHwnd_ = ownerHwnd;
   updateRenderMode_();
+#ifdef WINMCBOPOMOFO_SERVER_SIDE_POPUP
+  // Server-side popups are owned by McBopomofoServer.exe. ownerHwnd_ is kept
+  // only as a host hint for renderer selection.
+#else
   if (!hwnd_) {
     return;
   }
@@ -288,6 +299,7 @@ void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
                     reinterpret_cast<LONG_PTR>(ownerHwnd_));
   // LogMessage("TooltipWindow owner updated hwnd=%p owner=%p", hwnd_,
   // ownerHwnd_);
+#endif
 }
 
 void TooltipWindow::Destroy() {

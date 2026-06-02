@@ -65,79 +65,19 @@ HWND GetContextWindow(ITfContext* context) {
   return GetFocus();
 }
 
-void MoveAuxiliaryWindowsInternal(McBopomofoTIP* tip, const RECT& rc) {
-  auto* candWin = tip->GetCandidateWindow();
-  auto* tooltipWin = tip->GetTooltipWindow();
-
-  const bool candVisible = candWin->IsVisible();
-  const bool tooltipVisible = tooltipWin->IsVisible();
-
-  if (!candVisible && !tooltipVisible) {
+void SendUILayoutToServer(McBopomofoTIP* tip, ITfContext* context,
+                          const RECT& rc, bool showCandidateWindow,
+                          bool showTooltipWindow) {
+  if (!tip) {
     return;
   }
-
-  // Determine the monitor where the text is being typed
-  POINT ptTopLeft = {rc.left, rc.top};
-  HMONITOR hMonitor = MonitorFromPoint(ptTopLeft, MONITOR_DEFAULTTONEAREST);
-  MONITORINFO mi = {0};
-  mi.cbSize = sizeof(MONITORINFO);
-  GetMonitorInfoW(hMonitor, &mi);
-
-  const int screenBottom = mi.rcWork.bottom;
-  const int screenRight = mi.rcWork.right;
-  const int screenLeft = mi.rcWork.left;
-
-  int candHeight = candVisible ? candWin->GetHeight() : 0;
-  int candWidth = candVisible ? candWin->GetWidth() : 0;
-  int tooltipHeight = tooltipVisible ? tooltipWin->GetHeight() : 0;
-  int tooltipWidth = tooltipVisible ? tooltipWin->GetWidth() : 0;
-
-  int totalRequiredHeight =
-      tooltipHeight + (tooltipVisible && candVisible ? 4 : 0) + candHeight;
-  int yBelow = rc.bottom + 10;
-
-  int finalCandY = 0;
-  int finalTooltipY = 0;
-  bool showAbove = false;
-
-  if (yBelow + totalRequiredHeight > screenBottom) {
-    showAbove = true;
-  }
-
-  if (showAbove) {
-    // If going above, candidate window is at the bottom, tooltip above it.
-    // cand_win.y = input_text_rect.top - cand_win.height - 10
-    finalCandY = rc.top - candHeight - 10;
-    finalTooltipY =
-        finalCandY - tooltipHeight - (tooltipVisible && candVisible ? 4 : 0);
-  } else {
-    // Default below
-    finalTooltipY = yBelow;
-    finalCandY = yBelow + (tooltipVisible ? tooltipHeight + 4 : 0);
-  }
-
-  int x = rc.left;
-
-  // Prevent going off the right edge of the screen
-  int maxWidth = std::max(candWidth, tooltipWidth);
-  if (x + maxWidth > screenRight) {
-    x = screenRight - maxWidth;
-  }
-  // Prevent going off the left edge of the screen
-  if (x < screenLeft) {
-    x = screenLeft;
-  }
-
-  if (tooltipVisible) {
-    tooltipWin->Move(x, finalTooltipY);
-  }
-  if (candVisible) {
-    candWin->Move(x, finalCandY);
-  }
+  tip->UpdateServerUILayout(GetContextWindow(context), rc, showCandidateWindow,
+                            showTooltipWindow);
 }
 
-bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
-                        McBopomofoTIP* tip) {
+bool SendUILayoutForRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
+                          McBopomofoTIP* tip, bool showCandidateWindow,
+                          bool showTooltipWindow) {
   if (!range || !tip) {
     return false;
   }
@@ -157,7 +97,8 @@ bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
     // LogMessage(
     //     "MoveWindowsToRange GetTextExt ok clipped=%d rect=(%ld,%ld,%ld,%ld)",
     //     fClipped ? 1 : 0, rc.left, rc.top, rc.right, rc.bottom);
-    MoveAuxiliaryWindowsInternal(tip, rc);
+    SendUILayoutToServer(tip, context, rc, showCandidateWindow,
+                         showTooltipWindow);
     moved = true;
   } else {
     // LogMessage("MoveWindowsToRange GetTextExt failed hr=0x%08X", hr);
@@ -166,8 +107,9 @@ bool MoveWindowsToRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
   return moved;
 }
 
-bool MoveWindowsToSelection(TfEditCookie ec, ITfContext* context,
-                            McBopomofoTIP* tip) {
+bool SendUILayoutForSelection(TfEditCookie ec, ITfContext* context,
+                              McBopomofoTIP* tip, bool showCandidateWindow,
+                              bool showTooltipWindow) {
   TF_SELECTION selection = {};
   ULONG fetched = 0;
   HRESULT hr =
@@ -180,12 +122,15 @@ bool MoveWindowsToSelection(TfEditCookie ec, ITfContext* context,
     return false;
   }
 
-  bool moved = MoveWindowsToRange(ec, context, selection.range, tip);
+  bool moved = SendUILayoutForRange(ec, context, selection.range, tip,
+                                    showCandidateWindow, showTooltipWindow);
   selection.range->Release();
   return moved;
 }
 
-void MoveWindowsToCaretFallback(McBopomofoTIP* tip) {
+void SendUILayoutForCaretFallback(McBopomofoTIP* tip, ITfContext* context,
+                                  bool showCandidateWindow,
+                                  bool showTooltipWindow) {
   if (!tip) {
     return;
   }
@@ -208,20 +153,25 @@ void MoveWindowsToCaretFallback(McBopomofoTIP* tip) {
     // LogMessage("MoveWindowsToCaretFallback caret rect=(%ld,%ld,%ld,%ld)",
     //            screenRect.left, screenRect.top, screenRect.right,
     //            screenRect.bottom);
-    MoveAuxiliaryWindowsInternal(tip, screenRect);
+    SendUILayoutToServer(tip, context, screenRect, showCandidateWindow,
+                         showTooltipWindow);
   } else {
     // LogMessage("MoveWindowsToCaretFallback no caret info");
   }
 }
 
-void MoveAuxiliaryWindows(TfEditCookie ec, ITfContext* context, ITfRange* range,
-                          McBopomofoTIP* tip) {
-  bool moved = MoveWindowsToRange(ec, context, range, tip);
+void SendAuxiliaryUILayout(TfEditCookie ec, ITfContext* context,
+                           ITfRange* range, McBopomofoTIP* tip,
+                           bool showCandidateWindow, bool showTooltipWindow) {
+  bool moved = SendUILayoutForRange(ec, context, range, tip,
+                                    showCandidateWindow, showTooltipWindow);
   if (!moved) {
-    moved = MoveWindowsToSelection(ec, context, tip);
+    moved = SendUILayoutForSelection(ec, context, tip, showCandidateWindow,
+                                     showTooltipWindow);
   }
   if (!moved) {
-    MoveWindowsToCaretFallback(tip);
+    SendUILayoutForCaretFallback(tip, context, showCandidateWindow,
+                                 showTooltipWindow);
   }
 }
 
@@ -343,8 +293,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     // We still need to explicitly hide auxiliary UI first, otherwise the
     // candidate window can be left visible after a direct commit.
     if (directCommitWithoutComposition) {
-      pTIP_->GetCandidateWindow()->Hide();
-      pTIP_->GetTooltipWindow()->Hide();
+      pTIP_->HideServerAuxiliaryUI();
 
       if (pTIP_->GetUIElementMgr()) {
         auto* pUIElementMgr = pTIP_->GetUIElementMgr();
@@ -488,14 +437,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           }
         }
 
-        if (showCustomTooltip && !state_.tooltip.empty()) {
-          pTIP_->GetTooltipWindow()->SetOwnerWindow(
-              GetContextWindow(pContext_));
-          pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
-        } else {
-          pTIP_->GetTooltipWindow()->Hide();
-        }
-
         bool showCustomCand = true;
         if (pTIP_->GetUIElementMgr() && pTIP_->GetCandidateUIElement()) {
           auto* pUIElementMgr = pTIP_->GetUIElementMgr();
@@ -556,30 +497,16 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
           }
         }
 
-        if (showCustomCand && !state_.candidates.empty()) {
-          pTIP_->GetCandidateWindow()->SetOwnerWindow(
-              GetContextWindow(pContext_));
-          CandidateWindow::UpdateUIRequest request;
-          request.candidates = state_.candidates;
-          request.cursorIndex = state_.candidateIndex;
-          request.forceVertical = state_.forceVertical;
-          request.selectionStyle = state_.selectionStyle;
-          request.candidateFontSize = state_.candidateFontSize;
-          request.hint = state_.hint;
-          request.candidateWindowVertical = state_.candidateWindowVertical;
-          request.candidateKeys = state_.candidateKeys;
-          request.candidateKeysCount = state_.candidateKeysCount;
-          request.colors = state_.candidateWindowColors;
-          pTIP_->GetCandidateWindow()->UpdateUI(request);
-        } else {
-          pTIP_->GetCandidateWindow()->Hide();
-        }
-
-        // Now move the auxiliary windows
+        const bool showServerCand =
+            showCustomCand && !state_.candidates.empty();
+        const bool showServerTooltip =
+            showCustomTooltip && !state_.tooltip.empty();
         if (!directCommitWithoutComposition &&
-            ((showCustomCand && !state_.candidates.empty()) ||
-             (showCustomTooltip && !state_.tooltip.empty()))) {
-          MoveAuxiliaryWindows(ec, pContext_, pCursorRange, pTIP_);
+            (showServerCand || showServerTooltip)) {
+          SendAuxiliaryUILayout(ec, pContext_, pCursorRange, pTIP_,
+                                showServerCand, showServerTooltip);
+        } else {
+          pTIP_->HideServerAuxiliaryUI();
         }
         pCursorRange->Release();
       }
@@ -643,13 +570,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       }
     }
 
-    if (showCustomTooltip && !state_.tooltip.empty()) {
-      pTIP_->GetTooltipWindow()->SetOwnerWindow(GetContextWindow(pContext_));
-      pTIP_->GetTooltipWindow()->UpdateUI(state_.tooltip);
-    } else {
-      pTIP_->GetTooltipWindow()->Hide();
-    }
-
     bool showCustomCand = true;
     if (pTIP_->GetUIElementMgr() && pTIP_->GetCandidateUIElement()) {
       auto* pUIElementMgr = pTIP_->GetUIElementMgr();
@@ -710,32 +630,18 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       }
     }
 
-    if (showCustomCand && !state_.candidates.empty()) {
-      pTIP_->GetCandidateWindow()->SetOwnerWindow(GetContextWindow(pContext_));
-      CandidateWindow::UpdateUIRequest request;
-      request.candidates = state_.candidates;
-      request.cursorIndex = state_.candidateIndex;
-      request.forceVertical = state_.forceVertical;
-      request.selectionStyle = state_.selectionStyle;
-      request.candidateFontSize = state_.candidateFontSize;
-      request.hint = state_.hint;
-      request.candidateWindowVertical = state_.candidateWindowVertical;
-      request.candidateKeys = state_.candidateKeys;
-      request.candidateKeysCount = state_.candidateKeysCount;
-      request.colors = state_.candidateWindowColors;
-      pTIP_->GetCandidateWindow()->UpdateUI(request);
+    const bool showServerCand = showCustomCand && !state_.candidates.empty();
+    const bool showServerTooltip =
+        showCustomTooltip && !state_.tooltip.empty();
+    if (showServerCand || showServerTooltip) {
+      SendAuxiliaryUILayout(ec, pContext_, nullptr, pTIP_, showServerCand,
+                            showServerTooltip);
     } else {
-      pTIP_->GetCandidateWindow()->Hide();
-    }
-
-    if ((showCustomCand && !state_.candidates.empty()) ||
-        (showCustomTooltip && !state_.tooltip.empty())) {
-      MoveAuxiliaryWindows(ec, pContext_, nullptr, pTIP_);
+      pTIP_->HideServerAuxiliaryUI();
     }
   }
 
   if (state_.candidates.empty()) {
-    pTIP_->GetCandidateWindow()->Hide();
     if (pTIP_->GetUIElementMgr() && pTIP_->GetCandidateUIElement()) {
       DWORD dwId = pTIP_->GetCandidateUIElementId();
       if (dwId != 0) {
@@ -746,7 +652,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
   }
   if (state_.tooltip.empty()) {
-    pTIP_->GetTooltipWindow()->Hide();
     if (pTIP_->GetUIElementMgr() && pTIP_->GetReadingUIElement()) {
       DWORD dwId = pTIP_->GetReadingUIElementId();
       if (dwId != 0) {
@@ -755,6 +660,10 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       }
       pTIP_->GetReadingUIElement()->SetShown(FALSE);
     }
+  }
+
+  if (state_.candidates.empty() && state_.tooltip.empty()) {
+    pTIP_->HideServerAuxiliaryUI();
   }
 
   return S_OK;

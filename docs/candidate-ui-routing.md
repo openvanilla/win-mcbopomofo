@@ -47,8 +47,8 @@ This renderer decision is separate from TSF's `BeginUIElement()` decision:
 
 Relevant code:
 
-- [src/Client/CandidateWindow.h](C:/Users/user/Works/win-mcbopomofo/src/Client/CandidateWindow.h)
-- [src/Client/TooltipWindow.h](C:/Users/user/Works/win-mcbopomofo/src/Client/TooltipWindow.h)
+- [src/Server/CandidateWindow.h](C:/Users/user/Works/win-mcbopomofo/src/Server/CandidateWindow.h)
+- [src/Server/TooltipWindow.h](C:/Users/user/Works/win-mcbopomofo/src/Server/TooltipWindow.h)
 
 ## When Components Are Created
 
@@ -139,8 +139,8 @@ The current implementation uses host window class as a runtime heuristic.
 
 Relevant code:
 
-- [src/Client/CandidateWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/CandidateWindow.cpp)
-- [src/Client/TooltipWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/TooltipWindow.cpp)
+- [src/Server/CandidateWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Server/CandidateWindow.cpp)
+- [src/Server/TooltipWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Server/TooltipWindow.cpp)
 
 The decision is based on `GetClassNameW(ownerHwnd_)`, not on a process-name
 whitelist, because window class is a more direct signal of the host's windowing
@@ -180,9 +180,9 @@ It therefore includes:
 Relevant code:
 
 - `CandidateWindow` paint path:
-  [src/Client/CandidateWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/CandidateWindow.cpp)
+  [src/Server/CandidateWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Server/CandidateWindow.cpp)
 - `TooltipWindow` paint path:
-  [src/Client/TooltipWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Client/TooltipWindow.cpp)
+  [src/Server/TooltipWindow.cpp](C:/Users/user/Works/win-mcbopomofo/src/Server/TooltipWindow.cpp)
 
 ## Actual Branch Flow
 

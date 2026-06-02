@@ -7,6 +7,46 @@ param(
 
 $scriptsDir = Join-Path $PSScriptRoot "scripts"
 
+function Get-IcaclsPath {
+    $candidates = @(
+        (Join-Path $env:SystemRoot "Sysnative\icacls.exe"),
+        (Join-Path $env:SystemRoot "System32\icacls.exe"),
+        (Join-Path $env:SystemRoot "SysWOW64\icacls.exe")
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    $command = Get-Command "icacls.exe" -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    return $null
+}
+
+function Grant-AppContainerReadAccess {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $icaclsPath = Get-IcaclsPath
+    if (!$icaclsPath) {
+        Write-Error "icacls.exe was not found. Cannot grant AppContainer permissions to '$Path'."
+        Exit 1
+    }
+
+    & $icaclsPath $Path /grant "ALL APPLICATION PACKAGES:(OI)(CI)(RX)" /T /Q
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to grant AppContainer permissions to '$Path' using '$icaclsPath'."
+        Exit $LASTEXITCODE
+    }
+}
+
 # Requires Admin privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "Please run this script as Administrator."
@@ -70,7 +110,7 @@ foreach ($file in $openccRequiredFiles) {
 }
 
 Write-Host "6. Granting AppContainer (UWP) permissions to dist folder..."
-icacls "$installDir" /grant "ALL APPLICATION PACKAGES:(OI)(CI)(RX)" /T /Q
+Grant-AppContainerReadAccess -Path $installDir
 
 Write-Host "7. Registering TSF DLLs..."
 Start-Process -FilePath "C:\Windows\System32\regsvr32.exe" -ArgumentList "/s `"$installDir\McBopomofoTIP_x64.dll`"" -Wait

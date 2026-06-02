@@ -2,6 +2,46 @@
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 
+function Get-IcaclsPath {
+    $candidates = @(
+        (Join-Path $env:SystemRoot "Sysnative\icacls.exe"),
+        (Join-Path $env:SystemRoot "System32\icacls.exe"),
+        (Join-Path $env:SystemRoot "SysWOW64\icacls.exe")
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    $command = Get-Command "icacls.exe" -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    return $null
+}
+
+function Grant-AppContainerReadAccess {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $icaclsPath = Get-IcaclsPath
+    if (!$icaclsPath) {
+        Write-Error "icacls.exe was not found. Cannot grant AppContainer permissions to '$Path'."
+        Exit 1
+    }
+
+    & $icaclsPath $Path /grant "ALL APPLICATION PACKAGES:(OI)(CI)(RX)" /T /Q
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to grant AppContainer permissions to '$Path' using '$icaclsPath'."
+        Exit $LASTEXITCODE
+    }
+}
+
 # Requires Admin privileges
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "Please run this script as Administrator."
@@ -85,7 +125,7 @@ Copy-Item "$sourceDir\McBopomofoTIP_arm64.dll" "$installDir\" -Force -ErrorActio
 Copy-Item "$sourceDir\data\*" "$installDir\data\" -Recurse -Force
 
 Write-Host "4. Granting AppContainer permissions..."
-icacls "$installDir" /grant "ALL APPLICATION PACKAGES:(OI)(CI)(RX)" /T /Q
+Grant-AppContainerReadAccess -Path $installDir
 
 Write-Host "5. Registering TSF DLLs..."
 if (Test-Path "$installDir\McBopomofoTIP_x64.dll") {

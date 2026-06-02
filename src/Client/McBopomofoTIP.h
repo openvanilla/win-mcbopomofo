@@ -25,9 +25,7 @@
 #include <msctf.h>
 #include <windows.h>
 
-#include "CandidateWindow.h"
 #include "Ipc.h"
-#include "TooltipWindow.h"
 #include "TsfUiElement.h"
 
 class McBopomofoTIP : public ITfTextInputProcessorEx,
@@ -105,6 +103,7 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
       const McBopomofo::IPC::StateUpdatePayload& state) const;
   void hideAuxiliaryWindowsForDirectCommit_(
       const McBopomofo::IPC::StateUpdatePayload& state);
+  void hideServerAuxiliaryUI_();
   void resetServerState_();
   bool shouldToggleOpenCloseWithShift_() const;
   bool handleStandaloneShiftKeyDown_(WPARAM wParam,
@@ -125,8 +124,6 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   McBopomofo::IPC::StateUpdatePayload lastState_;
 
   ITfComposition* pComposition_;
-  CandidateWindow candidateWindow_;
-  TooltipWindow tooltipWindow_;
 
   // Modern input mode icon that appears directly in the Windows Taskbar
   // (Input Indicator area in Windows 10/11).
@@ -152,8 +149,9 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
  public:
   ITfComposition* GetComposition() const { return pComposition_; }
   void SetComposition(ITfComposition* pComp) { pComposition_ = pComp; }
-  CandidateWindow* GetCandidateWindow() { return &candidateWindow_; }
-  TooltipWindow* GetTooltipWindow() { return &tooltipWindow_; }
+  void UpdateServerUILayout(HWND ownerHwnd, const RECT& anchor,
+                            bool showCandidateWindow, bool showTooltipWindow);
+  void HideServerAuxiliaryUI() { hideServerAuxiliaryUI_(); }
 
   ITfUIElementMgr* GetUIElementMgr() const { return pUIElementMgr_; }
   CCandidateListUIElement* GetCandidateUIElement() const {

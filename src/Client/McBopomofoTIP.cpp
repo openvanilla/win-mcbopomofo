@@ -402,10 +402,6 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     return E_FAIL;
   }
 
-  extern HINSTANCE g_hInst;
-  candidateWindow_.Create(g_hInst);
-  tooltipWindow_.Create(g_hInst);
-
   // Register LangBar button - must be created BEFORE setting compartment value
   // because SetValue triggers OnChange callback synchronously
   ITfLangBarItemMgr* pLangBarItemMgr = nullptr;
@@ -506,8 +502,6 @@ STDAPI McBopomofoTIP::Deactivate() {
       pSettingsButton_ = nullptr;
     }
   }
-
-  candidateWindow_.Destroy();
 
   uninitCompartmentEventSink_();
   uninitThreadFocusSink_();
@@ -798,8 +792,7 @@ STDAPI McBopomofoTIP::OnSetThreadFocus() {
 
 STDAPI McBopomofoTIP::OnKillThreadFocus() {
   shiftToggleKeyPending_ = false;
-  candidateWindow_.Hide();
-  tooltipWindow_.Hide();
+  hideServerAuxiliaryUI_();
   resetServerState_();
   return S_OK;
 }
@@ -822,9 +815,31 @@ bool McBopomofoTIP::isDirectCommitWithoutComposition_(
 void McBopomofoTIP::hideAuxiliaryWindowsForDirectCommit_(
     const McBopomofo::IPC::StateUpdatePayload& state) {
   if (isDirectCommitWithoutComposition_(state)) {
-    tooltipWindow_.Hide();
-    candidateWindow_.Hide();
+    hideServerAuxiliaryUI_();
   }
+}
+
+void McBopomofoTIP::hideServerAuxiliaryUI_() {
+  RECT empty = {};
+  UpdateServerUILayout(nullptr, empty, false, false);
+}
+
+void McBopomofoTIP::UpdateServerUILayout(HWND ownerHwnd, const RECT& anchor,
+                                         bool showCandidateWindow,
+                                         bool showTooltipWindow) {
+  McBopomofo::IPC::ClientUILayoutPayload payload;
+  payload.showCandidateWindow = showCandidateWindow;
+  payload.showTooltipWindow = showTooltipWindow;
+  payload.ownerHwnd =
+      static_cast<uint64_t>(reinterpret_cast<uintptr_t>(ownerHwnd));
+  payload.anchorLeft = static_cast<int>(anchor.left);
+  payload.anchorTop = static_cast<int>(anchor.top);
+  payload.anchorRight = static_cast<int>(anchor.right);
+  payload.anchorBottom = static_cast<int>(anchor.bottom);
+
+  McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
+  std::string response;
+  pipe.Call(McBopomofo::IPC::SerializeClientUILayout(payload), response);
 }
 
 void McBopomofoTIP::applyStateToContext_(
@@ -870,8 +885,7 @@ void McBopomofoTIP::resetServerState_() {
     // LogMessage("Failed to send RESET command");
   }
 
-  candidateWindow_.Hide();
-  tooltipWindow_.Hide();
+  hideServerAuxiliaryUI_();
 }
 
 void McBopomofoTIP::RefreshLangBar() {

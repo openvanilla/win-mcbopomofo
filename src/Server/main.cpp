@@ -27,6 +27,7 @@
 #include <uxtheme.h>
 #include <windows.h>
 
+#include <algorithm>
 #include <array>
 #include <cwchar>
 #include <filesystem>
@@ -35,6 +36,7 @@
 #include <mutex>
 
 #include "CandidateWindowColors.h"
+#include "CandidateWindow.h"
 #include "InputController.h"
 #include "InputMacro.h"
 #include "KeyHandler.h"
@@ -45,6 +47,7 @@
 #include "PathCompat.h"
 #include "Settings.h"
 #include "SettingsApp.h"
+#include "TooltipWindow.h"
 #include "UIInterface.h"
 #include "UTF8Helper.h"
 #include "UTFHelper.h"
@@ -58,6 +61,7 @@
 using namespace McBopomofo;
 
 #define WM_USER_TRAY (WM_USER + 1)
+#define WM_SERVER_UI_CHANGED (WM_USER + 2)
 #define IDM_RESTART 1001
 #define IDM_EXIT 1002
 #define IDM_STOP_SERVER 1011
@@ -67,6 +71,143 @@ constexpr const wchar_t* kServerSingleInstanceMutexName =
 InputController* g_Controller = nullptr;
 bool g_RestartRequested = false;
 std::function<void()> g_ReloadSettingsCallback;
+
+class ServerPopupController {
+ public:
+  void Create(HINSTANCE hInstance) {
+    candidateWindow_.Create(hInstance);
+    tooltipWindow_.Create(hInstance);
+  }
+
+  void Destroy() {
+    candidateWindow_.Destroy();
+    tooltipWindow_.Destroy();
+  }
+
+  void SetState(const IPC::StateUpdatePayload& state) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    state_ = state;
+  }
+
+  void SetLayout(const IPC::ClientUILayoutPayload& layout) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    layout_ = layout;
+    hasLayout_ = true;
+  }
+
+  void ApplyPending() {
+    IPC::StateUpdatePayload state;
+    IPC::ClientUILayoutPayload layout;
+    bool hasLayout = false;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      state = state_;
+      layout = layout_;
+      hasLayout = hasLayout_;
+    }
+
+    if (!hasLayout || (!layout.showCandidateWindow && !layout.showTooltipWindow)) {
+      candidateWindow_.Hide();
+      tooltipWindow_.Hide();
+      return;
+    }
+
+    HWND owner = reinterpret_cast<HWND>(static_cast<uintptr_t>(layout.ownerHwnd));
+    RECT anchor = {layout.anchorLeft, layout.anchorTop, layout.anchorRight,
+                   layout.anchorBottom};
+
+    const bool showTooltip = layout.showTooltipWindow && !state.tooltip.empty();
+    const bool showCandidate =
+        layout.showCandidateWindow && !state.candidates.empty();
+
+    if (showTooltip) {
+      tooltipWindow_.SetOwnerWindow(owner);
+      tooltipWindow_.UpdateUI(state.tooltip);
+    } else {
+      tooltipWindow_.Hide();
+    }
+
+    if (showCandidate) {
+      candidateWindow_.SetOwnerWindow(owner);
+      CandidateWindow::UpdateUIRequest request;
+      request.candidates = state.candidates;
+      request.cursorIndex = state.candidateIndex;
+      request.forceVertical = state.forceVertical;
+      request.selectionStyle = state.selectionStyle;
+      request.candidateFontSize = state.candidateFontSize;
+      request.hint = state.hint;
+      request.candidateWindowVertical = state.candidateWindowVertical;
+      request.candidateKeys = state.candidateKeys;
+      request.candidateKeysCount = state.candidateKeysCount;
+      request.colors = state.candidateWindowColors;
+      candidateWindow_.UpdateUI(request);
+    } else {
+      candidateWindow_.Hide();
+    }
+
+    MoveWindows(anchor, showCandidate, showTooltip);
+  }
+
+ private:
+  void MoveWindows(const RECT& anchor, bool showCandidate, bool showTooltip) {
+    if (!showCandidate && !showTooltip) {
+      return;
+    }
+
+    POINT ptTopLeft = {anchor.left, anchor.top};
+    HMONITOR hMonitor = MonitorFromPoint(ptTopLeft, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi = {0};
+    mi.cbSize = sizeof(MONITORINFO);
+    GetMonitorInfoW(hMonitor, &mi);
+
+    const int screenBottom = mi.rcWork.bottom;
+    const int screenRight = mi.rcWork.right;
+    const int screenLeft = mi.rcWork.left;
+
+    const int candidateHeight = showCandidate ? candidateWindow_.GetHeight() : 0;
+    const int candidateWidth = showCandidate ? candidateWindow_.GetWidth() : 0;
+    const int tooltipHeight = showTooltip ? tooltipWindow_.GetHeight() : 0;
+    const int tooltipWidth = showTooltip ? tooltipWindow_.GetWidth() : 0;
+    const int gap = showCandidate && showTooltip ? 4 : 0;
+    const int totalRequiredHeight = tooltipHeight + gap + candidateHeight;
+    const int yBelow = anchor.bottom + 10;
+
+    int candidateY = 0;
+    int tooltipY = 0;
+    if (yBelow + totalRequiredHeight > screenBottom) {
+      candidateY = anchor.top - candidateHeight - 10;
+      tooltipY = candidateY - tooltipHeight - gap;
+    } else {
+      tooltipY = yBelow;
+      candidateY = yBelow + (showTooltip ? tooltipHeight + gap : 0);
+    }
+
+    int x = anchor.left;
+    const int maxWidth = std::max(candidateWidth, tooltipWidth);
+    if (x + maxWidth > screenRight) {
+      x = screenRight - maxWidth;
+    }
+    if (x < screenLeft) {
+      x = screenLeft;
+    }
+
+    if (showTooltip) {
+      tooltipWindow_.Move(x, tooltipY);
+    }
+    if (showCandidate) {
+      candidateWindow_.Move(x, candidateY);
+    }
+  }
+
+  std::mutex mutex_;
+  IPC::StateUpdatePayload state_;
+  IPC::ClientUILayoutPayload layout_;
+  bool hasLayout_ = false;
+  CandidateWindow candidateWindow_;
+  TooltipWindow tooltipWindow_;
+};
+
+ServerPopupController* g_ServerPopupController = nullptr;
 
 namespace {
 
@@ -544,6 +685,11 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
       g_ReloadSettingsCallback();
     }
     return 0;
+  } else if (msg == WM_SERVER_UI_CHANGED) {
+    if (g_ServerPopupController) {
+      g_ServerPopupController->ApplyPending();
+    }
+    return 0;
   }
   return DefWindowProc(hwnd, msg, wParam, lParam);
 }
@@ -642,6 +788,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                           << dictionaryServiceJsonPath;
 
   ServerUI ui;
+  ServerPopupController popupController;
+  g_ServerPopupController = &popupController;
   InputController controller(keyHandler, &ui,
                              std::unique_ptr<InputController::LocalizedStrings>(
                                  new WinLocalizedStrings()));
@@ -690,6 +838,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
 
   FCITX_MCBOPOMOFO_INFO() << "Starting Named Pipe server at " << IPC::PIPE_NAME;
 
+  HWND hwndTray = nullptr;
   IPC::NamedPipeServer server(IPC::PIPE_NAME, [&](const std::string& req) {
     std::lock_guard<std::mutex> lock(reloadMutex);
 
@@ -704,6 +853,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       bool consumed = true;
       consumed = controller.handleKey(mapIpcKey(keyReq));
       ui.currentState.consumed = consumed;
+      popupController.SetState(ui.currentState);
+      if (hwndTray) {
+        PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);
+      }
       return IPC::SerializeStateUpdate(ui.currentState);
     }
 
@@ -713,6 +866,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
           << "IPC Recv: SELECT_CANDIDATE Index=" << selReq.index;
       controller.selectCandidate(selReq.index);
       ui.currentState.consumed = true;
+      popupController.SetState(ui.currentState);
+      if (hwndTray) {
+        PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);
+      }
       return IPC::SerializeStateUpdate(ui.currentState);
     }
 
@@ -720,6 +877,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       FCITX_MCBOPOMOFO_INFO() << "IPC Recv: RELOAD_SETTINGS";
       reloadSettings();
       ui.currentState.consumed = true;
+      popupController.SetState(ui.currentState);
+      if (hwndTray) {
+        PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);
+      }
       return IPC::SerializeStateUpdate(ui.currentState);
     }
 
@@ -727,6 +888,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       FCITX_MCBOPOMOFO_INFO() << "IPC Recv: RESET";
       controller.reset();
       ui.currentState.consumed = true;
+      popupController.SetState(ui.currentState);
+      if (hwndTray) {
+        PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);
+      }
       return IPC::SerializeStateUpdate(ui.currentState);
     }
 
@@ -734,6 +899,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       FCITX_MCBOPOMOFO_INFO() << "IPC Recv: OPEN_SETTINGS";
       OpenSettingsApp();
       ui.currentState.consumed = true;
+      popupController.SetState(ui.currentState);
+      if (hwndTray) {
+        PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);
+      }
       return IPC::SerializeStateUpdate(ui.currentState);
     }
 
@@ -752,11 +921,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       return std::string("1");
     }
 
+    IPC::ClientUILayoutPayload layoutReq;
+    if (IPC::DeserializeClientUILayout(req, layoutReq)) {
+      popupController.SetLayout(layoutReq);
+      if (hwndTray) {
+        PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);
+      }
+      return std::string("1");
+    }
+
     FCITX_MCBOPOMOFO_WARN() << "IPC Failed to deserialize request.";
     return std::string();
   });
-
-  server.Start();
 
   // Create a hidden window for the Tray Icon
   WNDCLASSEXW wcex = {sizeof(WNDCLASSEXW)};
@@ -767,9 +943,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   wcex.lpszClassName = L"WinMcBopomofoServerTray";
   RegisterClassExW(&wcex);
 
-  HWND hwndTray =
-      CreateWindowExW(0, L"WinMcBopomofoServerTray", L"", 0, 0, 0, 0, 0,
-                      HWND_MESSAGE, NULL, wcex.hInstance, NULL);
+  hwndTray = CreateWindowExW(0, L"WinMcBopomofoServerTray", L"", 0, 0, 0, 0, 0,
+                             HWND_MESSAGE, NULL, wcex.hInstance, NULL);
+  popupController.Create(hInst);
 
   NOTIFYICONDATAW nid = {sizeof(NOTIFYICONDATAW)};
   nid.hWnd = hwndTray;
@@ -780,6 +956,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   wcscpy_s(nid.szTip, LoadLocalizedStringW(hInst, IDS_TRAY_TIP).c_str());
 
   Shell_NotifyIconW(NIM_ADD, &nid);
+
+  server.Start();
 
   FCITX_MCBOPOMOFO_INFO() << Utf16ToUtf8(
       LoadLocalizedStringW(hInst, IDS_SERVER_RUNNING));
@@ -806,8 +984,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   }
 
   server.Stop();
+  popupController.Destroy();
   Shell_NotifyIconW(NIM_DELETE, &nid);
   DestroyWindow(hwndTray);
+  g_ServerPopupController = nullptr;
 
   if (hSingleInstanceMutex) {
     ReleaseMutex(hSingleInstanceMutex);
