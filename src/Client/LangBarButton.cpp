@@ -531,8 +531,7 @@ void CLangBarButton::Update() {
   }
 
   for (ITfLangBarItemSink* sink : sinkSnapshot) {
-    HRESULT hr = sink->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
-    // LogMessage("Sink OnUpdate returned: 0x%08X", hr);
+    sink->OnUpdate(TF_LBI_ICON | TF_LBI_TEXT | TF_LBI_TOOLTIP);
     sink->Release();
   }
 }

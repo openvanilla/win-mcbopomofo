@@ -441,7 +441,6 @@ bool CandidateWindow::recreateWindow_() {
     return false;
   }
 
-  bool wasVisible = IsVisible();
   RECT rc = {0};
   if (hwnd_) {
     GetWindowRect(hwnd_, &rc);
@@ -458,9 +457,8 @@ bool CandidateWindow::recreateWindow_() {
                  rc.bottom - rc.top, SWP_NOACTIVATE);
   }
 
-  // LogMessage("CandidateWindow recreated hwnd=%p owner=%p wasVisible=%d",
-  // hwnd_,
-  //            ownerHwnd_, wasVisible ? 1 : 0);
+  // LogMessage("CandidateWindow recreated hwnd=%p owner=%p", hwnd_,
+  //            ownerHwnd_);
   return true;
 }
 

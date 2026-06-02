@@ -234,7 +234,6 @@ bool TooltipWindow::recreateWindow_() {
     return false;
   }
 
-  bool wasVisible = IsVisible();
   RECT rc = {0};
   if (hwnd_) {
     GetWindowRect(hwnd_, &rc);
@@ -251,8 +250,8 @@ bool TooltipWindow::recreateWindow_() {
                  rc.bottom - rc.top, SWP_NOACTIVATE);
   }
 
-  // LogMessage("TooltipWindow recreated hwnd=%p owner=%p wasVisible=%d", hwnd_,
-  //            ownerHwnd_, wasVisible ? 1 : 0);
+  // LogMessage("TooltipWindow recreated hwnd=%p owner=%p", hwnd_,
+  //            ownerHwnd_);
   return true;
 }
 

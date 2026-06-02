@@ -476,6 +476,7 @@ STDAPI McBopomofoTIP::Activate(ITfThreadMgr* ptim, TfClientId tid) {
 
 STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
                                  DWORD dwFlags) {
+  UNREFERENCED_PARAMETER(dwFlags);
   // LogMessage("McBopomofoTIP::ActivateEx called with flags: %u", dwFlags);
 
   if (ptim == nullptr) {
@@ -957,6 +958,7 @@ void McBopomofoTIP::UpdateServerUILayout(HWND ownerHwnd, const RECT& anchor,
 void McBopomofoTIP::applyStateToContext_(
     ITfContext* context, const McBopomofo::IPC::StateUpdatePayload& state,
     const char* logPrefix) {
+  UNREFERENCED_PARAMETER(logPrefix);
   if (!context) {
     // LogMessage("%sRequestEditSession skipped: null context", logPrefix);
     return;

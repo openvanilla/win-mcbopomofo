@@ -34,6 +34,7 @@ namespace {
 HWND GetContextWindow(ITfContext* context);
 
 void LogContextWindowInfo(const char* prefix, ITfContext* context) {
+  UNREFERENCED_PARAMETER(prefix);
   HWND hwnd = GetContextWindow(context);
   char className[128] = {};
   char title[128] = {};
@@ -477,7 +478,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
                 pTIP_->SetShowCustomCandidateWindow(bShow ? true : false);
               }
             } else {
-              HRESULT hr = pUIElementMgr->UpdateUIElement(dwId);
+              pUIElementMgr->UpdateUIElement(dwId);
               // LogMessage(
               //     "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu
               //     " "hostInteractions=%lu lastHostMethod=%s", hr,
@@ -610,7 +611,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
             pTIP_->SetShowCustomCandidateWindow(bShow ? true : false);
           }
         } else {
-          HRESULT hr = pUIElementMgr->UpdateUIElement(dwId);
+          pUIElementMgr->UpdateUIElement(dwId);
           // LogMessage(
           //     "CandidateUI UpdateUIElement hr=0x%08X dwId=%lu count=%llu "
           //     "hostInteractions=%lu lastHostMethod=%s (no composition)",
