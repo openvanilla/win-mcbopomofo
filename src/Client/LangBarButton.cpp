@@ -318,8 +318,11 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
   UNREFERENCED_PARAMETER(prcArea);
 
   if (kind_ == Kind::SwitchLanguageToggle) {
-    pTIP_->ToggleOpenClose();
-    return S_OK;
+    if (click == TF_LBI_CLK_LEFT) {
+      pTIP_->ToggleOpenClose();
+      return S_OK;
+    }
+    // Right-click falls through to the same popup menu used by the mode icon.
   }
 
   if (kind_ == Kind::SettingsMenu) {

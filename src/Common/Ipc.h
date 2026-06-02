@@ -54,6 +54,12 @@ struct KeyEventPayload {
   unsigned int ascii;
   bool shift;
   bool ctrl;
+  bool hasLayout = false;
+  uint64_t ownerHwnd = 0;
+  int anchorLeft = 0;
+  int anchorTop = 0;
+  int anchorRight = 0;
+  int anchorBottom = 0;
 };
 
 struct SelectCandidatePayload {

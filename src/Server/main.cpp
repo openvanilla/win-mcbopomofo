@@ -853,6 +853,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       bool consumed = true;
       consumed = controller.handleKey(mapIpcKey(keyReq));
       ui.currentState.consumed = consumed;
+      if (keyReq.hasLayout) {
+        IPC::ClientUILayoutPayload layout;
+        layout.showCandidateWindow = !ui.currentState.candidates.empty();
+        layout.showTooltipWindow = !ui.currentState.tooltip.empty();
+        layout.ownerHwnd = keyReq.ownerHwnd;
+        layout.anchorLeft = keyReq.anchorLeft;
+        layout.anchorTop = keyReq.anchorTop;
+        layout.anchorRight = keyReq.anchorRight;
+        layout.anchorBottom = keyReq.anchorBottom;
+        popupController.SetLayout(layout);
+      }
       popupController.SetState(ui.currentState);
       if (hwndTray) {
         PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);

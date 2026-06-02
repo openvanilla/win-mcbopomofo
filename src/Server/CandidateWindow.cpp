@@ -465,14 +465,7 @@ bool CandidateWindow::recreateWindow_() {
 }
 
 void CandidateWindow::updateRenderMode_() {
-  const RenderMode newMode =
-      ShouldUseGdiRendererForHost(ownerHwnd_) ? RenderMode::kGDI
-                                              : RenderMode::kD2D;
-  if (renderMode_ != newMode) {
-    renderMode_ = newMode;
-    // LogMessage("CandidateWindow renderer=%s owner=%p",
-    //            renderMode_ == RenderMode::kGDI ? "GDI" : "D2D", ownerHwnd_);
-  }
+  renderMode_ = RenderMode::kD2D;
 }
 
 void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
@@ -493,8 +486,8 @@ void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
   updateRenderMode_();
 #ifdef WINMCBOPOMOFO_SERVER_SIDE_POPUP
   // Server-side popups live in McBopomofoServer.exe, not in the foreground
-  // app process. Keep ownerHwnd_ only as a host hint for renderer selection;
-  // do not owner-chain a server HWND to a cross-process foreground HWND.
+  // app process. Do not owner-chain a server HWND to a cross-process
+  // foreground HWND.
 #else
   if (!hwnd_) {
     return;

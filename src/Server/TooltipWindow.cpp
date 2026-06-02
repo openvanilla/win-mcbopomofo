@@ -257,14 +257,7 @@ bool TooltipWindow::recreateWindow_() {
 }
 
 void TooltipWindow::updateRenderMode_() {
-  const RenderMode newMode =
-      ShouldUseGdiRendererForHost(ownerHwnd_) ? RenderMode::kGDI
-                                              : RenderMode::kD2D;
-  if (renderMode_ != newMode) {
-    renderMode_ = newMode;
-    // LogMessage("TooltipWindow renderer=%s owner=%p",
-    //            renderMode_ == RenderMode::kGDI ? "GDI" : "D2D", ownerHwnd_);
-  }
+  renderMode_ = RenderMode::kD2D;
 }
 
 void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
@@ -285,7 +278,7 @@ void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
   updateRenderMode_();
 #ifdef WINMCBOPOMOFO_SERVER_SIDE_POPUP
   // Server-side popups are owned by McBopomofoServer.exe. ownerHwnd_ is kept
-  // only as a host hint for renderer selection.
+  // only for compatibility with the shared owner-update path.
 #else
   if (!hwnd_) {
     return;

@@ -65,6 +65,11 @@ HWND GetContextWindow(ITfContext* context) {
   return GetFocus();
 }
 
+bool IsUsableLayoutRect(const RECT& rc) {
+  return rc.bottom > rc.top && (rc.left != 0 || rc.top != 0 || rc.right != 0 ||
+                               rc.bottom != 0);
+}
+
 void SendUILayoutToServer(McBopomofoTIP* tip, ITfContext* context,
                           const RECT& rc, bool showCandidateWindow,
                           bool showTooltipWindow) {
@@ -93,7 +98,7 @@ bool SendUILayoutForRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
   BOOL fClipped = FALSE;
   bool moved = false;
   hr = pView->GetTextExt(ec, range, &rc, &fClipped);
-  if (SUCCEEDED(hr)) {
+  if (SUCCEEDED(hr) && IsUsableLayoutRect(rc)) {
     // LogMessage(
     //     "MoveWindowsToRange GetTextExt ok clipped=%d rect=(%ld,%ld,%ld,%ld)",
     //     fClipped ? 1 : 0, rc.left, rc.top, rc.right, rc.bottom);
@@ -101,7 +106,10 @@ bool SendUILayoutForRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
                          showTooltipWindow);
     moved = true;
   } else {
-    // LogMessage("MoveWindowsToRange GetTextExt failed hr=0x%08X", hr);
+    // LogMessage(
+    //     "MoveWindowsToRange GetTextExt unusable hr=0x%08X clipped=%d "
+    //     "rect=(%ld,%ld,%ld,%ld)",
+    //     hr, fClipped ? 1 : 0, rc.left, rc.top, rc.right, rc.bottom);
   }
   pView->Release();
   return moved;

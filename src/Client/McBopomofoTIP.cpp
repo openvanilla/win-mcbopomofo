@@ -23,6 +23,7 @@
 
 #include "McBopomofoTIP.h"
 
+#include "EditSession.h"
 #include "Globals.h"
 #include "LangBarButton.h"
 #include "NamedPipe.h"
@@ -213,6 +214,107 @@ bool GetFocusedContext(ITfThreadMgr* threadMgr, ITfContext** context) {
   HRESULT hr = pDocMgr->GetTop(context);
   pDocMgr->Release();
   return SUCCEEDED(hr) && *context != nullptr;
+}
+
+HWND GetContextWindow(ITfContext* context) {
+  if (context) {
+    ITfContextView* view = nullptr;
+    if (SUCCEEDED(context->GetActiveView(&view)) && view) {
+      HWND hwnd = nullptr;
+      if (SUCCEEDED(view->GetWnd(&hwnd)) && hwnd) {
+        view->Release();
+        return hwnd;
+      }
+      view->Release();
+    }
+  }
+  return GetFocus();
+}
+
+bool IsUsableLayoutRect(const RECT& rc) {
+  return rc.bottom > rc.top && (rc.left != 0 || rc.top != 0 || rc.right != 0 ||
+                               rc.bottom != 0);
+}
+
+bool GetCaretFallbackRect(RECT* rect) {
+  if (!rect) {
+    return false;
+  }
+
+  GUITHREADINFO gti = {0};
+  gti.cbSize = sizeof(GUITHREADINFO);
+  if (!GetGUIThreadInfo(GetCurrentThreadId(), &gti) || !gti.hwndCaret) {
+    return false;
+  }
+
+  RECT caretRect = gti.rcCaret;
+  POINT topLeft = {caretRect.left, caretRect.top};
+  POINT bottomRight = {caretRect.right, caretRect.bottom};
+  ClientToScreen(gti.hwndCaret, &topLeft);
+  ClientToScreen(gti.hwndCaret, &bottomRight);
+
+  rect->left = topLeft.x;
+  rect->top = topLeft.y;
+  rect->right = bottomRight.x;
+  rect->bottom = bottomRight.y;
+  return IsUsableLayoutRect(*rect);
+}
+
+class CKeyLayoutEditSession : public CEditSessionBase {
+ public:
+  CKeyLayoutEditSession(ITfContext* context, RECT* rect, bool* hasRect)
+      : CEditSessionBase(context), rect_(rect), hasRect_(hasRect) {}
+
+  STDMETHODIMP DoEditSession(TfEditCookie ec) override {
+    if (!rect_ || !hasRect_) {
+      return E_INVALIDARG;
+    }
+
+    *hasRect_ = false;
+
+    TF_SELECTION selection = {};
+    ULONG fetched = 0;
+    HRESULT hr = pContext_->GetSelection(ec, TF_DEFAULT_SELECTION, 1,
+                                         &selection, &fetched);
+    if (SUCCEEDED(hr) && fetched == 1 && selection.range) {
+      ITfContextView* view = nullptr;
+      if (SUCCEEDED(pContext_->GetActiveView(&view)) && view) {
+        RECT rc = {0};
+        BOOL clipped = FALSE;
+        hr = view->GetTextExt(ec, selection.range, &rc, &clipped);
+        if (SUCCEEDED(hr) && IsUsableLayoutRect(rc)) {
+          *rect_ = rc;
+          *hasRect_ = true;
+        }
+        view->Release();
+      }
+      selection.range->Release();
+    }
+
+    if (!*hasRect_) {
+      *hasRect_ = GetCaretFallbackRect(rect_);
+    }
+    return S_OK;
+  }
+
+ private:
+  RECT* rect_;
+  bool* hasRect_;
+};
+
+bool GetKeyDownLayout(ITfContext* context, TfClientId clientId, RECT* rect) {
+  if (!context || !rect) {
+    return false;
+  }
+
+  bool hasRect = false;
+  CKeyLayoutEditSession* session =
+      new CKeyLayoutEditSession(context, rect, &hasRect);
+  HRESULT editSessionResult = E_FAIL;
+  HRESULT hr = context->RequestEditSession(
+      clientId, session, TF_ES_SYNC | TF_ES_READ, &editSessionResult);
+  session->Release();
+  return SUCCEEDED(hr) && SUCCEEDED(editSessionResult) && hasRect;
 }
 
 }  // namespace
@@ -609,6 +711,16 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   req.vk = (unsigned int)wParam;
   req.shift = IsShiftPressed(keyboardState);
   req.ctrl = IsCtrlPressed(keyboardState);
+  RECT keyLayout = {0};
+  if (GetKeyDownLayout(pic, tid_, &keyLayout)) {
+    req.hasLayout = true;
+    req.ownerHwnd =
+        static_cast<uint64_t>(reinterpret_cast<uintptr_t>(GetContextWindow(pic)));
+    req.anchorLeft = static_cast<int>(keyLayout.left);
+    req.anchorTop = static_cast<int>(keyLayout.top);
+    req.anchorRight = static_cast<int>(keyLayout.right);
+    req.anchorBottom = static_cast<int>(keyLayout.bottom);
+  }
 
   GetKeyboardState(keyboardState);
   WCHAR chars[2] = {0};

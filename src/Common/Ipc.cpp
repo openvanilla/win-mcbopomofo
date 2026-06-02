@@ -66,6 +66,13 @@ bool ReadSizedString(std::istringstream& ss, std::string& value) {
 // VK
 // SHIFT(1/0)
 // CTRL(1/0)
+// Optional:
+// HAS_LAYOUT(1/0)
+// OWNER_HWND
+// ANCHOR_LEFT
+// ANCHOR_TOP
+// ANCHOR_RIGHT
+// ANCHOR_BOTTOM
 
 std::string SerializeKeyEvent(const KeyEventPayload& payload) {
   std::ostringstream ss;
@@ -73,7 +80,13 @@ std::string SerializeKeyEvent(const KeyEventPayload& payload) {
      << payload.vk << "\n"
      << payload.ascii << "\n"
      << (payload.shift ? 1 : 0) << "\n"
-     << (payload.ctrl ? 1 : 0) << "\n";
+     << (payload.ctrl ? 1 : 0) << "\n"
+     << (payload.hasLayout ? 1 : 0) << "\n"
+     << payload.ownerHwnd << "\n"
+     << payload.anchorLeft << "\n"
+     << payload.anchorTop << "\n"
+     << payload.anchorRight << "\n"
+     << payload.anchorBottom << "\n";
   return ss.str();
 }
 
@@ -95,6 +108,32 @@ bool DeserializeKeyEvent(const std::string& data, KeyEventPayload& payload) {
 
   if (!std::getline(ss, line)) return false;
   payload.ctrl = (line == "1");
+
+  payload.hasLayout = false;
+  payload.ownerHwnd = 0;
+  payload.anchorLeft = 0;
+  payload.anchorTop = 0;
+  payload.anchorRight = 0;
+  payload.anchorBottom = 0;
+
+  if (!std::getline(ss, line)) return true;
+  payload.hasLayout = (line == "1");
+  if (!payload.hasLayout) return true;
+
+  if (!std::getline(ss, line)) return false;
+  payload.ownerHwnd = std::stoull(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.anchorLeft = std::stoi(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.anchorTop = std::stoi(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.anchorRight = std::stoi(line);
+
+  if (!std::getline(ss, line)) return false;
+  payload.anchorBottom = std::stoi(line);
 
   return true;
 }

@@ -75,3 +75,64 @@ TEST(IpcTest, ClientSettingsRoundTrip) {
     EXPECT_EQ(decoded.shiftToggleOpenClose, payload.shiftToggleOpenClose);
     EXPECT_TRUE(IPC::IsGetSettingsCommand(IPC::SerializeGetSettings()));
 }
+
+TEST(IpcTest, KeyEventRoundTripsLayoutAnchor) {
+    IPC::KeyEventPayload payload;
+    payload.vk = 'A';
+    payload.ascii = 'a';
+    payload.shift = false;
+    payload.ctrl = true;
+    payload.hasLayout = true;
+    payload.ownerHwnd = 1234;
+    payload.anchorLeft = 10;
+    payload.anchorTop = 20;
+    payload.anchorRight = 30;
+    payload.anchorBottom = 40;
+
+    std::string serialized = IPC::SerializeKeyEvent(payload);
+
+    IPC::KeyEventPayload decoded;
+    ASSERT_TRUE(IPC::DeserializeKeyEvent(serialized, decoded));
+    EXPECT_EQ(decoded.vk, payload.vk);
+    EXPECT_EQ(decoded.ascii, payload.ascii);
+    EXPECT_EQ(decoded.shift, payload.shift);
+    EXPECT_EQ(decoded.ctrl, payload.ctrl);
+    EXPECT_EQ(decoded.hasLayout, payload.hasLayout);
+    EXPECT_EQ(decoded.ownerHwnd, payload.ownerHwnd);
+    EXPECT_EQ(decoded.anchorLeft, payload.anchorLeft);
+    EXPECT_EQ(decoded.anchorTop, payload.anchorTop);
+    EXPECT_EQ(decoded.anchorRight, payload.anchorRight);
+    EXPECT_EQ(decoded.anchorBottom, payload.anchorBottom);
+}
+
+TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithoutLayoutAnchor) {
+    std::string legacy =
+        "1\n"
+        "65\n"
+        "97\n"
+        "0\n"
+        "1\n";
+
+    IPC::KeyEventPayload decoded;
+    ASSERT_TRUE(IPC::DeserializeKeyEvent(legacy, decoded));
+    EXPECT_EQ(decoded.vk, 65u);
+    EXPECT_EQ(decoded.ascii, 97u);
+    EXPECT_FALSE(decoded.shift);
+    EXPECT_TRUE(decoded.ctrl);
+    EXPECT_FALSE(decoded.hasLayout);
+}
+
+TEST(IpcTest, KeyEventAcceptsExplicitNoLayoutAnchor) {
+    std::string noLayout =
+        "1\n"
+        "65\n"
+        "97\n"
+        "0\n"
+        "1\n"
+        "0\n";
+
+    IPC::KeyEventPayload decoded;
+    ASSERT_TRUE(IPC::DeserializeKeyEvent(noLayout, decoded));
+    EXPECT_EQ(decoded.vk, 65u);
+    EXPECT_FALSE(decoded.hasLayout);
+}
