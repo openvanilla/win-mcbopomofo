@@ -94,26 +94,29 @@ std::string SerializeKeyEvent(const KeyEventPayload& payload) {
 
 bool DeserializeKeyEvent(const std::string& data, KeyEventPayload& payload) {
   std::istringstream ss(data);
+  std::vector<std::string> lines;
   std::string line;
+  while (std::getline(ss, line)) {
+    lines.push_back(line);
+  }
 
-  if (!std::getline(ss, line)) return false;
-  if (std::stoi(line) != (int)Command::CMD_KEY_EVENT) return false;
+  if (lines.size() < 5) return false;
+  try {
+    if (std::stoi(lines[0]) != (int)Command::CMD_KEY_EVENT) return false;
+  } catch (...) {
+    return false;
+  }
 
-  if (!std::getline(ss, line)) return false;
-  payload.vk = std::stoul(line);
+  try {
+    payload.vk = std::stoul(lines[1]);
+    payload.ascii = std::stoul(lines[2]);
+  } catch (...) {
+    return false;
+  }
+  payload.shift = (lines[3] == "1");
+  payload.ctrl = (lines[4] == "1");
 
-  if (!std::getline(ss, line)) return false;
-  payload.ascii = std::stoul(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.shift = (line == "1");
-
-  if (!std::getline(ss, line)) return false;
-  payload.ctrl = (line == "1");
-
-  if (!std::getline(ss, line)) return false;
-  payload.dpiScale = std::stof(line);
-
+  payload.dpiScale = 1.0f;
   payload.hasLayout = false;
   payload.ownerHwnd = 0;
   payload.anchorLeft = 0;
@@ -121,24 +124,37 @@ bool DeserializeKeyEvent(const std::string& data, KeyEventPayload& payload) {
   payload.anchorRight = 0;
   payload.anchorBottom = 0;
 
-  if (!std::getline(ss, line)) return true;
-  payload.hasLayout = (line == "1");
-  if (!payload.hasLayout) return true;
-
-  if (!std::getline(ss, line)) return false;
-  payload.ownerHwnd = std::stoull(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.anchorLeft = std::stoi(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.anchorTop = std::stoi(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.anchorRight = std::stoi(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.anchorBottom = std::stoi(line);
+  if (lines.size() == 12) {
+    try {
+      payload.dpiScale = std::stof(lines[5]);
+      payload.hasLayout = (lines[6] == "1");
+      if (payload.hasLayout) {
+        payload.ownerHwnd = std::stoull(lines[7]);
+        payload.anchorLeft = std::stoi(lines[8]);
+        payload.anchorTop = std::stoi(lines[9]);
+        payload.anchorRight = std::stoi(lines[10]);
+        payload.anchorBottom = std::stoi(lines[11]);
+      }
+    } catch (...) {
+      return false;
+    }
+  } else if (lines.size() == 11) {
+    try {
+      payload.dpiScale = 1.0f;
+      payload.hasLayout = (lines[5] == "1");
+      if (payload.hasLayout) {
+        payload.ownerHwnd = std::stoull(lines[6]);
+        payload.anchorLeft = std::stoi(lines[7]);
+        payload.anchorTop = std::stoi(lines[8]);
+        payload.anchorRight = std::stoi(lines[9]);
+        payload.anchorBottom = std::stoi(lines[10]);
+      }
+    } catch (...) {
+      return false;
+    }
+  } else if (lines.size() == 6) {
+    payload.hasLayout = (lines[5] == "1");
+  }
 
   return true;
 }
@@ -288,34 +304,52 @@ std::string SerializeClientUILayout(const ClientUILayoutPayload& payload) {
 bool DeserializeClientUILayout(const std::string& data,
                                ClientUILayoutPayload& payload) {
   std::istringstream ss(data);
+  std::vector<std::string> lines;
   std::string line;
+  while (std::getline(ss, line)) {
+    lines.push_back(line);
+  }
 
-  if (!std::getline(ss, line)) return false;
-  if (std::stoi(line) != (int)Command::CMD_UPDATE_UI_LAYOUT) return false;
+  if (lines.size() < 3) return false;
+  try {
+    if (std::stoi(lines[0]) != (int)Command::CMD_UPDATE_UI_LAYOUT) return false;
+  } catch (...) {
+    return false;
+  }
 
-  if (!std::getline(ss, line)) return false;
-  payload.showCandidateWindow = (line == "1");
+  payload.showCandidateWindow = (lines[1] == "1");
+  payload.showTooltipWindow = (lines[2] == "1");
 
-  if (!std::getline(ss, line)) return false;
-  payload.showTooltipWindow = (line == "1");
+  payload.dpiScale = 1.0f;
+  payload.ownerHwnd = 0;
+  payload.anchorLeft = 0;
+  payload.anchorTop = 0;
+  payload.anchorRight = 0;
+  payload.anchorBottom = 0;
 
-  if (!std::getline(ss, line)) return false;
-  payload.dpiScale = std::stof(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.ownerHwnd = std::stoull(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.anchorLeft = std::stoi(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.anchorTop = std::stoi(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.anchorRight = std::stoi(line);
-
-  if (!std::getline(ss, line)) return false;
-  payload.anchorBottom = std::stoi(line);
+  if (lines.size() == 9) {
+    try {
+      payload.dpiScale = std::stof(lines[3]);
+      payload.ownerHwnd = std::stoull(lines[4]);
+      payload.anchorLeft = std::stoi(lines[5]);
+      payload.anchorTop = std::stoi(lines[6]);
+      payload.anchorRight = std::stoi(lines[7]);
+      payload.anchorBottom = std::stoi(lines[8]);
+    } catch (...) {
+      return false;
+    }
+  } else if (lines.size() == 8) {
+    try {
+      payload.dpiScale = 1.0f;
+      payload.ownerHwnd = std::stoull(lines[3]);
+      payload.anchorLeft = std::stoi(lines[4]);
+      payload.anchorTop = std::stoi(lines[5]);
+      payload.anchorRight = std::stoi(lines[6]);
+      payload.anchorBottom = std::stoi(lines[7]);
+    } catch (...) {
+      return false;
+    }
+  }
 
   return true;
 }
