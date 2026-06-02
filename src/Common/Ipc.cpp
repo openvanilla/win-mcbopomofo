@@ -67,6 +67,7 @@ bool ReadSizedString(std::istringstream& ss, std::string& value) {
 // SHIFT(1/0)
 // CTRL(1/0)
 // Optional:
+// DPI_SCALE
 // HAS_LAYOUT(1/0)
 // OWNER_HWND
 // ANCHOR_LEFT
@@ -81,6 +82,7 @@ std::string SerializeKeyEvent(const KeyEventPayload& payload) {
      << payload.ascii << "\n"
      << (payload.shift ? 1 : 0) << "\n"
      << (payload.ctrl ? 1 : 0) << "\n"
+     << payload.dpiScale << "\n"
      << (payload.hasLayout ? 1 : 0) << "\n"
      << payload.ownerHwnd << "\n"
      << payload.anchorLeft << "\n"
@@ -108,6 +110,9 @@ bool DeserializeKeyEvent(const std::string& data, KeyEventPayload& payload) {
 
   if (!std::getline(ss, line)) return false;
   payload.ctrl = (line == "1");
+
+  if (!std::getline(ss, line)) return false;
+  payload.dpiScale = std::stof(line);
 
   payload.hasLayout = false;
   payload.ownerHwnd = 0;
@@ -271,6 +276,7 @@ std::string SerializeClientUILayout(const ClientUILayoutPayload& payload) {
   ss << (int)Command::CMD_UPDATE_UI_LAYOUT << "\n"
      << (payload.showCandidateWindow ? 1 : 0) << "\n"
      << (payload.showTooltipWindow ? 1 : 0) << "\n"
+     << payload.dpiScale << "\n"
      << payload.ownerHwnd << "\n"
      << payload.anchorLeft << "\n"
      << payload.anchorTop << "\n"
@@ -292,6 +298,9 @@ bool DeserializeClientUILayout(const std::string& data,
 
   if (!std::getline(ss, line)) return false;
   payload.showTooltipWindow = (line == "1");
+
+  if (!std::getline(ss, line)) return false;
+  payload.dpiScale = std::stof(line);
 
   if (!std::getline(ss, line)) return false;
   payload.ownerHwnd = std::stoull(line);

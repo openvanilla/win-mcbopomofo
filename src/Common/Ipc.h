@@ -54,6 +54,7 @@ struct KeyEventPayload {
   unsigned int ascii;
   bool shift;
   bool ctrl;
+  float dpiScale = 1.0f;
   bool hasLayout = false;
   uint64_t ownerHwnd = 0;
   int anchorLeft = 0;
@@ -79,6 +80,7 @@ struct ClientLogPayload {
 struct ClientUILayoutPayload {
   bool showCandidateWindow = false;
   bool showTooltipWindow = false;
+  float dpiScale = 1.0f;
   uint64_t ownerHwnd = 0;
   int anchorLeft = 0;
   int anchorTop = 0;
@@ -101,11 +103,10 @@ struct StateUpdatePayload {
   int cursorIndex = 0;
   int candidateIndex = -1;  // -1 means no candidate window
   int candidateFontSize = 16;
-  int markStart = -1;       // -1 means no mark
+  int markStart = -1;  // -1 means no mark
   int markEnd = -1;
   bool forceVertical = false;  // Add flag to force vertical layout
-  CandidateSelectionStyle selectionStyle =
-      CandidateSelectionStyle::kStandard;
+  CandidateSelectionStyle selectionStyle = CandidateSelectionStyle::kStandard;
   std::string tooltip;
   std::string hint;
   bool candidateWindowVertical = false;

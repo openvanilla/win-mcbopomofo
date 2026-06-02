@@ -462,9 +462,7 @@ bool CandidateWindow::recreateWindow_() {
   return true;
 }
 
-void CandidateWindow::updateRenderMode_() {
-  renderMode_ = RenderMode::kD2D;
-}
+void CandidateWindow::updateRenderMode_() { renderMode_ = RenderMode::kD2D; }
 
 void CandidateWindow::SetOwnerWindow(HWND ownerHwnd) {
   if (ownerHwnd && !IsWindow(ownerHwnd)) {

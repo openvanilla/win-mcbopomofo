@@ -255,9 +255,7 @@ bool TooltipWindow::recreateWindow_() {
   return true;
 }
 
-void TooltipWindow::updateRenderMode_() {
-  renderMode_ = RenderMode::kD2D;
-}
+void TooltipWindow::updateRenderMode_() { renderMode_ = RenderMode::kD2D; }
 
 void TooltipWindow::SetOwnerWindow(HWND ownerHwnd) {
   if (ownerHwnd && !IsWindow(ownerHwnd)) {

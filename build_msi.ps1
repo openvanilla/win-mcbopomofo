@@ -98,14 +98,19 @@ function Build-Architecture([string]$Architecture, [string]$BuildRoot, [string]$
     } finally { Pop-Location }
 }
 
-function Check-AndBuildMissingArtifacts {
-    $missing = $requiredArtifacts | Where-Object { -not (Test-Path $_) }
-    if ($missing.Count -gt 0) {
-        if ($SkipBuild) { Write-Host "Error: Artifacts missing and -SkipBuild set." -ForegroundColor Red; exit 1 }
-        if ($missing | Where-Object { $_ -like "*$X64BuildRoot*" }) { Build-Architecture "x64" $X64BuildRoot $Configuration }
-        if ($missing | Where-Object { $_ -like "*$X86BuildRoot*" }) { Build-Architecture "x86" $X86BuildRoot $Configuration }
-        if ($missing | Where-Object { $_ -like "*$Arm64BuildRoot*" }) { Build-Architecture "ARM64" $Arm64BuildRoot $Configuration }
+function Build-AllArchitectures {
+    if ($SkipBuild) {
+        $missing = $requiredArtifacts | Where-Object { -not (Test-Path $_) }
+        if ($missing.Count -gt 0) {
+            Write-Host "Error: Artifacts missing and -SkipBuild set." -ForegroundColor Red
+            exit 1
+        }
+        return
     }
+
+    Build-Architecture "x64" $X64BuildRoot $Configuration
+    Build-Architecture "x86" $X86BuildRoot $Configuration
+    Build-Architecture "ARM64" $Arm64BuildRoot $Configuration
 }
 
 function Convert-LicenseTextToRtf([string]$InputPath, [string]$OutputPath) {
@@ -122,7 +127,7 @@ function Convert-LicenseTextToRtf([string]$InputPath, [string]$OutputPath) {
     Set-Content -LiteralPath $OutputPath -Value $rtf -Encoding ASCII
 }
 
-Check-AndBuildMissingArtifacts
+Build-AllArchitectures
 Convert-LicenseTextToRtf -InputPath $LicenseTxtPath -OutputPath $LicenseRtfPath
 
 function Find-WixExecutable {

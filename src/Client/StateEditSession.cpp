@@ -67,8 +67,8 @@ HWND GetContextWindow(ITfContext* context) {
 }
 
 bool IsUsableLayoutRect(const RECT& rc) {
-  return rc.bottom > rc.top && (rc.left != 0 || rc.top != 0 || rc.right != 0 ||
-                               rc.bottom != 0);
+  return rc.bottom > rc.top &&
+         (rc.left != 0 || rc.top != 0 || rc.right != 0 || rc.bottom != 0);
 }
 
 void SendUILayoutToServer(McBopomofoTIP* tip, ITfContext* context,
@@ -77,8 +77,9 @@ void SendUILayoutToServer(McBopomofoTIP* tip, ITfContext* context,
   if (!tip) {
     return;
   }
-  tip->UpdateServerUILayout(GetContextWindow(context), rc, showCandidateWindow,
-                            showTooltipWindow);
+  HWND hwnd = GetContextWindow(context);
+  tip->UpdateServerUILayout(hwnd, rc, showCandidateWindow, showTooltipWindow,
+                            GetDpiScaleForWindow(hwnd));
 }
 
 bool SendUILayoutForRange(TfEditCookie ec, ITfContext* context, ITfRange* range,
@@ -640,8 +641,7 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
     }
 
     const bool showServerCand = showCustomCand && !state_.candidates.empty();
-    const bool showServerTooltip =
-        showCustomTooltip && !state_.tooltip.empty();
+    const bool showServerTooltip = showCustomTooltip && !state_.tooltip.empty();
     if (showServerCand || showServerTooltip) {
       SendAuxiliaryUILayout(ec, pContext_, nullptr, pTIP_, showServerCand,
                             showServerTooltip);

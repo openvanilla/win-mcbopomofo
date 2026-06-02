@@ -138,7 +138,7 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
 
   bool shiftToggleKeyPending_ = false;
 
- public:
+  public:
   void ToggleOpenClose();
   bool IsOpen();
   void RefreshLangBar();
@@ -150,7 +150,8 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   ITfComposition* GetComposition() const { return pComposition_; }
   void SetComposition(ITfComposition* pComp) { pComposition_ = pComp; }
   void UpdateServerUILayout(HWND ownerHwnd, const RECT& anchor,
-                            bool showCandidateWindow, bool showTooltipWindow);
+                            bool showCandidateWindow, bool showTooltipWindow,
+                            float dpiScale);
   void HideServerAuxiliaryUI() { hideServerAuxiliaryUI_(); }
 
   ITfUIElementMgr* GetUIElementMgr() const { return pUIElementMgr_; }

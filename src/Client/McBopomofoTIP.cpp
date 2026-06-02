@@ -232,8 +232,8 @@ HWND GetContextWindow(ITfContext* context) {
 }
 
 bool IsUsableLayoutRect(const RECT& rc) {
-  return rc.bottom > rc.top && (rc.left != 0 || rc.top != 0 || rc.right != 0 ||
-                               rc.bottom != 0);
+  return rc.bottom > rc.top &&
+         (rc.left != 0 || rc.top != 0 || rc.right != 0 || rc.bottom != 0);
 }
 
 bool GetCaretFallbackRect(RECT* rect) {
@@ -636,6 +636,7 @@ STDAPI McBopomofoTIP::OnSetFocus(BOOL fForeground) {
 STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
                                     LPARAM lParam, BOOL* pfEaten) {
   UNREFERENCED_PARAMETER(pic);
+  UNREFERENCED_PARAMETER(lParam);
   if (pfEaten == nullptr) {
     return E_INVALIDARG;
   }
@@ -665,17 +666,15 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
     return S_OK;
   }
 
-  // No active state: only eat printable characters, let server decide if it
-  // wants to start composing
-  WCHAR chars[2] = {0};
-  if (ToUnicode((UINT)wParam, (lParam >> 16) & 0xFF, keyboardState, chars, 2,
-                0) == 1) {
-    // Only eat if it's a printable ASCII character (let server handle Bopomofo
-    // keys)
-    *pfEaten = (chars[0] >= 32 && chars[0] <= 126);
-  } else {
+  // Let the IME see ordinary keys even if they do not map to printable ASCII
+  // through the current keyboard layout. Otherwise TSF can skip OnKeyDown and
+  // the host application receives the raw key directly.
+  if (IsCtrlPressed(keyboardState) || IsAltPressed(keyboardState)) {
     *pfEaten = FALSE;
+    return S_OK;
   }
+
+  *pfEaten = TRUE;
 
   return S_OK;
 }
@@ -709,6 +708,7 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   }
 
   McBopomofo::IPC::KeyEventPayload req;
+  HWND contextHwnd = GetContextWindow(pic);
   req.vk = (unsigned int)wParam;
   req.shift = IsShiftPressed(keyboardState);
   req.ctrl = IsCtrlPressed(keyboardState);
@@ -716,7 +716,8 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   if (GetKeyDownLayout(pic, tid_, &keyLayout)) {
     req.hasLayout = true;
     req.ownerHwnd =
-        static_cast<uint64_t>(reinterpret_cast<uintptr_t>(GetContextWindow(pic)));
+        static_cast<uint64_t>(reinterpret_cast<uintptr_t>(contextHwnd));
+    req.dpiScale = GetDpiScaleForWindow(contextHwnd);
     req.anchorLeft = static_cast<int>(keyLayout.left);
     req.anchorTop = static_cast<int>(keyLayout.top);
     req.anchorRight = static_cast<int>(keyLayout.right);
@@ -935,15 +936,17 @@ void McBopomofoTIP::hideAuxiliaryWindowsForDirectCommit_(
 
 void McBopomofoTIP::hideServerAuxiliaryUI_() {
   RECT empty = {};
-  UpdateServerUILayout(nullptr, empty, false, false);
+  UpdateServerUILayout(nullptr, empty, false, false, 1.0f);
 }
 
 void McBopomofoTIP::UpdateServerUILayout(HWND ownerHwnd, const RECT& anchor,
                                          bool showCandidateWindow,
-                                         bool showTooltipWindow) {
+                                         bool showTooltipWindow,
+                                         float dpiScale) {
   McBopomofo::IPC::ClientUILayoutPayload payload;
   payload.showCandidateWindow = showCandidateWindow;
   payload.showTooltipWindow = showTooltipWindow;
+  payload.dpiScale = dpiScale;
   payload.ownerHwnd =
       static_cast<uint64_t>(reinterpret_cast<uintptr_t>(ownerHwnd));
   payload.anchorLeft = static_cast<int>(anchor.left);

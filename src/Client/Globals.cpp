@@ -24,11 +24,11 @@
 #include "Globals.h"
 
 #include <dwmapi.h>
-#include <cwchar>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
+#include <cwchar>
 #include <iterator>
 #include <string>
 

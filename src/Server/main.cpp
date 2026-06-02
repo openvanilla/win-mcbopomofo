@@ -28,6 +28,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <cmath>
 #include <array>
 #include <cwchar>
 #include <filesystem>
@@ -35,8 +36,8 @@
 #include <functional>
 #include <mutex>
 
-#include "CandidateWindowColors.h"
 #include "CandidateWindow.h"
+#include "CandidateWindowColors.h"
 #include "InputController.h"
 #include "InputMacro.h"
 #include "KeyHandler.h"
@@ -106,15 +107,20 @@ class ServerPopupController {
       hasLayout = hasLayout_;
     }
 
-    if (!hasLayout || (!layout.showCandidateWindow && !layout.showTooltipWindow)) {
+    RECT anchor = {static_cast<LONG>(layout.anchorLeft),
+                   static_cast<LONG>(layout.anchorTop),
+                   static_cast<LONG>(layout.anchorRight),
+                   static_cast<LONG>(layout.anchorBottom)};
+
+    if (!hasLayout ||
+        (!layout.showCandidateWindow && !layout.showTooltipWindow)) {
       candidateWindow_.Hide();
       tooltipWindow_.Hide();
       return;
     }
 
-    HWND owner = reinterpret_cast<HWND>(static_cast<uintptr_t>(layout.ownerHwnd));
-    RECT anchor = {layout.anchorLeft, layout.anchorTop, layout.anchorRight,
-                   layout.anchorBottom};
+    HWND owner =
+        reinterpret_cast<HWND>(static_cast<uintptr_t>(layout.ownerHwnd));
 
     const bool showTooltip = layout.showTooltipWindow && !state.tooltip.empty();
     const bool showCandidate =
@@ -164,7 +170,8 @@ class ServerPopupController {
     const int screenRight = mi.rcWork.right;
     const int screenLeft = mi.rcWork.left;
 
-    const int candidateHeight = showCandidate ? candidateWindow_.GetHeight() : 0;
+    const int candidateHeight =
+        showCandidate ? candidateWindow_.GetHeight() : 0;
     const int candidateWidth = showCandidate ? candidateWindow_.GetWidth() : 0;
     const int tooltipHeight = showTooltip ? tooltipWindow_.GetHeight() : 0;
     const int tooltipWidth = showTooltip ? tooltipWindow_.GetWidth() : 0;
@@ -315,6 +322,24 @@ static void RelaunchCurrentProcess() {
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
   }
+}
+
+static void EnablePerMonitorDpiAwareness() {
+  HMODULE user32 = GetModuleHandleW(L"user32.dll");
+  if (user32) {
+    using SetProcessDpiAwarenessContextFn =
+        BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
+    auto setProcessDpiAwarenessContext =
+        reinterpret_cast<SetProcessDpiAwarenessContextFn>(
+            GetProcAddress(user32, "SetProcessDpiAwarenessContext"));
+    if (setProcessDpiAwarenessContext &&
+        setProcessDpiAwarenessContext(
+            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+      return;
+    }
+  }
+
+  SetProcessDPIAware();
 }
 
 }  // namespace
@@ -695,6 +720,8 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam,
 }
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
+  EnablePerMonitorDpiAwareness();
+
   HANDLE hSingleInstanceMutex =
       CreateMutexW(nullptr, TRUE, kServerSingleInstanceMutexName);
   if (hSingleInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
@@ -857,6 +884,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         IPC::ClientUILayoutPayload layout;
         layout.showCandidateWindow = !ui.currentState.candidates.empty();
         layout.showTooltipWindow = !ui.currentState.tooltip.empty();
+        layout.dpiScale = keyReq.dpiScale;
         layout.ownerHwnd = keyReq.ownerHwnd;
         layout.anchorLeft = keyReq.anchorLeft;
         layout.anchorTop = keyReq.anchorTop;
