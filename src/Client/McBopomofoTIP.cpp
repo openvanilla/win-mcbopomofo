@@ -661,6 +661,18 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
     return S_OK;
   }
 
+  // If the composition buffer is empty, do not swallow control or editing
+  // keys, allowing them to pass through to the host application safely.
+  switch (wParam) {
+    case VK_RETURN:
+    case VK_ESCAPE:
+    case VK_TAB:
+    case VK_BACK:
+    case VK_DELETE:
+      *pfEaten = FALSE;
+      return S_OK;
+  }
+
   if (IsServerHandledShortcutKey(wParam, keyboardState)) {
     *pfEaten = TRUE;
     return S_OK;
