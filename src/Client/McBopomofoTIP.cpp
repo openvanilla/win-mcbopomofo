@@ -741,13 +741,14 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   if (pipe.Call(payload, response)) {
     // LogMessage("Received IPC response: %s", response.c_str());
     if (McBopomofo::IPC::DeserializeStateUpdate(response, lastState_)) {
-      *pfEaten = lastState_.consumed ? TRUE : FALSE;
+      const bool hasCommit = !lastState_.commitString.empty();
+      *pfEaten = (lastState_.consumed || hasCommit) ? TRUE : FALSE;
       // LogMessage(
       //     "State deserialized. Consumed: %d, CommitStr: '%s', CompStr: '%s'",
       //     lastState_.consumed, lastState_.commitString.c_str(),
       //     lastState_.composingBuffer.c_str());
 
-      if (lastState_.consumed) {
+      if (lastState_.consumed || hasCommit) {
         applyStateToContext_(pic, lastState_, "");
       }
     } else {
