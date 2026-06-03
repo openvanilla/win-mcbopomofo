@@ -44,6 +44,15 @@ static const WCHAR c_szInfoKeyPrefix[] = L"CLSID\\";
 static const WCHAR c_szInProcSvr32[] = L"InProcServer32";
 static const WCHAR c_szModelName[] = L"ThreadingModel";
 
+static std::wstring MakeIndirectStringReference(LPCWSTR modulePath,
+                                                UINT resourceId) {
+  WCHAR buffer[MAX_PATH + 32];
+  HRESULT hr = StringCchPrintfW(buffer, ARRAYSIZE(buffer), L"@\"%s\",-%u",
+                                modulePath, resourceId);
+  if (FAILED(hr)) return L"";
+  return buffer;
+}
+
 BOOL SetRegString(HKEY hKey, LPCWSTR lpSubKey, LPCWSTR lpValueName,
                   LPCWSTR lpData) {
   HKEY hSubKey = nullptr;
@@ -116,7 +125,11 @@ BOOL RegisterProfiles() {
   LANGID langid = MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL);
 
   std::wstring desc =
-      McBopomofo::LoadLocalizedStringW(g_hInst, IDS_WIN_MCBOPOMOFO);
+      MakeIndirectStringReference(szModulePath, IDS_WIN_MCBOPOMOFO);
+  if (desc.empty()) {
+    pProfileMgr->Release();
+    return FALSE;
+  }
   hr = pProfileMgr->RegisterProfile(
       c_clsidMcBopomofoTIP, langid, c_guidMcBopomofoProfile, desc.c_str(),
       (ULONG)desc.length(), szModulePath, (ULONG)wcslen(szModulePath),

@@ -58,7 +58,7 @@ BEGIN
     IDS_EDIT_EXCLUDED_PHRASES      "Edit Excluded Phrases"
     IDS_OPEN_USER_DATA_FOLDER      "Open User Data Folder"
     IDS_IME_MODE_TOOLTIP           "Chinese/Simplified/English Mode"
-    IDS_WIN_MCBOPOMOFO             "Win-McBopomofo"
+    IDS_WIN_MCBOPOMOFO             "McBopomofo"
 END
 
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL
