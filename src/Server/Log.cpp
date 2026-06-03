@@ -28,16 +28,56 @@
 #include <windows.h>
 
 #include <atomic>
+#include <mutex>
+#include <string>
 
 namespace McBopomofo {
 
 namespace {
 
+constexpr ULONGLONG kMaxLogFileBytes = 10ULL * 1024ULL * 1024ULL;
+constexpr int kMaxRotatedLogFiles = 3;
+
 std::atomic_bool g_loggingEnabled{false};
+std::mutex g_logFileMutex;
 
 ULONGLONG ElapsedMsSinceProcessStart() {
   static const ULONGLONG kStartTick = GetTickCount64();
   return GetTickCount64() - kStartTick;
+}
+
+std::wstring RotatedLogFilePath(const std::wstring& logPath, int index) {
+  return logPath + L"." + std::to_wstring(index);
+}
+
+bool LogFileExceedsLimit(const std::wstring& logPath) {
+  WIN32_FILE_ATTRIBUTE_DATA data = {};
+  if (!GetFileAttributesExW(logPath.c_str(), GetFileExInfoStandard, &data)) {
+    return false;
+  }
+  if ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+    return false;
+  }
+
+  ULARGE_INTEGER size = {};
+  size.HighPart = data.nFileSizeHigh;
+  size.LowPart = data.nFileSizeLow;
+  return size.QuadPart >= kMaxLogFileBytes;
+}
+
+void RotateLogFileIfNeeded(const std::wstring& logPath) {
+  if (!LogFileExceedsLimit(logPath)) {
+    return;
+  }
+
+  DeleteFileW(RotatedLogFilePath(logPath, kMaxRotatedLogFiles).c_str());
+  for (int i = kMaxRotatedLogFiles - 1; i >= 1; --i) {
+    MoveFileExW(RotatedLogFilePath(logPath, i).c_str(),
+                RotatedLogFilePath(logPath, i + 1).c_str(),
+                MOVEFILE_REPLACE_EXISTING);
+  }
+  MoveFileExW(logPath.c_str(), RotatedLogFilePath(logPath, 1).c_str(),
+              MOVEFILE_REPLACE_EXISTING);
 }
 
 }  // namespace
@@ -66,6 +106,9 @@ LogMessageContext::~LogMessageContext() {
 
   std::wstring logPath = GetLogFilePath();
   if (!logPath.empty()) {
+    std::lock_guard<std::mutex> lock(g_logFileMutex);
+    RotateLogFileIfNeeded(logPath);
+
     FILE* fp = nullptr;
     if (_wfopen_s(&fp, logPath.c_str(), L"a") == 0) {
       fprintf(fp, "[%lu][+%llums] [%s] %s\n", GetCurrentProcessId(),
