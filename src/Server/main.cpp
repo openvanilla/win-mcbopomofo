@@ -72,6 +72,7 @@ constexpr const wchar_t* kServerSingleInstanceMutexName =
 InputController* g_Controller = nullptr;
 bool g_RestartRequested = false;
 std::function<void()> g_ReloadSettingsCallback;
+std::function<void(bool)> g_SaveServerLoggingEnabledCallback;
 
 class ServerPopupController {
  public:
@@ -276,6 +277,9 @@ void OpenLogFolder() {
 void ToggleLogging() {
   bool enabled = !ServerLoggingEnabled();
   SetServerLoggingEnabled(enabled);
+  if (g_SaveServerLoggingEnabledCallback) {
+    g_SaveServerLoggingEnabledCallback(enabled);
+  }
   if (enabled) {
     FCITX_MCBOPOMOFO_INFO() << "Logging enabled.";
   }
@@ -722,6 +726,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     std::lock_guard<std::mutex> lock(reloadMutex);
     reloadSettings();
   };
+  g_SaveServerLoggingEnabledCallback = [&](bool enabled) {
+    std::lock_guard<std::mutex> lock(reloadMutex);
+    settings.setServerLoggingEnabled(enabled);
+    settings.save();
+  };
 
   ServerFileReloader fileReloader(
       std::filesystem::path(userDir) / "mcbopomofo.ini",
@@ -892,6 +901,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   Shell_NotifyIconW(NIM_DELETE, &nid);
   DestroyWindow(hwndTray);
   g_ServerPopupController = nullptr;
+  g_SaveServerLoggingEnabledCallback = nullptr;
 
   if (hSingleInstanceMutex) {
     ReleaseMutex(hSingleInstanceMutex);

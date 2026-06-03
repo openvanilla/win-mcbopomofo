@@ -134,6 +134,7 @@ void Settings::load() {
   }
   shiftToggleOpenClose_ = readBool_(L"General", L"ShiftToggleOpenClose", true);
   beepOnError_ = readBool_(L"General", L"BeepOnError", true);
+  serverLoggingEnabled_ = readBool_(L"Server", L"LoggingEnabled", false);
 }
 
 void Settings::save() {
@@ -168,6 +169,7 @@ void Settings::save() {
   writeInt_(L"UI", L"CandidateFontSize", candidateFontSize_);
   writeBool_(L"General", L"ShiftToggleOpenClose", shiftToggleOpenClose_);
   writeBool_(L"General", L"BeepOnError", beepOnError_);
+  writeBool_(L"Server", L"LoggingEnabled", serverLoggingEnabled_);
 }
 
 void Settings::applyTo(InputController& controller) {
@@ -211,6 +213,7 @@ void Settings::applyTo(InputController& controller) {
   controller.setSelectionAction(selectionAction_);
   controller.setCandidateFontSize(candidateFontSize_);
   controller.setBeepOnError(beepOnError_);
+  SetServerLoggingEnabled(serverLoggingEnabled_);
   FCITX_MCBOPOMOFO_INFO() << "Settings applied: ChineseConversionEnabled="
                           << chineseConversionEnabled_;
 }

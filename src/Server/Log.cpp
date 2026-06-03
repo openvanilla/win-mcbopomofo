@@ -33,7 +33,7 @@ namespace McBopomofo {
 
 namespace {
 
-std::atomic_bool g_loggingEnabled{true};
+std::atomic_bool g_loggingEnabled{false};
 
 ULONGLONG ElapsedMsSinceProcessStart() {
   static const ULONGLONG kStartTick = GetTickCount64();

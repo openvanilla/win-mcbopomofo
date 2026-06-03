@@ -137,6 +137,9 @@ class Settings {
   bool beepOnError() const { return beepOnError_; }
   void setBeepOnError(bool v) { beepOnError_ = v; }
 
+  bool serverLoggingEnabled() const { return serverLoggingEnabled_; }
+  void setServerLoggingEnabled(bool v) { serverLoggingEnabled_ = v; }
+
  private:
   std::wstring iniFilePath_() const;
   std::wstring readString_(const wchar_t* section, const wchar_t* key,
@@ -171,6 +174,7 @@ class Settings {
   int candidateFontSize_ = 16;
   bool shiftToggleOpenClose_ = true;
   bool beepOnError_ = true;
+  bool serverLoggingEnabled_ = false;
 };
 
 }  // namespace McBopomofo
