@@ -44,19 +44,27 @@ static const WCHAR c_szInfoKeyPrefix[] = L"CLSID\\";
 static const WCHAR c_szInProcSvr32[] = L"InProcServer32";
 static const WCHAR c_szModelName[] = L"ThreadingModel";
 
-// ITfInputProcessorProfileMgr::RegisterProfile accepts an indirect localized
-// string for the profile description. Windows resolves the resource reference
-// using SHLoadIndirectString so the IME name follows the active UI language.
-// See:
-// https://learn.microsoft.com/windows/win32/api/msctf/nf-msctf-itfinputprocessorprofilemgr-registerprofile
-// https://learn.microsoft.com/windows/win32/api/shlwapi/nf-shlwapi-shloadindirectstring
-static std::wstring MakeIndirectStringReference(LPCWSTR modulePath,
-                                                UINT resourceId) {
-  WCHAR buffer[MAX_PATH + 32];
-  HRESULT hr = StringCchPrintfW(buffer, ARRAYSIZE(buffer), L"@\"%s\",-%u",
-                                modulePath, resourceId);
-  if (FAILED(hr)) return L"";
-  return buffer;
+static std::wstring LoadStringResourceForLanguage(HINSTANCE hInstance,
+                                                  UINT resourceId,
+                                                  LANGID langid) {
+  HRSRC resource = FindResourceExW(
+      hInstance, MAKEINTRESOURCEW(6), MAKEINTRESOURCEW((resourceId >> 4) + 1),
+      langid);
+  if (!resource) return L"";
+
+  HGLOBAL resourceData = LoadResource(hInstance, resource);
+  if (!resourceData) return L"";
+
+  const WCHAR* strings = static_cast<const WCHAR*>(LockResource(resourceData));
+  if (!strings) return L"";
+
+  const UINT stringIndex = resourceId & 0x0f;
+  for (UINT i = 0; i < stringIndex; ++i) {
+    strings += 1 + *strings;
+  }
+
+  const WORD length = *strings++;
+  return std::wstring(strings, strings + length);
 }
 
 BOOL SetRegString(HKEY hKey, LPCWSTR lpSubKey, LPCWSTR lpValueName,
@@ -131,7 +139,10 @@ BOOL RegisterProfiles() {
   LANGID langid = MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL);
 
   std::wstring desc =
-      MakeIndirectStringReference(szModulePath, IDS_WIN_MCBOPOMOFO);
+      LoadStringResourceForLanguage(g_hInst, IDS_WIN_MCBOPOMOFO, langid);
+  if (desc.empty()) {
+    desc = McBopomofo::LoadLocalizedStringW(g_hInst, IDS_WIN_MCBOPOMOFO);
+  }
   if (desc.empty()) {
     pProfileMgr->Release();
     return FALSE;

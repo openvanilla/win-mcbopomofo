@@ -336,13 +336,23 @@ static void EnablePerMonitorDpiAwareness() {
 }  // namespace
 
 static bool IsSystemColorSettingsChange(UINT msg, LPARAM lParam) {
-  if (msg == WM_DWMCOLORIZATIONCOLORCHANGED) {
+  if (msg == WM_DWMCOLORIZATIONCOLORCHANGED || msg == WM_THEMECHANGED ||
+      msg == WM_SYSCOLORCHANGE) {
     return true;
   }
-  if (msg != WM_SETTINGCHANGE || lParam == 0) {
+  if (msg != WM_SETTINGCHANGE) {
     return false;
   }
-  return wcscmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") == 0;
+
+  if (lParam == 0) {
+    return true;
+  }
+
+  const auto area = reinterpret_cast<LPCWSTR>(lParam);
+  return wcscmp(area, L"ImmersiveColorSet") == 0 ||
+         wcscmp(area, L"WindowsThemeElement") == 0 ||
+         wcscmp(area, L"UserPreferences") == 0 ||
+         wcscmp(area, L"Policy") == 0;
 }
 
 class ServerUI : public UIInterface {
@@ -860,8 +870,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   wcex.lpszClassName = L"WinMcBopomofoServerTray";
   RegisterClassExW(&wcex);
 
-  hwndTray = CreateWindowExW(0, L"WinMcBopomofoServerTray", L"", 0, 0, 0, 0, 0,
-                             HWND_MESSAGE, NULL, wcex.hInstance, NULL);
+  hwndTray = CreateWindowExW(0, L"WinMcBopomofoServerTray", L"",
+                             WS_OVERLAPPED, 0, 0, 0, 0, nullptr, NULL,
+                             wcex.hInstance, NULL);
   popupController.Create(hInst);
 
   NOTIFYICONDATAW nid = {sizeof(NOTIFYICONDATAW)};

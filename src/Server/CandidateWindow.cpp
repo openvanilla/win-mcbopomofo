@@ -64,6 +64,26 @@ COLORREF ToColorRef(uint32_t rgb) {
   return RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
 }
 
+bool IsSystemColorSettingsChange(UINT msg, LPARAM lParam) {
+  if (msg == WM_DWMCOLORIZATIONCOLORCHANGED || msg == WM_THEMECHANGED ||
+      msg == WM_SYSCOLORCHANGE) {
+    return true;
+  }
+  if (msg != WM_SETTINGCHANGE) {
+    return false;
+  }
+
+  if (lParam == 0) {
+    return true;
+  }
+
+  const auto area = reinterpret_cast<LPCWSTR>(lParam);
+  return wcscmp(area, L"ImmersiveColorSet") == 0 ||
+         wcscmp(area, L"WindowsThemeElement") == 0 ||
+         wcscmp(area, L"UserPreferences") == 0 ||
+         wcscmp(area, L"Policy") == 0;
+}
+
 bool IsEmojiCodePoint(char32_t cp) {
   return (cp >= 0x1F300 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF) ||
          (cp >= 0xFE00 && cp <= 0xFE0F);
@@ -846,16 +866,11 @@ LRESULT CALLBACK CandidateWindow::wndProc_(HWND hwnd, UINT uMsg, WPARAM wParam,
       return pThis->onPaint_(hwnd);
     } else if (uMsg == WM_ERASEBKGND) {
       return 1;
-    } else if (uMsg == WM_SETTINGCHANGE) {
-      if (lParam != 0 && wcscmp(reinterpret_cast<LPCWSTR>(lParam),
-                                L"ImmersiveColorSet") == 0) {
-        pThis->reloadServerControlledSettings_();
-        return 0;
-      }
-      pThis->onSettingChange_();
-    } else if (uMsg == WM_DWMCOLORIZATIONCOLORCHANGED) {
+    } else if (IsSystemColorSettingsChange(uMsg, lParam)) {
       pThis->reloadServerControlledSettings_();
       return 0;
+    } else if (uMsg == WM_SETTINGCHANGE) {
+      pThis->onSettingChange_();
     } else if (uMsg == WM_DPICHANGED) {
       pThis->dpiScale_ = (float)LOWORD(wParam) / 96.0f;
       RECT* prcNewWindow = (RECT*)lParam;
