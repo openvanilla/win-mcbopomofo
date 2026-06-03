@@ -538,6 +538,33 @@ bool InputController::handleCandidateKey_(
   char ascii = static_cast<char>(
       std::tolower(static_cast<unsigned char>(static_cast<char>(key.ascii))));
 
+  auto inputCursorMoveDirection = [this, &key, ascii, useShiftKey]() {
+    if (useShiftKey) {
+      if (key.name == Key::KeyName::LEFT) {
+        return -1;
+      }
+      if (key.name == Key::KeyName::RIGHT) {
+        return 1;
+      }
+      return 0;
+    }
+
+    if ((selectionAction_ == "JK" && ascii == 'j') ||
+        (selectionAction_ == "HL" && ascii == 'h')) {
+      return -1;
+    }
+    if ((selectionAction_ == "JK" && ascii == 'k') ||
+        (selectionAction_ == "HL" && ascii == 'l')) {
+      return 1;
+    }
+    return 0;
+  }();
+
+  if (inputCursorMoveDirection != 0 && canHandleChoosingCandidate) {
+    moveCandidateCursor_(inputCursorMoveDirection > 0);
+    notifyUI_();
+    return true;
+  }
 
   int selectionIndex = SelectionIndexFromKey(key, useShiftKey, candidateKeys_,
                                              candidateKeysCount_);
@@ -641,46 +668,6 @@ bool InputController::handleCandidateKey_(
   if (key.ascii == Key::SPACE) {
     moveCandidatePage_(true);
     notifyUI_();
-    return true;
-  }
-
-  auto inputCursorMoveDirection = [this, &key, ascii, useShiftKey]() {
-    if (useShiftKey) {
-      if (key.name == Key::KeyName::LEFT) {
-        return -1;
-      }
-      if (key.name == Key::KeyName::RIGHT) {
-        return 1;
-      }
-      return 0;
-    }
-
-    if ((selectionAction_ == "JK" && ascii == 'j') ||
-        (selectionAction_ == "HL" && ascii == 'h')) {
-      return -1;
-    }
-    if ((selectionAction_ == "JK" && ascii == 'k') ||
-        (selectionAction_ == "HL" && ascii == 'l')) {
-      return 1;
-    }
-    return 0;
-  }();
-
-  if (inputCursorMoveDirection != 0 && canHandleChoosingCandidate) {
-    size_t cursor = keyHandler_->candidateCursorIndex();
-    if (inputCursorMoveDirection < 0) {
-      if (cursor > 0) {
-        --cursor;
-      }
-    } else {
-      ++cursor;
-    }
-    keyHandler_->setCandidateCursorIndex(cursor);
-
-    auto inputting = keyHandler_->buildInputtingState();
-    auto newChoosing = keyHandler_->buildChoosingCandidateState(
-        inputting.get(), keyHandler_->candidateCursorIndex());
-    stateCallback(std::move(newChoosing));
     return true;
   }
 
