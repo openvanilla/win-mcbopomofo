@@ -537,31 +537,7 @@ bool InputController::handleCandidateKey_(
   bool useShiftKey = numberInput != nullptr || associatedPlain != nullptr;
   char ascii = static_cast<char>(
       std::tolower(static_cast<unsigned char>(static_cast<char>(key.ascii))));
-  if (canHandleChoosingCandidate && !useShiftKey) {
-    if (selectionAction_ == "JK") {
-      if (ascii == 'j') {
-        moveCandidateCursor_(false);
-        notifyUI_();
-        return true;
-      }
-      if (ascii == 'k') {
-        moveCandidateCursor_(true);
-        notifyUI_();
-        return true;
-      }
-    } else if (selectionAction_ == "HL") {
-      if (ascii == 'h') {
-        moveCandidateCursor_(false);
-        notifyUI_();
-        return true;
-      }
-      if (ascii == 'l') {
-        moveCandidateCursor_(true);
-        notifyUI_();
-        return true;
-      }
-    }
-  }
+
 
   int selectionIndex = SelectionIndexFromKey(key, useShiftKey, candidateKeys_,
                                              candidateKeysCount_);
@@ -668,7 +644,33 @@ bool InputController::handleCandidateKey_(
     return true;
   }
 
-  if (key.name == Key::KeyName::LEFT && key.shiftPressed &&
+  bool isMovingInputCursorToLeft = false;
+  bool isMovingInputCursorToRight = false;
+  if (!useShiftKey) {
+    if (selectionAction_ == "JK") {
+      if (ascii == 'j') {
+        isMovingInputCursorToLeft = true;
+      } else if (ascii == 'k') {
+        isMovingInputCursorToRight = true;
+      }
+    } else if (selectionAction_ == "HL") {
+      if (ascii == 'h') {
+        isMovingInputCursorToLeft = true;
+      } else if (ascii == 'l') {
+        isMovingInputCursorToRight = true;
+      }
+    }
+  }
+  else {
+    if (key.name == Key::KeyName::LEFT) {
+      isMovingInputCursorToLeft = true;
+    }
+    if (key.name == Key::KeyName::RIGHT) {
+      isMovingInputCursorToRight = true;
+    }
+  }
+
+  if (isMovingInputCursorToLeft &&
       canHandleChoosingCandidate) {
     size_t cursor = keyHandler_->candidateCursorIndex();
     if (cursor > 0) {
@@ -682,7 +684,7 @@ bool InputController::handleCandidateKey_(
     stateCallback(std::move(newChoosing));
     return true;
   }
-  if (key.name == Key::KeyName::RIGHT && key.shiftPressed &&
+  if (isMovingInputCursorToRight &&
       canHandleChoosingCandidate) {
     size_t cursor = keyHandler_->candidateCursorIndex();
     ++cursor;
