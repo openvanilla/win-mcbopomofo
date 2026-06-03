@@ -644,50 +644,37 @@ bool InputController::handleCandidateKey_(
     return true;
   }
 
-  bool isMovingInputCursorToLeft = false;
-  bool isMovingInputCursorToRight = false;
-  if (!useShiftKey) {
-    if (selectionAction_ == "JK") {
-      if (ascii == 'j') {
-        isMovingInputCursorToLeft = true;
-      } else if (ascii == 'k') {
-        isMovingInputCursorToRight = true;
+  auto inputCursorMoveDirection = [this, &key, ascii, useShiftKey]() {
+    if (useShiftKey) {
+      if (key.name == Key::KeyName::LEFT) {
+        return -1;
       }
-    } else if (selectionAction_ == "HL") {
-      if (ascii == 'h') {
-        isMovingInputCursorToLeft = true;
-      } else if (ascii == 'l') {
-        isMovingInputCursorToRight = true;
+      if (key.name == Key::KeyName::RIGHT) {
+        return 1;
       }
+      return 0;
     }
-  }
-  else {
-    if (key.name == Key::KeyName::LEFT) {
-      isMovingInputCursorToLeft = true;
-    }
-    if (key.name == Key::KeyName::RIGHT) {
-      isMovingInputCursorToRight = true;
-    }
-  }
 
-  if (isMovingInputCursorToLeft &&
-      canHandleChoosingCandidate) {
-    size_t cursor = keyHandler_->candidateCursorIndex();
-    if (cursor > 0) {
-      --cursor;
+    if ((selectionAction_ == "JK" && ascii == 'j') ||
+        (selectionAction_ == "HL" && ascii == 'h')) {
+      return -1;
     }
-    keyHandler_->setCandidateCursorIndex(cursor);
+    if ((selectionAction_ == "JK" && ascii == 'k') ||
+        (selectionAction_ == "HL" && ascii == 'l')) {
+      return 1;
+    }
+    return 0;
+  }();
 
-    auto inputting = keyHandler_->buildInputtingState();
-    auto newChoosing = keyHandler_->buildChoosingCandidateState(
-        inputting.get(), keyHandler_->candidateCursorIndex());
-    stateCallback(std::move(newChoosing));
-    return true;
-  }
-  if (isMovingInputCursorToRight &&
-      canHandleChoosingCandidate) {
+  if (inputCursorMoveDirection != 0 && canHandleChoosingCandidate) {
     size_t cursor = keyHandler_->candidateCursorIndex();
-    ++cursor;
+    if (inputCursorMoveDirection < 0) {
+      if (cursor > 0) {
+        --cursor;
+      }
+    } else {
+      ++cursor;
+    }
     keyHandler_->setCandidateCursorIndex(cursor);
 
     auto inputting = keyHandler_->buildInputtingState();
