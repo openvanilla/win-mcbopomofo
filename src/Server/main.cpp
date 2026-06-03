@@ -712,6 +712,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   std::mutex reloadMutex;
 
   std::string userDir = fcitx5_compat::userDirectory();
+  HWND hwndTray = nullptr;
 
   auto reloadSettings = [&]() {
     FCITX_MCBOPOMOFO_INFO()
@@ -721,6 +722,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     settings.applyTo(controller);
     controller.setCandidateWindowColors(ReadCandidateWindowColors());
     controller.refreshUI();
+    popupController.SetState(ui.currentState);
+    if (hwndTray) {
+      PostMessageW(hwndTray, WM_SERVER_UI_CHANGED, 0, 0);
+    }
   };
   g_ReloadSettingsCallback = [&]() {
     std::lock_guard<std::mutex> lock(reloadMutex);
@@ -746,7 +751,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
 
   FCITX_MCBOPOMOFO_INFO() << "Starting Named Pipe server at " << IPC::PIPE_NAME;
 
-  HWND hwndTray = nullptr;
   IPC::NamedPipeServer server(IPC::PIPE_NAME, [&](const std::string& req) {
     std::lock_guard<std::mutex> lock(reloadMutex);
 
