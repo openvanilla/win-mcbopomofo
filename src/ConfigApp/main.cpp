@@ -215,6 +215,13 @@ bool IsRadioButton(HWND hwnd) {
          hwnd == hLowercaseRadio || hwnd == hUppercaseRadio;
 }
 
+bool IsCheckButton(HWND hwnd) {
+  return hwnd == hChooseSpaceCheck || hwnd == hMoveCursorCheck ||
+         hwnd == hShiftToggleCheck || hwnd == hShiftEnterCheck ||
+         hwnd == hEscClearCheck || hwnd == hRepeatedPunctuationCheck ||
+         hwnd == hErrorBeepCheck;
+}
+
 void CenterWindow(HWND hwnd) {
   RECT rect;
   GetWindowRect(hwnd, &rect);
@@ -583,7 +590,7 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
   RECT rect = item->rcItem;
   FillRect(hdc, &rect, g_WindowBrush);
 
-  if (IsRadioButton(item->hwndItem)) {
+  if (IsRadioButton(item->hwndItem) || IsCheckButton(item->hwndItem)) {
     RECT glyphRect = rect;
     glyphRect.right = glyphRect.left + Scale(16);
     int glyphHeight = Scale(16);
@@ -592,7 +599,11 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
     glyphRect.bottom = glyphRect.top + glyphHeight;
 
     bool checked = IsChecked(item->hwndItem);
-    DrawRadioGlyph(hdc, glyphRect, checked);
+    if (IsRadioButton(item->hwndItem)) {
+      DrawRadioGlyph(hdc, glyphRect, checked);
+    } else {
+      DrawCheckGlyph(hdc, glyphRect, checked);
+    }
 
     RECT textRect = rect;
     textRect.left = glyphRect.right + Scale(8);
@@ -833,7 +844,7 @@ void LocalizeControls(HWND hwnd) {
   set(IDC_SHIFT_ENTER_LABEL, IDS_SHIFT_ENTER);
   set(IDC_SHIFT_ENTER_CHECK, IDS_SHIFT_ENTER);
   set(IDC_ESC_LABEL, IDS_ESC_CLEAR);
-  set(IDC_ESC_CLEAR_CHECK, IDS_ESC_CLEAR);
+  set(IDC_ESC_CLEAR_CHECK, IDS_ESC_CLEAR_CHECK);
   set(IDC_CTRL_ENTER_LABEL, IDS_CTRL_ENTER);
   set(IDC_CANDIDATES_PUNCTUATION_LABEL, IDS_CANDIDATES_PUNCTUATION);
   set(IDC_REPEATED_PUNCTUATION_CHECK, IDS_REPEATED_PUNCTUATION);
@@ -933,11 +944,16 @@ void BindControls(HWND hwnd) {
   g_LinkLabels.push_back(hManualLink);
   g_LinkLabels.push_back(hProjectHomepageLink);
 
-  for (HWND control : {hSelectBeforeRadio, hSelectAfterRadio, hVerticalRadio,
-                       hHorizontalRadio, hUppercaseRadio, hLowercaseRadio}) {
+  for (HWND control : {
+           hChooseSpaceCheck, hSelectBeforeRadio, hSelectAfterRadio,
+           hMoveCursorCheck, hVerticalRadio, hHorizontalRadio,
+           hShiftToggleCheck, hUppercaseRadio, hLowercaseRadio,
+           hShiftEnterCheck, hEscClearCheck, hRepeatedPunctuationCheck,
+           hErrorBeepCheck}) {
     if (control != nullptr) {
       LONG_PTR style = GetWindowLongPtrW(control, GWL_STYLE);
-      SetWindowLongPtrW(control, GWL_STYLE, (style & ~BS_TYPEMASK) | BS_OWNERDRAW);
+      SetWindowLongPtrW(control, GWL_STYLE,
+                        (style & ~BS_TYPEMASK) | BS_OWNERDRAW);
     }
   }
 
@@ -1121,6 +1137,8 @@ INT_PTR CALLBACK DlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         } else if (clickedControl == hLowercaseRadio) {
           SetChecked(hUppercaseRadio, false);
           SetChecked(hLowercaseRadio, true);
+        } else if (IsCheckButton(clickedControl)) {
+          SetChecked(clickedControl, !IsChecked(clickedControl));
         }
         SaveAndNotify();
         if (IsRadioButton(clickedControl)) {
@@ -1130,6 +1148,8 @@ INT_PTR CALLBACK DlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
           InvalidateRect(hSelectAfterRadio, nullptr, TRUE);
           InvalidateRect(hUppercaseRadio, nullptr, TRUE);
           InvalidateRect(hLowercaseRadio, nullptr, TRUE);
+        } else if (IsCheckButton(clickedControl)) {
+          InvalidateRect(clickedControl, nullptr, TRUE);
         }
       }
       return TRUE;
@@ -1155,6 +1175,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     HWND existingWindow = FindWindowW(L"#32770", windowTitle.c_str());
     if (existingWindow) {
       ShowWindow(existingWindow, SW_RESTORE);
+      SetWindowPos(existingWindow, HWND_TOPMOST, 0, 0, 0, 0,
+                   SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
       SetForegroundWindow(existingWindow);
     }
     CloseHandle(hSingleInstanceMutex);
@@ -1193,6 +1215,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
                reinterpret_cast<LPARAM>(
                    LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_ICON_APP))));
   ShowWindow(hwnd, nCmdShow);
+  SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+               SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0)) {

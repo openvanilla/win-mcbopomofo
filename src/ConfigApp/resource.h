@@ -1113,6 +1113,7 @@
 #define VK_EXSEL                        0xF8
 #define BM_SETDONTCLICK                 0x00F8
 #define IDS_CTRL_ENTER_TAIWAN_BRAILLE_ASCII 249
+#define IDS_ESC_CLEAR_CHECK             250
 #define VK_EREOF                        0xF9
 #define VK_PLAY                         0xFA
 #define VK_ZOOM                         0xFB
