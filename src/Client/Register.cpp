@@ -44,6 +44,12 @@ static const WCHAR c_szInfoKeyPrefix[] = L"CLSID\\";
 static const WCHAR c_szInProcSvr32[] = L"InProcServer32";
 static const WCHAR c_szModelName[] = L"ThreadingModel";
 
+// ITfInputProcessorProfileMgr::RegisterProfile accepts an indirect localized
+// string for the profile description. Windows resolves the resource reference
+// using SHLoadIndirectString so the IME name follows the active UI language.
+// See:
+// https://learn.microsoft.com/windows/win32/api/msctf/nf-msctf-itfinputprocessorprofilemgr-registerprofile
+// https://learn.microsoft.com/windows/win32/api/shlwapi/nf-shlwapi-shloadindirectstring
 static std::wstring MakeIndirectStringReference(LPCWSTR modulePath,
                                                 UINT resourceId) {
   WCHAR buffer[MAX_PATH + 32];
