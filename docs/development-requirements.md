@@ -25,7 +25,6 @@ Currently existing tests include:
 - `tests/BugReproTest.cpp` - Reproduces specific bugs and regressions.
 - `tests/InputMacroTest.cpp` - Tests input macros and text expansion.
 - `tests/IpcTest.cpp` - Tests IPC serialization and deserialization payloads.
-- `tests/LunarCalendarConverterTest.cpp` - Validates Chinese lunar calendar calculations.
 - `tests/PipeTest.cpp` - Validates named pipe connection and robust transfer logic.
 - `tests/RegisterCategories.cpp` - Tests COM registration paths.
 - `tests/test_candidate_window.cpp` - Tests the UI candidate window logic.
