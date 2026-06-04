@@ -122,8 +122,7 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
 
   ITfComposition* pComposition_;
 
-  // Modern input mode icon that appears directly in the Windows Taskbar
-  // (Input Indicator area in Windows 10/11).
+  // Full-width / half-width punctuation toggle shown in the language bar.
   class CLangBarButton* pModeIconButton_;
 
   // Toggle button that appears in the legacy Windows Language Bar

@@ -39,7 +39,7 @@ extern const GUID GUID_LBI_SETTINGS;
 class CLangBarButton : public ITfLangBarItemButton, public ITfSource {
  public:
   enum class Kind {
-    ModeIcon,
+    FullHalfToggle,
     SwitchLanguageToggle,
     SettingsMenu,
   };

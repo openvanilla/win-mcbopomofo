@@ -112,13 +112,6 @@ bool ReadBoolSetting(const wchar_t* key, bool defaultValue) {
                                SettingsPath().c_str()) != 0;
 }
 
-const wchar_t* CurrentModeLabel(McBopomofoTIP* tip) {
-  if (!tip->IsOpen()) {
-    return L"EN";
-  }
-  return ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"简" : L"中";
-}
-
 void WriteBoolSetting(const wchar_t* key, bool value) {
   WritePrivateProfileStringW(L"General", key, value ? L"1" : L"0",
                              SettingsPath().c_str());
@@ -130,6 +123,30 @@ void NotifySettingsChanged() {
   client.Call(McBopomofo::IPC::SerializeReloadSettings(), response);
   SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, 0, SMTO_ABORTIFHUNG,
                       100, nullptr);
+}
+
+void ToggleHalfWidthPunctuation(McBopomofoTIP* tip) {
+  bool enabled = !ReadBoolSetting(L"HalfWidthPunctuationEnabled", false);
+  WriteBoolSetting(L"HalfWidthPunctuationEnabled", enabled);
+  NotifySettingsChanged();
+  tip->RefreshLangBar();
+}
+
+const wchar_t* ButtonLabel(CLangBarButton::Kind kind, McBopomofoTIP* tip) {
+  switch (kind) {
+    case CLangBarButton::Kind::SwitchLanguageToggle:
+      if (!tip->IsOpen()) {
+        return L"EM";
+      }
+      return ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"簡"
+                                                                 : L"中";
+    case CLangBarButton::Kind::FullHalfToggle:
+      return ReadBoolSetting(L"HalfWidthPunctuationEnabled", false) ? L"半"
+                                                                    : L"全";
+    case CLangBarButton::Kind::SettingsMenu:
+      return L"";
+  }
+  return L"";
 }
 
 std::vector<MenuItem> BuildLangBarMenuItems(McBopomofoTIP* tip,
@@ -284,13 +301,23 @@ STDMETHODIMP CLangBarButton::GetInfo(TF_LANGBARITEMINFO* pInfo) {
   pInfo->clsidService = c_clsidMcBopomofoTIP;
   pInfo->guidItem = guid_;
 
-  if (kind_ == Kind::ModeIcon || kind_ == Kind::SwitchLanguageToggle) {
+  if (kind_ == Kind::FullHalfToggle || kind_ == Kind::SwitchLanguageToggle) {
     pInfo->dwStyle = TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_SHOWNINTRAY;
   } else {
     pInfo->dwStyle = TF_LBI_STYLE_BTN_MENU;
   }
 
-  pInfo->ulSort = 0;
+  switch (kind_) {
+    case Kind::SwitchLanguageToggle:
+      pInfo->ulSort = 0;
+      break;
+    case Kind::FullHalfToggle:
+      pInfo->ulSort = 1;
+      break;
+    case Kind::SettingsMenu:
+      pInfo->ulSort = 2;
+      break;
+  }
   wcscpy_s(pInfo->szDescription, L" ");
   return S_OK;
 }
@@ -308,6 +335,12 @@ STDMETHODIMP CLangBarButton::Show(BOOL fShow) {
 
 STDMETHODIMP CLangBarButton::GetTooltipString(BSTR* pbstrToolTip) {
   if (!pbstrToolTip) return E_INVALIDARG;
+  if (kind_ == Kind::SettingsMenu) {
+    *pbstrToolTip =
+        SysAllocString(McBopomofo::LoadLocalizedStringW(g_hInst, IDS_SETTINGS)
+                           .c_str());
+    return S_OK;
+  }
   *pbstrToolTip = SysAllocString(
       McBopomofo::LoadLocalizedStringW(g_hInst, IDS_IME_MODE_TOOLTIP).c_str());
   return S_OK;
@@ -322,7 +355,14 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
       pTIP_->ToggleOpenClose();
       return S_OK;
     }
-    // Right-click falls through to the same popup menu used by the mode icon.
+    // Right-click falls through to the same popup menu used by the toggles.
+  }
+
+  if (kind_ == Kind::FullHalfToggle) {
+    if (click == TF_LBI_CLK_LEFT) {
+      ToggleHalfWidthPunctuation(pTIP_);
+      return S_OK;
+    }
   }
 
   if (kind_ == Kind::SettingsMenu) {
@@ -330,7 +370,7 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
   }
 
   if (click == TF_LBI_CLK_LEFT) {
-    pTIP_->ToggleOpenClose();
+    ToggleHalfWidthPunctuation(pTIP_);
   } else if (click == TF_LBI_CLK_RIGHT) {
     HMENU menu = CreatePopupMenu();
     if (menu) {
@@ -361,7 +401,7 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
 
 STDMETHODIMP CLangBarButton::InitMenu(ITfMenu* pMenu) {
   if (!pMenu) return E_INVALIDARG;
-  bool includeModeToggle = (kind_ == Kind::ModeIcon);
+  bool includeModeToggle = (kind_ == Kind::FullHalfToggle);
   return AppendTfMenuItems(pMenu,
                            BuildLangBarMenuItems(pTIP_, includeModeToggle));
 }
@@ -379,10 +419,7 @@ STDMETHODIMP CLangBarButton::OnMenuSelect(UINT wID) {
       break;
     }
     case MENU_TOGGLE_HALF_WIDTH_PUNCTUATION: {
-      bool enabled = !ReadBoolSetting(L"HalfWidthPunctuationEnabled", false);
-      WriteBoolSetting(L"HalfWidthPunctuationEnabled", enabled);
-      NotifySettingsChanged();
-      pTIP_->RefreshLangBar();
+      ToggleHalfWidthPunctuation(pTIP_);
       break;
     }
     case MENU_TOGGLE_CHINESE_CONVERSION: {
@@ -437,7 +474,7 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON* phIcon) {
   if (!phIcon) return E_INVALIDARG;
   *phIcon = nullptr;
 
-  const wchar_t* label = CurrentModeLabel(pTIP_);
+  const wchar_t* label = ButtonLabel(kind_, pTIP_);
   // LogMessage("CLangBarButton::GetIcon called with label: %ls", label);
 
   HDC hdc = GetDC(NULL);
@@ -452,16 +489,28 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON* phIcon) {
   SetBkMode(hMemDC, TRANSPARENT);
   SetTextColor(hMemDC, RGB(0, 0, 0));
 
-  HFONT hFont =
-      CreateFontW(14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-                  OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
-                  DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-  HFONT hOldFont = (HFONT)SelectObject(hMemDC, hFont);
+  if (kind_ == Kind::SettingsMenu) {
+    HPEN pen = CreatePen(PS_SOLID, 2, RGB(0, 0, 0));
+    HPEN oldPen = (HPEN)SelectObject(hMemDC, pen);
+    const int lineY[] = {4, 8, 12};
+    for (int y : lineY) {
+      MoveToEx(hMemDC, 4, y, nullptr);
+      LineTo(hMemDC, 13, y);
+    }
+    SelectObject(hMemDC, oldPen);
+    DeleteObject(pen);
+  } else {
+    HFONT hFont =
+        CreateFontW(14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                    OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+                    DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+    HFONT hOldFont = (HFONT)SelectObject(hMemDC, hFont);
 
-  DrawTextW(hMemDC, label, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(hMemDC, label, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-  SelectObject(hMemDC, hOldFont);
-  DeleteObject(hFont);
+    SelectObject(hMemDC, hOldFont);
+    DeleteObject(hFont);
+  }
   SelectObject(hMemDC, hOldBitmap);
 
   ICONINFO ii = {0};
@@ -482,7 +531,7 @@ STDMETHODIMP CLangBarButton::GetIcon(HICON* phIcon) {
 
 STDMETHODIMP CLangBarButton::GetText(BSTR* pbstrText) {
   if (!pbstrText) return E_INVALIDARG;
-  *pbstrText = SysAllocString(CurrentModeLabel(pTIP_));
+  *pbstrText = SysAllocString(ButtonLabel(kind_, pTIP_));
   return S_OK;
 }
 

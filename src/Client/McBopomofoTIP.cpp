@@ -511,13 +511,13 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
   if (SUCCEEDED(ptim_->QueryInterface(IID_ITfLangBarItemMgr,
                                       (void**)&pLangBarItemMgr))) {
     pModeIconButton_ = new CLangBarButton(this, GUID_LBI_INPUTMODE,
-                                          CLangBarButton::Kind::ModeIcon);
+                                          CLangBarButton::Kind::FullHalfToggle);
     pSwitchLangButton_ = new CLangBarButton(
         this, GUID_LBI_SWITCH_LANG, CLangBarButton::Kind::SwitchLanguageToggle);
     pSettingsButton_ = new CLangBarButton(this, GUID_LBI_SETTINGS,
                                           CLangBarButton::Kind::SettingsMenu);
-    pLangBarItemMgr->AddItem(pModeIconButton_);
     pLangBarItemMgr->AddItem(pSwitchLangButton_);
+    pLangBarItemMgr->AddItem(pModeIconButton_);
     pLangBarItemMgr->AddItem(pSettingsButton_);
     pLangBarItemMgr->Release();
   }
