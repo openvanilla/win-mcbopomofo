@@ -34,13 +34,16 @@ The boundary is intentional:
   `src/Common/Ipc.h`
 
 The client never directly paints the server popup windows. It only decides
-whether custom popups are needed, computes where they should be anchored, and
-sends `IPC::ClientUILayoutPayload` with:
+whether TSF composition and UIElement data should be updated, computes where
+server popups can be anchored while handling key events, and sends that
+geometry as part of `IPC::KeyEventPayload` with:
 
-- whether the candidate window should be shown
-- whether the tooltip window should be shown
 - the owning/focused HWND value, if available
 - the screen-space anchor rectangle
+
+The server decides popup visibility from the latest `StateUpdatePayload`: a
+non-empty `candidates` list can show `CandidateWindow`, and a non-empty
+`tooltip` can show `TooltipWindow`.
 
 ## Two Candidate UI Paths
 
@@ -75,10 +78,10 @@ The custom popup path therefore has two internal renderers:
    for hosts where the popup HWND is created and positioned correctly but a D2D
    popup still does not become visible.
 
-This renderer decision is separate from TSF's `BeginUIElement()` decision:
+This renderer decision is separate from the TSF UIElement path:
 
-- `bShow` decides whether the TIP should draw its own popup at all
-- the renderer decides whether that popup is drawn with D2D or GDI
+- the TSF UIElement path publishes candidate data to the host
+- the renderer decides whether the server-owned popup is drawn with D2D or GDI
 
 Relevant code:
 
@@ -114,34 +117,17 @@ This means:
 - the custom popup windows are available as long as the server is running
 - `CCandidateListUIElement` participates only when the TSF host exposes
   `ITfUIElementMgr`
-- the client sends layout updates to the server whenever the custom popup path
-  should be visible
+- the client sends popup anchor geometry to the server as part of key events
+  whenever geometry is available
 
 ## High-Level Decision Rule
 
 Candidate visibility first depends on whether `state_.candidates` is empty.
 
 - If there are no candidates, both paths are shut down
-- If there are candidates, the TSF UIElement path is updated first, then the
-  client decides whether the server should also show the custom popup
-
-The key decision for the custom candidate popup is the `bShow` value returned
-from `ITfUIElementMgr::BeginUIElement()`.
-
-That result is stored in:
-
-- `McBopomofoTIP::showCustomCandidateWindow_`
-
-Relevant code:
-
-- [src/Client/McBopomofoTIP.h](C:/Users/user/Works/win-mcbopomofo/src/Client/McBopomofoTIP.h)
-
-Its meaning is:
-
-- `bShow == TRUE`: the host did not take over candidate display; the client
-  should ask the server to show the custom candidate window
-- `bShow == FALSE`: the host or system will handle TSF candidate UI; the TIP
-  should not ask the server to show the custom candidate window
+- If there are candidates, the Client updates the TSF UIElement path when
+  available, and the Server-owned custom popup path can show the same candidate
+  data when the server has a valid anchor rectangle
 
 ## Layout Flow
 
@@ -152,21 +138,20 @@ For key-driven updates, `McBopomofoTIP::OnKeyDown()` tries to capture the
 current TSF selection rectangle while it is already handling the key. It sends
 that geometry with `IPC::KeyEventPayload` when available.
 
-For state updates applied inside `CStateEditSession::DoEditSession()`, the
-client uses this fallback order:
+For key events, the client uses this fallback order:
 
 1. current composition or cursor range via `ITfContextView::GetTextExt()`
 2. current selection via `GetSelection()` and `GetTextExt()`
 3. Win32 caret fallback through `GetGUIThreadInfo()`
 
-The chosen rectangle is sent through `McBopomofoTIP::UpdateServerUILayout()`,
-which serializes `IPC::ClientUILayoutPayload`. The server receives that request
-in `src/Server/main.cpp`, stores it in `ServerPopupController`, and posts a
-window message so the popup move/show work happens on the server UI thread.
+The chosen rectangle is serialized in `IPC::KeyEventPayload`. The server
+receives that request in `src/Server/main.cpp`, stores it in
+`ServerPopupController`, and posts a window message so the popup move/show work
+happens on the server UI thread.
 
 The server then:
 
-1. combines the latest engine state with the latest client layout payload
+1. combines the latest engine state with the latest key-event anchor geometry
 2. updates `CandidateWindow` and/or `TooltipWindow`
 3. positions them around the anchor rectangle while keeping them inside the
    monitor work area
@@ -291,37 +276,35 @@ The flow is:
 2. call `CCandidateListUIElement::UpdateData()`
 3. if this is the first show, call `BeginUIElement()`
 4. otherwise call `UpdateUIElement()`
-5. store the returned `bShow` in `showCustomCandidateWindow_`
-6. use `showCustomCandidateWindow_` to decide whether to send a server layout
-   request for the custom popup
 
 The important point is:
 
 - `CCandidateListUIElement` is updated first
-- whether the custom popup is also shown depends on `bShow`
+- the server-owned custom popup is controlled by server state plus the latest
+  key-event anchor geometry, not by a separate client layout request
 
 So `CCandidateListUIElement` is not a fallback for `CandidateWindow`. It is the
-first notification to the TSF/host path, and the host then tells the TIP
-whether the TIP still needs to draw its own popup.
+notification to the TSF/host path; the custom popup path is maintained by the
+server process.
 
 ### 3. Candidates Exist but `ITfUIElementMgr` Is Not Available
 
 If `ITfUIElementMgr` is unavailable, or the candidate UIElement was not
 created:
 
-- `showCustomCand` stays at its default `true`
 - no TSF UIElement routing occurs
-- the client asks the server to show the custom candidate popup
+- the server can still show the custom candidate popup when it has candidates
+  and a valid anchor rectangle
 
 ### 4. Showing the Custom `CandidateWindow`
 
 The server calls `CandidateWindow::UpdateUI()` only when both are true:
 
-- `showCustomCand == true`
 - `state_.candidates` is not empty
+- `ServerPopupController` has valid layout information from a key event
 
-If `showCustomCand == false`, the TSF UIElement path can still be updated, but
-the client sends no show request for the custom popup.
+The custom popup visibility is not encoded as a separate IPC command. It is
+derived from the latest server state and the latest layout anchor.
 
 ### 5. Direct Commit Without Composition
 
@@ -341,23 +324,21 @@ commit.
 shown state.
 
 It does not directly decide whether the custom popup is shown. The custom popup
-decision is based on `BeginUIElement()`'s returned `bShow`, which is stored in
-`showCustomCandidateWindow_`.
+decision is owned by `ServerPopupController` in the server process.
 
 So these should be understood separately:
 
 - `CCandidateListUIElement::Show()`: shown state of the TSF UIElement itself
-- `showCustomCandidateWindow_`: whether the client should ask the server to
-  show the custom candidate window
+- `ServerPopupController`: whether the server-owned candidate and tooltip
+  windows should be shown from the current state and latest anchor
 
 ## Decision Table
 
 | Condition | TSF `CCandidateListUIElement` | Custom `CandidateWindow` |
 | --- | --- | --- |
 | `state_.candidates` is empty | closed / `EndUIElement` | hidden |
-| candidates exist, no `ITfUIElementMgr` | unavailable | shown |
-| candidates exist, `BeginUIElement()` succeeds and `bShow == TRUE` | updated | shown |
-| candidates exist, `BeginUIElement()` succeeds and `bShow == FALSE` | updated | not shown |
+| candidates exist, no `ITfUIElementMgr` | unavailable | shown if the server has an anchor |
+| candidates exist, `ITfUIElementMgr` is available | updated | shown if the server has an anchor |
 | direct commit without composition | closed / `EndUIElement` | hidden |
 
 ## One-Sentence Summary
@@ -365,6 +346,6 @@ So these should be understood separately:
 The actual rule is:
 
 First publish candidate data through the TSF UIElement path from the client.
-If the host tells the client not to draw its own popup, stop there. Otherwise
-the client sends layout to the server, and the server renders and positions the
-project's own candidate and tooltip popups.
+The client also sends key-event anchor geometry when available, and the server
+uses that geometry plus its latest state to render and position the project's
+own candidate and tooltip popups.

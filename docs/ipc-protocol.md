@@ -7,6 +7,7 @@ Win-McBopomofo uses **Windows Named Pipes** for Inter-Process Communication (IPC
 - **Pipe Name**: `\\.\pipe\WinMcBopomofo_IPC_Pipe`
 - **Transport Method**: Synchronous Request-Response pattern
 - **Serialization Format**: Newline-delimited text format
+- **Compatibility Policy**: Deserializers accept only the current exact field layout. There is no backward-compatible parsing for old payload shapes.
 
 ## Communication Architecture
 
@@ -124,7 +125,6 @@ Response: StateUpdate with consumed=true, commitString set to the pending compos
 <ASCII_CODE>
 <SHIFT>
 <CTRL>
-<DPI_SCALE>
 <HAS_COORDS>
 <OWNER_HWND>
 <ANCHOR_LEFT>
@@ -139,7 +139,6 @@ Response: StateUpdate with consumed=true, commitString set to the pending compos
 | ASCII_CODE | unsigned int | ASCII value (optional, valid when typing) |
 | SHIFT | bool (0/1) | Whether Shift key is pressed |
 | CTRL | bool (0/1) | Whether Ctrl key is pressed |
-| DPI_SCALE | float | DPI scale of the owner/focused window, used by the Server when positioning custom popups |
 | HAS_COORDS | bool (0/1) | Whether the request contains a valid popup anchor rectangle |
 | OWNER_HWND | uint64 | Owner or focused HWND value, serialized as an integer; `0` when unavailable |
 | ANCHOR_LEFT | int | Left edge of the screen-space anchor rectangle |
@@ -147,7 +146,9 @@ Response: StateUpdate with consumed=true, commitString set to the pending compos
 | ANCHOR_RIGHT | int | Right edge of the screen-space anchor rectangle |
 | ANCHOR_BOTTOM | int | Bottom edge of the screen-space anchor rectangle |
 
-The coordinate fields are part of the key event because the Client is already inside the foreground TSF host process while handling `OnKeyDown()`. When `HAS_COORDS == 1`, the Server stores this geometry and can use it immediately if the key event produces candidates or tooltip text. If the Client cannot obtain geometry, it sends `HAS_COORDS == 0`; the Server must then keep using the latest valid layout data or wait for a later `ClientUILayoutPayload` update.
+The coordinate fields are part of the key event because the Client is already inside the foreground TSF host process while handling `OnKeyDown()`. When `HAS_COORDS == 1`, the Server stores this geometry and can use it immediately if the key event produces candidates or tooltip text. If the Client cannot obtain geometry, it sends `HAS_COORDS == 0`; the Server keeps using the latest valid layout data until another key event provides a new anchor.
+
+All key event fields are required. When `HAS_COORDS == 0`, the Client still serializes `OWNER_HWND` and all anchor fields, usually as `0`.
 
 **Response Format**:
 See [StateUpdate Format](#stateupdate-format)
@@ -173,7 +174,6 @@ Request:
 97          (ASCII 'a')
 0           (SHIFT not pressed)
 0           (CTRL not pressed)
-1.25        (DPI scale)
 1           (has anchor coordinates)
 123456      (owner HWND)
 100         (anchor left)
@@ -194,6 +194,12 @@ Request:
 0           (ASCII)
 0           (SHIFT not pressed)
 1           (CTRL pressed)
+0           (no anchor coordinates)
+0           (owner HWND)
+0           (anchor left)
+0           (anchor top)
+0           (anchor right)
+0           (anchor bottom)
 
 Response:
 (Server will send RESET instead of processing this key)
@@ -209,6 +215,12 @@ Request:
 32          (ASCII)
 0           (SHIFT not pressed)
 0           (CTRL not pressed)
+0           (no anchor coordinates)
+0           (owner HWND)
+0           (anchor left)
+0           (anchor top)
+0           (anchor right)
+0           (anchor bottom)
 
 Response:
 StateUpdate with consumed=true, commitString="你", composingBuffer empty, and no candidates.
@@ -392,9 +404,6 @@ Most commands return a **StateUpdate**, describing the current input state. `CMD
 <CONSUMED>
 <CURSOR_INDEX>
 <CANDIDATE_INDEX>
-<CANDIDATE_FONT_SIZE>
-<FORCE_VERTICAL>
-<SELECTION_STYLE>
 <MARK_START>
 <MARK_END>
 <COMMIT_STRING_SIZE>
@@ -403,8 +412,6 @@ Most commands return a **StateUpdate**, describing the current input state. `CMD
 <COMPOSING_BUFFER>
 <TOOLTIP_SIZE>
 <TOOLTIP>
-<HINT_SIZE>
-<HINT>
 <CANDIDATES_COUNT>
 <CANDIDATE_1_SIZE>
 <CANDIDATE_1>
@@ -413,13 +420,7 @@ Most commands return a **StateUpdate**, describing the current input state. `CMD
 <CANDIDATE_N...>
 <CANDIDATE_KEYS_SIZE>
 <CANDIDATE_KEYS>
-<CANDIDATE_WINDOW_VERTICAL>
 <CANDIDATE_KEYS_COUNT>
-<CANDIDATE_COLOR_TEXT>
-<CANDIDATE_COLOR_BACKGROUND>
-<CANDIDATE_COLOR_BORDER>
-<CANDIDATE_COLOR_HIGHLIGHT_BACKGROUND>
-<CANDIDATE_COLOR_HIGHLIGHT_TEXT>
 ```
 
 ### Field Descriptions
@@ -429,21 +430,17 @@ Most commands return a **StateUpdate**, describing the current input state. `CMD
 | CONSUMED | bool (0/1) | Whether the key was consumed by the IME (true = IME handled, false = pass to application) |
 | CURSOR_INDEX | int | Cursor position within the composingBuffer |
 | CANDIDATE_INDEX | int | Currently highlighted candidate index (-1 = none selected) |
-| CANDIDATE_FONT_SIZE | int | Candidate font size |
-| FORCE_VERTICAL | bool (0/1) | Whether to force the candidate window to be arranged vertically |
-| SELECTION_STYLE | int | Candidate selection style (`0` = standard, `1` = Shift+digits, `2` = Shift+Return) |
 | MARK_START | int | Start position of the mark (-1 = no mark) |
 | MARK_END | int | End position of the mark |
 | COMMIT_STRING | string | Text to commit to the application |
 | COMPOSING_BUFFER | string | The text currently being edited (Bopomofo or candidates) |
 | TOOLTIP | string | Tooltip text (e.g., "Press Space to select") |
-| HINT | string | Hint text displayed at the top of the candidate window (e.g., the prefix character for associated phrases) |
 | CANDIDATES_COUNT | int | Number of candidates |
 | CANDIDATE_N | string | The N-th candidate |
 | CANDIDATE_KEYS | string | Candidate selection key labels |
-| CANDIDATE_WINDOW_VERTICAL | bool (0/1) | Whether the candidate window is vertical |
 | CANDIDATE_KEYS_COUNT | int | Number of candidate keys available |
-| CANDIDATE_COLOR_* | uint32 | Candidate window colors serialized as integer RGB values |
+
+Server-only popup rendering settings such as font size, forced vertical layout, selection style, candidate window orientation, hint text, and candidate colors are intentionally not serialized to the Client. The Server keeps those values in its own `StateUpdatePayload` instance for `CandidateWindow` and `TooltipWindow`.
 
 ### String Encoding Method
 
@@ -542,7 +539,7 @@ If deserialization fails:
 
 - Returns false
 - Client should log the error and attempt to reconnect
-- Server should ignore invalid requests and return the current state
+- Server logs the failed request and returns an empty response
 
 ### Pipe Connection Failure
 
@@ -587,8 +584,11 @@ If deserialization fails:
 There is currently no versioning mechanism. If the Protocol needs to be modified:
 
 1. Add new Command enum values
-2. Add new fields to StateUpdate (in a backward-compatible way)
-3. Old Server versions will ignore new fields
+2. Update both serializers and deserializers in `src/Common/Ipc.cpp`
+3. Update `tests/IpcTest.cpp`
+4. Update this document
+
+Do not add compatibility branches for older payload layouts unless the project explicitly introduces protocol versioning.
 
 ---
 

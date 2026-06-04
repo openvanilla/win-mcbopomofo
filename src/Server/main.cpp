@@ -79,7 +79,6 @@ class ServerPopupController {
   struct PopupLayout {
     bool showCandidateWindow = false;
     bool showTooltipWindow = false;
-    float dpiScale = 1.0f;
     uint64_t ownerHwnd = 0;
     int anchorLeft = 0;
     int anchorTop = 0;
@@ -779,7 +778,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         ServerPopupController::PopupLayout layout;
         layout.showCandidateWindow = !ui.currentState.candidates.empty();
         layout.showTooltipWindow = !ui.currentState.tooltip.empty();
-        layout.dpiScale = keyReq.dpiScale;
         layout.ownerHwnd = keyReq.ownerHwnd;
         layout.anchorLeft = keyReq.anchorLeft;
         layout.anchorTop = keyReq.anchorTop;

@@ -729,7 +729,6 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
     req.hasCoords = true;
     req.ownerHwnd =
         static_cast<uint64_t>(reinterpret_cast<uintptr_t>(contextHwnd));
-    req.dpiScale = GetDpiScaleForWindow(contextHwnd);
     req.anchorLeft = static_cast<int>(keyLayout.left);
     req.anchorTop = static_cast<int>(keyLayout.top);
     req.anchorRight = static_cast<int>(keyLayout.right);

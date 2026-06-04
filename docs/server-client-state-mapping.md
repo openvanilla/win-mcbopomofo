@@ -23,7 +23,7 @@ When the Server state changes, the actual flow is as follows:
    - Create or update the composition
    - Set caret position
    - Update TSF candidate UIElement data
-   - Send layout / visibility updates to the Server-owned custom candidate or tooltip popup when needed
+   - Hide or end stale TSF UIElements when the payload no longer has candidates or tooltip text
 
 ## 3. Payload Field Semantics
 
@@ -43,8 +43,12 @@ Main fields of `StateUpdatePayload`:
   Auxiliary text displayed in the tooltip window.
 - `markStart`, `markEnd`
   The marking range within the preedit.
-- `forceVertical`
-  Whether the candidate window is forced to use a vertical layout.
+
+`StateUpdatePayload` also contains server-only popup fields, such as
+`forceVertical`, `selectionStyle`, `candidateFontSize`, `hint`,
+`candidateWindowVertical`, and `candidateWindowColors`. These fields are used by
+`ServerPopupController`, `CandidateWindow`, and `TooltipWindow`; they are not
+serialized back to the Client in the IPC state update response.
 
 ## 4. Server Mapping of Various States
 
@@ -78,7 +82,7 @@ Client mapping:
 
 - `composingBuffer = previousState->composingBuffer`
 - `candidates = menu`
-- `forceVertical = true`
+- server popup projection: `forceVertical = true`
 
 Client mapping:
 
@@ -89,7 +93,7 @@ Client mapping:
 
 - `composingBuffer = previousState->composingBuffer`
 - `candidates = two lines of information strings`
-- `forceVertical = true`
+- server popup projection: `forceVertical = true`
 
 ### `Marking`
 
@@ -121,7 +125,7 @@ Client mapping:
 
 - `composingBuffer = "[數字] ..."`
 - `candidates = list of conversion results`
-- `forceVertical = true`
+- server popup projection: `forceVertical = true`
 
 ### `Big5`
 
@@ -142,7 +146,7 @@ Client mapping:
 
 - `composingBuffer = ""`
 - `candidates = feature names`
-- `forceVertical = true`
+- server popup projection: `forceVertical = true`
 
 Client mapping:
 
@@ -153,7 +157,7 @@ Client mapping:
 
 - `composingBuffer = ""`
 - `candidates = macro menu`
-- `forceVertical = true`
+- server popup projection: `forceVertical = true`
 
 Client mapping:
 

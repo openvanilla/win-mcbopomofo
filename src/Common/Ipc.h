@@ -53,7 +53,6 @@ struct KeyEventPayload {
   unsigned int ascii;
   bool shift;
   bool ctrl;
-  float dpiScale = 1.0f;
   bool hasCoords = false;
   uint64_t ownerHwnd = 0;
   int anchorLeft = 0;

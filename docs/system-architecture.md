@@ -57,7 +57,7 @@ Main responsibilities:
     - display attribute
     - TSF candidate UIElement data
 - Probe the focused TSF context for caret / range geometry.
-- Send `ClientUILayoutPayload` to the Server when the custom candidate or tooltip popup should be shown or hidden.
+- Include the focused HWND and screen-space anchor rectangle in `KeyEventPayload` when geometry is available.
 
 The Client itself does not judge language models or character selection logic. It applies TSF composition / commit behavior based on the payload returned by the Server, and it routes candidate UI decisions between the TSF UIElement path and the Server-owned custom popup path.
 
@@ -88,7 +88,7 @@ Main responsibilities:
 
 1. The foreground application receives a key press.
 2. TSF calls the Client's `OnTestKeyDown()` / `OnKeyDown()`.
-3. The Client converts the key press into an `IPC::KeyEventPayload`, including the focused window DPI and screen-space anchor rectangle when available.
+3. The Client converts the key press into an `IPC::KeyEventPayload`, including the focused HWND and screen-space anchor rectangle when available.
 4. The payload is sent to the Server via Named Pipe.
 5. The Server calls `InputController::HandleKey()`.
 6. `InputController` may further call `KeyHandler` or candidate handling logic.
@@ -152,7 +152,7 @@ The project implements a native Windows i18n architecture to support multi-lingu
 The custom popup UI layer lives in the Server process. `CandidateWindow` and `TooltipWindow` are owned, rendered, moved, and hidden by `McBopomofoServer.exe`. The Client still participates in UI routing because only the TSF TIP DLL can safely inspect the focused TSF context and determine the caret or selection rectangle inside the foreground host process.
 
 - **Rendering Engine**: The Server prefers **Direct2D** and **DirectWrite** for high-quality, hardware-accelerated text rendering, with a GDI compatibility path for hosts where D2D popups are not visible.
-- **High DPI Support**: Popup coordinates come from the Client's TSF geometry probing and are applied by the Server using DPI-aware window placement.
+- **High DPI Support**: Popup coordinates come from the Client's TSF geometry probing. Popup scaling is computed by the Server-owned popup windows with `GetDpiScaleForWindow()` and `WM_DPICHANGED`.
 - **Dark Mode Support**: The system automatically detects the Windows "App Mode" (Light/Dark) by querying the registry (`Personalize\AppsUseLightTheme`). UI colors, brushes, and backgrounds are dynamically adjusted to match the system theme.
 - **Layered Stacking**: Auxiliary windows (Tooltip and Candidate) are aware of each other's visibility and height, automatically stacking vertically to avoid overlap.
 

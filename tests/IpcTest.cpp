@@ -11,13 +11,11 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     payload.composingBuffer = "compose\nbuffer";
     payload.cursorIndex = 3;
     payload.candidateIndex = 2;
-    payload.candidateFontSize = 20;
     payload.markStart = 1;
     payload.markEnd = 4;
-    payload.forceVertical = true;
-    payload.selectionStyle = IPC::CandidateSelectionStyle::kShiftReturn;
     payload.tooltip = "tip\ntext";
-    payload.hint = "hint\ntext";
+    payload.candidateKeys = "asdfghjkl";
+    payload.candidateKeysCount = 8;
     payload.candidates = {
         "一二三",
         "一〢三〤\n千單位",
@@ -33,13 +31,11 @@ TEST(IpcTest, StateUpdateRoundTripsMultilineStrings) {
     EXPECT_EQ(decoded.composingBuffer, payload.composingBuffer);
     EXPECT_EQ(decoded.cursorIndex, payload.cursorIndex);
     EXPECT_EQ(decoded.candidateIndex, payload.candidateIndex);
-    EXPECT_EQ(decoded.candidateFontSize, payload.candidateFontSize);
     EXPECT_EQ(decoded.markStart, payload.markStart);
     EXPECT_EQ(decoded.markEnd, payload.markEnd);
-    EXPECT_EQ(decoded.forceVertical, payload.forceVertical);
-    EXPECT_EQ(decoded.selectionStyle, payload.selectionStyle);
     EXPECT_EQ(decoded.tooltip, payload.tooltip);
-    EXPECT_EQ(decoded.hint, payload.hint);
+    EXPECT_EQ(decoded.candidateKeys, payload.candidateKeys);
+    EXPECT_EQ(decoded.candidateKeysCount, payload.candidateKeysCount);
     EXPECT_EQ(decoded.candidates, payload.candidates);
 }
 
@@ -105,7 +101,7 @@ TEST(IpcTest, KeyEventRoundTripsLayoutAnchor) {
     EXPECT_EQ(decoded.anchorBottom, payload.anchorBottom);
 }
 
-TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithoutLayoutAnchor) {
+TEST(IpcTest, KeyEventRejectsLegacyPayloadWithoutLayoutAnchor) {
     std::string legacy =
         "1\n"
         "65\n"
@@ -114,15 +110,10 @@ TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithoutLayoutAnchor) {
         "1\n";
 
     IPC::KeyEventPayload decoded;
-    ASSERT_TRUE(IPC::DeserializeKeyEvent(legacy, decoded));
-    EXPECT_EQ(decoded.vk, 65u);
-    EXPECT_EQ(decoded.ascii, 97u);
-    EXPECT_FALSE(decoded.shift);
-    EXPECT_TRUE(decoded.ctrl);
-    EXPECT_FALSE(decoded.hasCoords);
+    EXPECT_FALSE(IPC::DeserializeKeyEvent(legacy, decoded));
 }
 
-TEST(IpcTest, KeyEventAcceptsExplicitNoLayoutAnchor) {
+TEST(IpcTest, KeyEventRejectsLegacyExplicitNoLayoutAnchor) {
     std::string noLayout =
         "1\n"
         "65\n"
@@ -132,18 +123,17 @@ TEST(IpcTest, KeyEventAcceptsExplicitNoLayoutAnchor) {
         "0\n";
 
     IPC::KeyEventPayload decoded;
-    ASSERT_TRUE(IPC::DeserializeKeyEvent(noLayout, decoded));
-    EXPECT_EQ(decoded.vk, 65u);
-    EXPECT_FALSE(decoded.hasCoords);
+    EXPECT_FALSE(IPC::DeserializeKeyEvent(noLayout, decoded));
 }
 
-TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithLayoutAnchor) {
-    std::string legacy =
+TEST(IpcTest, KeyEventRejectsPayloadWithRemovedDpiScale) {
+    std::string removedDpiScalePayload =
         "1\n"          // CMD_KEY_EVENT
         "65\n"         // vk
         "97\n"         // ascii
         "0\n"          // shift
         "1\n"          // ctrl
+        "1\n"          // removed dpiScale field
         "1\n"          // hasCoords
         "5678\n"       // ownerHwnd
         "100\n"        // anchorLeft
@@ -152,18 +142,7 @@ TEST(IpcTest, KeyEventAcceptsLegacyPayloadWithLayoutAnchor) {
         "400\n";       // anchorBottom
 
     IPC::KeyEventPayload decoded;
-    ASSERT_TRUE(IPC::DeserializeKeyEvent(legacy, decoded));
-    EXPECT_EQ(decoded.vk, 65u);
-    EXPECT_EQ(decoded.ascii, 97u);
-    EXPECT_FALSE(decoded.shift);
-    EXPECT_TRUE(decoded.ctrl);
-    EXPECT_TRUE(decoded.hasCoords);
-    EXPECT_EQ(decoded.dpiScale, 1.0f);
-    EXPECT_EQ(decoded.ownerHwnd, 5678u);
-    EXPECT_EQ(decoded.anchorLeft, 100);
-    EXPECT_EQ(decoded.anchorTop, 200);
-    EXPECT_EQ(decoded.anchorRight, 300);
-    EXPECT_EQ(decoded.anchorBottom, 400);
+    EXPECT_FALSE(IPC::DeserializeKeyEvent(removedDpiScalePayload, decoded));
 }
 
 
