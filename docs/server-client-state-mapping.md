@@ -22,7 +22,8 @@ When the Server state changes, the actual flow is as follows:
    - Commit text
    - Create or update the composition
    - Set caret position
-   - Update candidate / tooltip window
+   - Update TSF candidate UIElement data
+   - Send layout / visibility updates to the Server-owned custom candidate or tooltip popup when needed
 
 ## 3. Payload Field Semantics
 
@@ -216,10 +217,10 @@ If `composingBuffer` is not empty:
 - Clear display attributes.
 - Call `EndComposition`.
 
-### Rule D: Show candidate / tooltip according to payload
+### Rule D: Route candidate / tooltip UI according to payload
 
-- When `tooltip` is not empty, show the tooltip and hide candidates.
-- Otherwise, update the candidate window.
+- When `tooltip` is not empty, route tooltip visibility/layout to the Server and hide candidates.
+- Otherwise, update the TSF candidate UIElement path first. If TSF indicates the TIP should draw its own popup, send layout/visibility to the Server so the Server-owned `CandidateWindow` is shown or updated.
 
 ## 7. Special Rules for commit-only payload
 

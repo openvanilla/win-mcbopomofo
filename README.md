@@ -93,7 +93,7 @@ clang-format --version
 
 - `src/`: The core source code of the project.
     - `src/Client/`: The TSF TIP (Text Input Processor) DLL. This is the component loaded by host applications (like Notepad).
-    - `src/Server/`: The background engine process. Handles key processing and candidate generation.
+    - `src/Server/`: The background engine process. Handles key processing, candidate generation, state management, and the custom candidate/tooltip popup windows.
     - `src/ConfigApp/`: The standalone configuration utility.
     - `src/Common/`: Shared logic used by multiple components (IPC, path utilities, etc.).
 - `data/`: Runtime data files, including the language model (`data.txt`), dictionary service definitions, and bopomofo variants.
@@ -168,7 +168,7 @@ The data flow follows this sequence:
 2. **Abstract Key + State**: The Client maps the VK code to an internal `Key` structure and sends it to the Server. The Server combines this key with the current `InputState`.
 3. **New State**: The `KeyHandler` logic processes the input and produces a **new logical state** (e.g., transitioning from `Empty` to `Inputting`, or `Inputting` to `ChoosingCandidate`).
 4. **New UI State**: The Server projects this internal logical state into a `StateUpdatePayload` (UI state), which is a simplified representation designed for display.
-5. **UI**: The Client receives the payload and renders the final user interface (composing buffer, candidate window, tooltips) using Direct2D.
+5. **UI**: The Client receives the payload and applies TSF composition/commit updates inside the host process. For candidate UI, the Client first publishes data through the TSF UIElement path; when a custom popup is needed, it sends layout data to the Server, and the Server renders and positions the Candidate Window and Tooltip Window.
 
 This architecture decouples the complex Windows TSF/Win32 APIs from the core input method logic, making the system easier to test, debug, and extend.
 
@@ -178,7 +178,7 @@ To add new features or input modes (like the current Big5 or Iroha modes), you s
 
 1. **Update `InputState.h`**: Define a new struct that inherits from `InputState` (or `NotEmpty` if it has a composing buffer).
 2. **Update `KeyHandler`**: Implement the logic to enter this new state via the `stateCallback`. Add logic in `KeyHandler::handle` (or a specific handler method) to process keys while in this state.
-3. **Update `InputController`**: Update `buildStateUpdatePayload_` to project your new logical state into the appropriate UI state (candidates, tooltips, etc.) for the Client to render.
+3. **Update `InputController`**: Update `buildStateUpdatePayload_` to project your new logical state into the appropriate UI state (composition, candidates, tooltips, etc.) for the Client and Server UI pipeline to apply.
 
 ## Vocabulary and Language Model
 

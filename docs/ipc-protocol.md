@@ -36,13 +36,14 @@ sequenceDiagram
     Client->>Server: CMD_KEY_EVENT (VK=65)
     Note right of Server: Process Key<br/>Update State
     Server-->>Client: StateUpdate (consumed=true, composing="ㄚ")
-    Client->>App: Consume key event & Draw composing text "ㄚ"
+    Client->>App: Consume key event & apply TSF composition "ㄚ"
 
     App->>Client: User presses 'Space'
     Client->>Server: CMD_KEY_EVENT (VK=32)
     Note right of Server: Generate Candidates
     Server-->>Client: StateUpdate (candidates=["啊","阿"...])
-    Client->>App: Show Candidate Window
+    Client->>Server: Send layout if custom popup is needed
+    Server->>App: Show server-owned Candidate Window
 
     App->>Client: User presses '1'
     Client->>Server: CMD_SELECT_CANDIDATE (index=0)
@@ -62,6 +63,8 @@ enum class Command : int {
     CMD_SELECT_CANDIDATE = 2,   // Select candidate
     CMD_RELOAD_SETTINGS = 3,    // Reload settings
     CMD_OPEN_SETTINGS = 4,      // Open configuration app
+    CMD_GET_SETTINGS = 5,       // Get settings needed by the Client
+    CMD_CLIENT_LOG = 6,         // Relay Client-side log message
 };
 ```
 
@@ -99,8 +102,7 @@ See [StateUpdate Format](#stateupdate-format)
 
 ```
 Request:  "0\n"
-Response: "0\n0\n-1\n0\n-1\n-1\n5\n你好\n0\n\n0\n"
-          (consumed=false, commitString="你好", composingBuffer="")
+Response: StateUpdate with consumed=true, commitString set to the pending composing text, and composingBuffer cleared.
 ```
 
 ---
@@ -112,6 +114,7 @@ Response: "0\n0\n-1\n0\n-1\n-1\n5\n你好\n0\n\n0\n"
 **Trigger Scenarios**:
 
 - User presses any keyboard key (while IME is enabled)
+- The Client can determine the focused TSF context or caret rectangle while handling the key.
 
 **Request Format**:
 
@@ -121,6 +124,13 @@ Response: "0\n0\n-1\n0\n-1\n-1\n5\n你好\n0\n\n0\n"
 <ASCII_CODE>
 <SHIFT>
 <CTRL>
+<DPI_SCALE>
+<HAS_COORDS>
+<OWNER_HWND>
+<ANCHOR_LEFT>
+<ANCHOR_TOP>
+<ANCHOR_RIGHT>
+<ANCHOR_BOTTOM>
 ```
 
 | Field | Type | Description |
@@ -129,6 +139,15 @@ Response: "0\n0\n-1\n0\n-1\n-1\n5\n你好\n0\n\n0\n"
 | ASCII_CODE | unsigned int | ASCII value (optional, valid when typing) |
 | SHIFT | bool (0/1) | Whether Shift key is pressed |
 | CTRL | bool (0/1) | Whether Ctrl key is pressed |
+| DPI_SCALE | float | DPI scale of the owner/focused window, used by the Server when positioning custom popups |
+| HAS_COORDS | bool (0/1) | Whether the request contains a valid popup anchor rectangle |
+| OWNER_HWND | uint64 | Owner or focused HWND value, serialized as an integer; `0` when unavailable |
+| ANCHOR_LEFT | int | Left edge of the screen-space anchor rectangle |
+| ANCHOR_TOP | int | Top edge of the screen-space anchor rectangle |
+| ANCHOR_RIGHT | int | Right edge of the screen-space anchor rectangle |
+| ANCHOR_BOTTOM | int | Bottom edge of the screen-space anchor rectangle |
+
+The coordinate fields are part of the key event because the Client is already inside the foreground TSF host process while handling `OnKeyDown()`. When `HAS_COORDS == 1`, the Server stores this geometry and can use it immediately if the key event produces candidates or tooltip text. If the Client cannot obtain geometry, it sends `HAS_COORDS == 0`; the Server must then keep using the latest valid layout data or wait for a later `ClientUILayoutPayload` update.
 
 **Response Format**:
 See [StateUpdate Format](#stateupdate-format)
@@ -137,9 +156,10 @@ See [StateUpdate Format](#stateupdate-format)
 
 ```
 1. Convert Key Event to internal Key structure
-2. Call controller.HandleKey(key)
-3. Obtain the new input state
-4. Return StateUpdate
+2. If HAS_COORDS is true, update the latest popup layout anchor
+3. Call controller.HandleKey(key)
+4. Obtain the new input state
+5. Return StateUpdate
 ```
 
 **Examples**:
@@ -153,19 +173,16 @@ Request:
 97          (ASCII 'a')
 0           (SHIFT not pressed)
 0           (CTRL not pressed)
+1.25        (DPI scale)
+1           (has anchor coordinates)
+123456      (owner HWND)
+100         (anchor left)
+200         (anchor top)
+116         (anchor right)
+224         (anchor bottom)
 
 Response:
-1           (consumed=true)
-1           (cursorIndex=1)
--1          (candidateIndex=-1)
-0           (forceVertical=false)
--1          (markStart=-1)
--1          (markEnd=-1)
-0           (commitString empty)
-1           (composingBuffer size=1)
-ㄚ
-0           (tooltip empty)
-0           (candidates count=0)
+StateUpdate with consumed=true, cursorIndex=1, composingBuffer="ㄚ", and no candidates.
 ```
 
 *Example 2: Pressing Ctrl+Space*
@@ -194,17 +211,7 @@ Request:
 0           (CTRL not pressed)
 
 Response:
-0           (consumed=true)
-3           (cursorIndex=3)
--1          (candidateIndex=-1)
-0           (forceVertical=false)
--1          (markStart=-1)
--1          (markEnd=-1)
-1           (commitString size=1)
-你
-0           (composingBuffer empty)
-0           (tooltip empty)
-0           (candidates count=0)
+StateUpdate with consumed=true, commitString="你", composingBuffer empty, and no candidates.
 ```
 
 ---
@@ -248,17 +255,7 @@ Request:
 1           (Select the 2nd candidate)
 
 Response:
-0           (consumed=true)
-0           (cursorIndex=0)
--1          (candidateIndex=-1)
-0           (forceVertical=false)
--1          (markStart=-1)
--1          (markEnd=-1)
-2           (commitString size=2)
-好的
-0           (composingBuffer empty)
-0           (tooltip empty)
-0           (candidates count=0)
+StateUpdate with consumed=true, commitString="好的", composingBuffer empty, and no candidates.
 ```
 
 ---
@@ -296,16 +293,7 @@ Request:
 3
 
 Response:
-0           (consumed=false)
-0           (cursorIndex=0)
--1          (candidateIndex=-1)
-0           (forceVertical=false)
--1          (markStart=-1)
--1          (markEnd=-1)
-0           (commitString empty)
-0           (composingBuffer empty)
-0           (tooltip empty)
-0           (candidates count=0)
+StateUpdate with the current refreshed UI state.
 ```
 
 ---
@@ -335,9 +323,68 @@ See [StateUpdate Format](#stateupdate-format)
 
 ---
 
+### 6. CMD_GET_SETTINGS (5) - Get Client Settings
+
+**Purpose**: Requests settings values that the Client needs while running inside host applications.
+
+**Trigger Scenarios**:
+
+- The Client needs to know whether Shift toggles the open/close state.
+
+**Request Format**:
+
+```
+5
+```
+
+**Response Format**:
+
+```
+<SHIFT_TOGGLE_OPEN_CLOSE>
+```
+
+| Field | Type | Description |
+|------|------|------|
+| SHIFT_TOGGLE_OPEN_CLOSE | bool (0/1) | Whether Shift toggles the IME open/close state |
+
+**Server Behavior**:
+
+1. Reads the current settings.
+2. Returns a `ClientSettingsPayload`.
+
+---
+
+### 7. CMD_CLIENT_LOG (6) - Relay Client Log
+
+**Purpose**: Sends diagnostic log messages from the Client DLL process to the Server log.
+
+**Request Format**:
+
+```
+6
+<PROCESS_ID>
+<ELAPSED_MS>
+<MESSAGE_SIZE>
+<MESSAGE>
+```
+
+| Field | Type | Description |
+|------|------|------|
+| PROCESS_ID | unsigned long | Host process ID that loaded the Client DLL |
+| ELAPSED_MS | uint64 | Elapsed milliseconds reported by the Client |
+| MESSAGE | string | Client log message, encoded with the sized string format |
+
+**Response Format**:
+
+```
+1
+```
+
+---
+
 ## Response: StateUpdate Format
 
-All commands return a **StateUpdate**, describing the current input state.
+Most commands return a **StateUpdate**, describing the current input state. `CMD_GET_SETTINGS` and `CMD_CLIENT_LOG` return their own response formats described above.
 
 **Format**:
 
@@ -345,7 +392,9 @@ All commands return a **StateUpdate**, describing the current input state.
 <CONSUMED>
 <CURSOR_INDEX>
 <CANDIDATE_INDEX>
+<CANDIDATE_FONT_SIZE>
 <FORCE_VERTICAL>
+<SELECTION_STYLE>
 <MARK_START>
 <MARK_END>
 <COMMIT_STRING_SIZE>
@@ -362,6 +411,15 @@ All commands return a **StateUpdate**, describing the current input state.
 <CANDIDATE_2_SIZE>
 <CANDIDATE_2>
 <CANDIDATE_N...>
+<CANDIDATE_KEYS_SIZE>
+<CANDIDATE_KEYS>
+<CANDIDATE_WINDOW_VERTICAL>
+<CANDIDATE_KEYS_COUNT>
+<CANDIDATE_COLOR_TEXT>
+<CANDIDATE_COLOR_BACKGROUND>
+<CANDIDATE_COLOR_BORDER>
+<CANDIDATE_COLOR_HIGHLIGHT_BACKGROUND>
+<CANDIDATE_COLOR_HIGHLIGHT_TEXT>
 ```
 
 ### Field Descriptions
@@ -371,7 +429,9 @@ All commands return a **StateUpdate**, describing the current input state.
 | CONSUMED | bool (0/1) | Whether the key was consumed by the IME (true = IME handled, false = pass to application) |
 | CURSOR_INDEX | int | Cursor position within the composingBuffer |
 | CANDIDATE_INDEX | int | Currently highlighted candidate index (-1 = none selected) |
+| CANDIDATE_FONT_SIZE | int | Candidate font size |
 | FORCE_VERTICAL | bool (0/1) | Whether to force the candidate window to be arranged vertically |
+| SELECTION_STYLE | int | Candidate selection style (`0` = standard, `1` = Shift+digits, `2` = Shift+Return) |
 | MARK_START | int | Start position of the mark (-1 = no mark) |
 | MARK_END | int | End position of the mark |
 | COMMIT_STRING | string | Text to commit to the application |
@@ -380,6 +440,10 @@ All commands return a **StateUpdate**, describing the current input state.
 | HINT | string | Hint text displayed at the top of the candidate window (e.g., the prefix character for associated phrases) |
 | CANDIDATES_COUNT | int | Number of candidates |
 | CANDIDATE_N | string | The N-th candidate |
+| CANDIDATE_KEYS | string | Candidate selection key labels |
+| CANDIDATE_WINDOW_VERTICAL | bool (0/1) | Whether the candidate window is vertical |
+| CANDIDATE_KEYS_COUNT | int | Number of candidate keys available |
+| CANDIDATE_COLOR_* | uint32 | Candidate window colors serialized as integer RGB values |
 
 ### String Encoding Method
 
@@ -433,7 +497,7 @@ User types "你好"
 2. User presses 'u'
    Client:  CMD_KEY_EVENT (VK=85, ASCII=117)
    Server:  StateUpdate (consumed=true, composingBuffer="ㄚㄨ", candidates=["你","..."])
-   Client:  Display candidates window
+   Client:  Update TSF candidate UIElement and send popup layout to Server if needed
 
 3. User presses '1' to select first candidate
    Client:  CMD_SELECT_CANDIDATE (index=0)
@@ -443,7 +507,7 @@ User types "你好"
 4. User presses 'e'
    Client:  CMD_KEY_EVENT (VK=69, ASCII=101)
    Server:  StateUpdate (consumed=true, composingBuffer="你ㄏㄜ", candidates=["好","..."])
-   Client:  Update candidates
+   Client:  Update TSF candidate UIElement and send popup layout to Server if needed
 
 5. User presses '1' to select first candidate
    Client:  CMD_SELECT_CANDIDATE (index=0)
@@ -591,5 +655,5 @@ A: -1 usually means "no value" or "not applicable", for example, candidateIndex=
 
 ---
 
-*Document Last Updated: 2026-05-09*
+*Document Last Updated: 2026-06-04*
 *Version: 1.0 (Based on Commit without version tracking)*

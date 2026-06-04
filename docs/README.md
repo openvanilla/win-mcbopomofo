@@ -8,6 +8,8 @@ This directory currently contains the following files:
   Describes the actual behavior of the space bar, candidate mode, and page flipping.
 - `system-architecture.md`
   Describes the overall system architecture and module responsibilities of the Windows version.
+- `candidate-ui-routing.md`
+  Describes the current split between the TSF Client and Server-owned custom candidate / tooltip popup windows.
 - `input-state-transitions.md`
   Describes the `InputState` types and major state transition paths.
 - `logging.md`
@@ -18,7 +20,7 @@ This directory currently contains the following files:
   Describes what the MSI installer does during installation and provides instructions on how developers can build it.
 - `server-client-state-mapping.md`
   Describes how the Client should map and apply updates after Server state changes.
-- `IPC_PROTOCOL.md`
+- `ipc-protocol.md`
   Describes the IPC protocol between the Client (TSF TIP) and the Server.
 
 This documentation describes the actual behavior in the current code, not idealized specifications. If the code changes later, the documentation should be updated accordingly.

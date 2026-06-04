@@ -12,6 +12,12 @@ The IME UI mainly consists of three parts:
 
 These three components are responsible for candidate presentation, auxiliary user hints, and IME mode and feature entry points.
 
+## Runtime Ownership
+
+The custom Candidate Window and Tooltip Window are owned by the Server process (`McBopomofoServer.exe`). The Server creates, renders, positions, and hides these popup HWNDs. The Client (`McBopomofoTIP_v2.dll`) remains responsible for TSF integration inside the foreground application process: it updates TSF composition, publishes candidate data through `ITfUIElementMgr` when available, probes caret/range geometry, and sends layout/visibility requests to the Server for custom popups.
+
+This means the Client decides whether a custom popup is needed and where it should anchor, while the Server owns the actual custom popup window lifetime and painting.
+
 ## Shared Requirements
 
 All IME UI components should meet the following requirements:
