@@ -143,7 +143,7 @@ const wchar_t* ButtonLabel(CLangBarButton::Kind kind, McBopomofoTIP* tip) {
     case CLangBarButton::Kind::ImeModeMenu:
     case CLangBarButton::Kind::SwitchLanguageToggle:
       if (!tip->IsOpen()) {
-        return L"EM";
+        return L"EN";
       }
       return ReadBoolSetting(L"ChineseConversionEnabled", false) ? L"簡"
                                                                  : L"中";
@@ -361,32 +361,42 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
                                      const RECT* prcArea) {
   UNREFERENCED_PARAMETER(prcArea);
 
+  auto showPopupMenu = [&](bool includeModeToggle) {
+    HMENU menu = CreatePopupMenu();
+    if (!menu) {
+      return;
+    }
+
+    AppendPopupMenuItems(menu, BuildLangBarMenuItems(pTIP_, includeModeToggle));
+
+    HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0,
+                                HWND_DESKTOP, nullptr, g_hInst, nullptr);
+    if (!hwnd) {
+      hwnd = GetDesktopWindow();
+    } else {
+      ApplyDarkThemeToWindow(hwnd);
+    }
+
+    UINT command = TrackPopupMenu(
+        menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_LEFTALIGN | TPM_BOTTOMALIGN,
+        pt.x, pt.y, 0, hwnd, nullptr);
+    if (command != 0) {
+      OnMenuSelect(command);
+    }
+    if (hwnd && hwnd != GetDesktopWindow()) {
+      DestroyWindow(hwnd);
+    }
+    DestroyMenu(menu);
+  };
+
   if (kind_ == Kind::ImeModeMenu) {
-    if (click == TF_LBI_CLK_LEFT || click == TF_LBI_CLK_RIGHT) {
-      HMENU menu = CreatePopupMenu();
-      if (menu) {
-        AppendPopupMenuItems(menu, BuildLangBarMenuItems(pTIP_, true));
+    if (click == TF_LBI_CLK_LEFT) {
+      pTIP_->ToggleOpenClose();
+      return S_OK;
+    }
 
-        HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0,
-                                    HWND_DESKTOP, nullptr, g_hInst, nullptr);
-        if (!hwnd) {
-          hwnd = GetDesktopWindow();
-        } else {
-          ApplyDarkThemeToWindow(hwnd);
-        }
-
-        UINT command = TrackPopupMenu(
-            menu,
-            TPM_RETURNCMD | TPM_NONOTIFY | TPM_LEFTALIGN | TPM_BOTTOMALIGN,
-            pt.x, pt.y, 0, hwnd, nullptr);
-        if (command != 0) {
-          OnMenuSelect(command);
-        }
-        if (hwnd && hwnd != GetDesktopWindow()) {
-          DestroyWindow(hwnd);
-        }
-        DestroyMenu(menu);
-      }
+    if (click == TF_LBI_CLK_RIGHT) {
+      showPopupMenu(true);
     }
     return S_OK;
   }
@@ -396,7 +406,7 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
       pTIP_->ToggleOpenClose();
       return S_OK;
     }
-    // Right-click falls through to the same popup menu used by the toggles.
+    return S_OK;
   }
 
   if (kind_ == Kind::FullHalfToggle) {
@@ -404,38 +414,20 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
       ToggleHalfWidthPunctuation(pTIP_);
       return S_OK;
     }
+    return S_OK;
   }
 
   if (kind_ == Kind::SettingsMenu) {
+    if (click == TF_LBI_CLK_LEFT || click == TF_LBI_CLK_RIGHT) {
+      showPopupMenu(false);
+    }
     return S_OK;
   }
 
   if (click == TF_LBI_CLK_LEFT) {
     ToggleHalfWidthPunctuation(pTIP_);
   } else if (click == TF_LBI_CLK_RIGHT) {
-    HMENU menu = CreatePopupMenu();
-    if (menu) {
-      AppendPopupMenuItems(menu, BuildLangBarMenuItems(pTIP_, true));
-
-      HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0,
-                                  HWND_DESKTOP, nullptr, g_hInst, nullptr);
-      if (!hwnd) {
-        hwnd = GetDesktopWindow();
-      } else {
-        ApplyDarkThemeToWindow(hwnd);
-      }
-
-      UINT command = TrackPopupMenu(
-          menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_LEFTALIGN | TPM_BOTTOMALIGN,
-          pt.x, pt.y, 0, hwnd, nullptr);
-      if (command != 0) {
-        OnMenuSelect(command);
-      }
-      if (hwnd && hwnd != GetDesktopWindow()) {
-        DestroyWindow(hwnd);
-      }
-      DestroyMenu(menu);
-    }
+    showPopupMenu(true);
   }
   return S_OK;
 }

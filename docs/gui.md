@@ -28,6 +28,12 @@ All IME UI components should meet the following requirements:
 - The candidate window and tooltip window should use the same drawing API and similar rendering flow whenever practical, to reduce maintenance cost and behavioral drift.
 - They must be able to appear correctly in a wide range of Windows applications, including traditional Win32 applications, modern applications, and different text input hosting environments.
 
+## Visual Integration
+
+Many IMEs introduce their own visual systems, color themes, and font customization surfaces. Win-McBopomofo intentionally takes a different approach: its GUI should feel integrated with Windows rather than like a separate themed application. It should use Windows system colors, theme state, and personalization settings wherever practical. Users who want to customize the input experience should do so through Windows Settings, such as system theme, accent color, text scaling, and related accessibility settings.
+
+The IME should not provide additional color pickers, font family selection, or IME-specific appearance themes. The only intentional exception is the tooltip window's pale yellow background, which is a product-specific visual convention.
+
 ## Candidate Window
 
 The candidate window is the primary custom UI of the IME. It displays candidates, the current selection, and any necessary supporting information.
@@ -38,7 +44,7 @@ The candidate window is the primary custom UI of the IME. It displays candidates
 - Its background color and text color must follow the system theme setting, including dark mode and light mode.
 - Its highlight color must be derived from the system theme.
 - Its overall appearance should feel integrated with the Windows system UI. Personalization should be handled through system theme and system color settings, rather than through additional IME-specific appearance settings.
-- It must not provide font family customization.
+- It must not provide color, font family, or theme customization beyond Windows system personalization.
 
 ### Design Principles
 
@@ -52,7 +58,7 @@ The tooltip window is used to present short, direct hints to the user in specifi
 
 ### Requirements
 
-- It should use a simple pale yellow background with black text.
+- It should use a simple pale yellow background with black text as an intentional product-specific exception to the system-color rule.
 - It must not provide font family or font size customization.
 - It is intended to provide user hints in specific application contexts.
 
@@ -71,12 +77,12 @@ The TSF language bar items intentionally separate the Windows taskbar IME mode i
 
 | Item | GUID constant | Kind | Surface | Behavior |
 | --- | --- | --- | --- | --- |
-| IME mode icon | `GUID_LBI_INPUTMODE` | `ImeModeMenu` | Windows taskbar IME mode icon | Left-click and right-click open the mode menu. This is the only item marked with `TF_LBI_STYLE_SHOWNINTRAY`. |
-| Switch language | `GUID_LBI_SWITCH_LANG` | `SwitchLanguageToggle` | Legacy Windows Language Bar | Left-click toggles Chinese/English mode through `GUID_COMPARTMENT_KEYBOARD_OPENCLOSE`; right-click opens the mode menu. |
-| Full/half punctuation | `GUID_LBI_FULL_HALF` | `FullHalfToggle` | Legacy Windows Language Bar | Left-click toggles full-width/half-width punctuation; right-click opens the mode menu. |
-| Settings | `GUID_LBI_SETTINGS` | `SettingsMenu` | Legacy Windows Language Bar | Opens the settings-oriented language bar menu. |
+| IME mode icon | `GUID_LBI_INPUTMODE` | `ImeModeMenu` | Windows taskbar IME mode icon | Left-click toggles Chinese/English mode through `GUID_COMPARTMENT_KEYBOARD_OPENCLOSE`; right-click opens the mode menu. This is the only item marked with `TF_LBI_STYLE_SHOWNINTRAY`. |
+| Switch language | `GUID_LBI_SWITCH_LANG` | `SwitchLanguageToggle` | Legacy Windows Language Bar | Left-click toggles Chinese/English mode through `GUID_COMPARTMENT_KEYBOARD_OPENCLOSE`; right-click has no menu action. |
+| Full/half punctuation | `GUID_LBI_FULL_HALF` | `FullHalfToggle` | Legacy Windows Language Bar | Left-click toggles full-width/half-width punctuation; right-click has no menu action. |
+| Settings | `GUID_LBI_SETTINGS` | `SettingsMenu` | Legacy Windows Language Bar | Left-click and right-click open the settings-oriented language bar menu. |
 
-Do not reuse `GUID_LBI_INPUTMODE` for full-width/half-width punctuation. Windows uses that item as the taskbar IME mode icon, so it must represent mode/menu behavior rather than punctuation width.
+Do not reuse `GUID_LBI_INPUTMODE` for full-width/half-width punctuation. Windows uses that item as the taskbar IME mode icon, so it must represent Chinese/English mode switching on left-click and mode menu access on right-click rather than punctuation width.
 
 ### Requirements
 
@@ -98,4 +104,4 @@ The core GUI goals of this IME are:
 - Correct scaling on high-DPI and mixed-resolution displays.
 - Use of a rendering API that can correctly display color emoji.
 - A shared technical foundation between the candidate window and tooltip window wherever practical.
-- Visual behavior that primarily follows Windows system theme and personalization, rather than introducing extensive IME-specific appearance customization.
+- Visual behavior that follows Windows system theme and personalization, without introducing IME-specific color, font family, or theme customization, except for the tooltip window's pale yellow convention.

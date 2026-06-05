@@ -122,7 +122,8 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
 
   ITfComposition* pComposition_;
 
-  // IME mode icon shown in the Windows taskbar; opens the mode menu.
+  // IME mode icon shown in the Windows taskbar; left-click toggles
+  // Chinese/English mode and right-click opens the mode menu.
   class CLangBarButton* pModeIconButton_;
 
   // Toggle button shown in the language bar to switch Chinese/English mode.
