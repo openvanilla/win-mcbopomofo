@@ -48,12 +48,18 @@ extern const GUID GUID_LBI_INPUTMODE = {
     0x41CC,
     0x4178,
     {0xA3, 0xA7, 0x5F, 0x8A, 0x98, 0x75, 0x68, 0xE6}};
-// Regular language bar button, equivalent to PIME's "switch-lang" button.
+// Regular language bar button for switching Chinese / English mode.
 extern const GUID GUID_LBI_SWITCH_LANG = {
     0x5C7D0E31,
     0x28C0,
     0x4D1F,
     {0xB3, 0xD5, 0x91, 0x6D, 0x57, 0xC9, 0x11, 0x7A}};
+// Regular language bar button for the full-width / half-width toggle.
+extern const GUID GUID_LBI_FULL_HALF = {
+    0x94A7B3E2,
+    0xD4F1,
+    0x4F7A,
+    {0x9A, 0x35, 0x28, 0x2C, 0x1F, 0x93, 0x68, 0x42}};
 // Settings menu button
 extern const GUID GUID_LBI_SETTINGS = {
     0x6B3E921C,
@@ -134,6 +140,7 @@ void ToggleHalfWidthPunctuation(McBopomofoTIP* tip) {
 
 const wchar_t* ButtonLabel(CLangBarButton::Kind kind, McBopomofoTIP* tip) {
   switch (kind) {
+    case CLangBarButton::Kind::ImeModeMenu:
     case CLangBarButton::Kind::SwitchLanguageToggle:
       if (!tip->IsOpen()) {
         return L"EM";
@@ -301,13 +308,17 @@ STDMETHODIMP CLangBarButton::GetInfo(TF_LANGBARITEMINFO* pInfo) {
   pInfo->clsidService = c_clsidMcBopomofoTIP;
   pInfo->guidItem = guid_;
 
-  if (kind_ == Kind::FullHalfToggle || kind_ == Kind::SwitchLanguageToggle) {
+  if (kind_ == Kind::ImeModeMenu) {
     pInfo->dwStyle = TF_LBI_STYLE_BTN_BUTTON | TF_LBI_STYLE_SHOWNINTRAY;
+  } else if (kind_ == Kind::SwitchLanguageToggle ||
+             kind_ == Kind::FullHalfToggle) {
+    pInfo->dwStyle = TF_LBI_STYLE_BTN_BUTTON;
   } else {
     pInfo->dwStyle = TF_LBI_STYLE_BTN_MENU;
   }
 
   switch (kind_) {
+    case Kind::ImeModeMenu:
     case Kind::SwitchLanguageToggle:
       pInfo->ulSort = 0;
       break;
@@ -349,6 +360,36 @@ STDMETHODIMP CLangBarButton::GetTooltipString(BSTR* pbstrToolTip) {
 STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
                                      const RECT* prcArea) {
   UNREFERENCED_PARAMETER(prcArea);
+
+  if (kind_ == Kind::ImeModeMenu) {
+    if (click == TF_LBI_CLK_LEFT || click == TF_LBI_CLK_RIGHT) {
+      HMENU menu = CreatePopupMenu();
+      if (menu) {
+        AppendPopupMenuItems(menu, BuildLangBarMenuItems(pTIP_, true));
+
+        HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 0, 0,
+                                    HWND_DESKTOP, nullptr, g_hInst, nullptr);
+        if (!hwnd) {
+          hwnd = GetDesktopWindow();
+        } else {
+          ApplyDarkThemeToWindow(hwnd);
+        }
+
+        UINT command = TrackPopupMenu(
+            menu,
+            TPM_RETURNCMD | TPM_NONOTIFY | TPM_LEFTALIGN | TPM_BOTTOMALIGN,
+            pt.x, pt.y, 0, hwnd, nullptr);
+        if (command != 0) {
+          OnMenuSelect(command);
+        }
+        if (hwnd && hwnd != GetDesktopWindow()) {
+          DestroyWindow(hwnd);
+        }
+        DestroyMenu(menu);
+      }
+    }
+    return S_OK;
+  }
 
   if (kind_ == Kind::SwitchLanguageToggle) {
     if (click == TF_LBI_CLK_LEFT) {
@@ -401,7 +442,7 @@ STDMETHODIMP CLangBarButton::OnClick(TfLBIClick click, POINT pt,
 
 STDMETHODIMP CLangBarButton::InitMenu(ITfMenu* pMenu) {
   if (!pMenu) return E_INVALIDARG;
-  bool includeModeToggle = (kind_ == Kind::FullHalfToggle);
+  bool includeModeToggle = (kind_ != Kind::SettingsMenu);
   return AppendTfMenuItems(pMenu,
                            BuildLangBarMenuItems(pTIP_, includeModeToggle));
 }

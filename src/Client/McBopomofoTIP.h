@@ -122,12 +122,14 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
 
   ITfComposition* pComposition_;
 
-  // Full-width / half-width punctuation toggle shown in the language bar.
+  // IME mode icon shown in the Windows taskbar; opens the mode menu.
   class CLangBarButton* pModeIconButton_;
 
-  // Toggle button that appears in the legacy Windows Language Bar
-  // to switch between Chinese and English mode.
+  // Toggle button shown in the language bar to switch Chinese/English mode.
   class CLangBarButton* pSwitchLangButton_;
+
+  // Full-width / half-width punctuation toggle shown in the language bar.
+  class CLangBarButton* pFullHalfButton_;
 
   // Settings menu button that appears in the legacy Windows Language Bar.
   class CLangBarButton* pSettingsButton_;

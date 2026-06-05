@@ -328,7 +328,8 @@ McBopomofoTIP::McBopomofoTIP()
       dwOpenCloseCompartmentEventSinkCookie_(TF_INVALID_COOKIE),
       pComposition_(nullptr),
       pModeIconButton_(nullptr),
-      pSwitchLangButton_(nullptr) {
+      pSwitchLangButton_(nullptr),
+      pFullHalfButton_(nullptr) {
   DllAddRef();
 }
 
@@ -511,13 +512,16 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
   if (SUCCEEDED(ptim_->QueryInterface(IID_ITfLangBarItemMgr,
                                       (void**)&pLangBarItemMgr))) {
     pModeIconButton_ = new CLangBarButton(this, GUID_LBI_INPUTMODE,
-                                          CLangBarButton::Kind::FullHalfToggle);
+                                          CLangBarButton::Kind::ImeModeMenu);
     pSwitchLangButton_ = new CLangBarButton(
         this, GUID_LBI_SWITCH_LANG, CLangBarButton::Kind::SwitchLanguageToggle);
+    pFullHalfButton_ = new CLangBarButton(this, GUID_LBI_FULL_HALF,
+                                          CLangBarButton::Kind::FullHalfToggle);
     pSettingsButton_ = new CLangBarButton(this, GUID_LBI_SETTINGS,
                                           CLangBarButton::Kind::SettingsMenu);
-    pLangBarItemMgr->AddItem(pSwitchLangButton_);
     pLangBarItemMgr->AddItem(pModeIconButton_);
+    pLangBarItemMgr->AddItem(pSwitchLangButton_);
+    pLangBarItemMgr->AddItem(pFullHalfButton_);
     pLangBarItemMgr->AddItem(pSettingsButton_);
     pLangBarItemMgr->Release();
   }
@@ -577,7 +581,8 @@ STDAPI McBopomofoTIP::Deactivate() {
     pUIElementMgr_ = nullptr;
   }
 
-  if (pModeIconButton_ || pSwitchLangButton_ || pSettingsButton_) {
+  if (pModeIconButton_ || pSwitchLangButton_ || pFullHalfButton_ ||
+      pSettingsButton_) {
     ITfLangBarItemMgr* pLangBarItemMgr = nullptr;
     if (SUCCEEDED(ptim_->QueryInterface(IID_ITfLangBarItemMgr,
                                         (void**)&pLangBarItemMgr))) {
@@ -586,6 +591,9 @@ STDAPI McBopomofoTIP::Deactivate() {
       }
       if (pSwitchLangButton_) {
         pLangBarItemMgr->RemoveItem(pSwitchLangButton_);
+      }
+      if (pFullHalfButton_) {
+        pLangBarItemMgr->RemoveItem(pFullHalfButton_);
       }
       if (pSettingsButton_) {
         pLangBarItemMgr->RemoveItem(pSettingsButton_);
@@ -599,6 +607,10 @@ STDAPI McBopomofoTIP::Deactivate() {
     if (pSwitchLangButton_) {
       pSwitchLangButton_->Release();
       pSwitchLangButton_ = nullptr;
+    }
+    if (pFullHalfButton_) {
+      pFullHalfButton_->Release();
+      pFullHalfButton_ = nullptr;
     }
     if (pSettingsButton_) {
       pSettingsButton_->Release();
@@ -982,6 +994,10 @@ void McBopomofoTIP::RefreshLangBar() {
   if (pSwitchLangButton_) {
     // LogMessage("Refreshing switch lang button");
     pSwitchLangButton_->Update();
+  }
+  if (pFullHalfButton_) {
+    // LogMessage("Refreshing full/half punctuation button");
+    pFullHalfButton_->Update();
   }
   if (pSettingsButton_) {
     // LogMessage("Refreshing settings button");

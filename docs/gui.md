@@ -65,9 +65,23 @@ The tooltip window is used to present short, direct hints to the user in specifi
 
 The Language Bar icons are the IME's integration points in the Windows language bar, providing mode switching and feature entry points.
 
+### Button Roles
+
+The TSF language bar items intentionally separate the Windows taskbar IME mode icon from the legacy language bar buttons:
+
+| Item | GUID constant | Kind | Surface | Behavior |
+| --- | --- | --- | --- | --- |
+| IME mode icon | `GUID_LBI_INPUTMODE` | `ImeModeMenu` | Windows taskbar IME mode icon | Left-click and right-click open the mode menu. This is the only item marked with `TF_LBI_STYLE_SHOWNINTRAY`. |
+| Switch language | `GUID_LBI_SWITCH_LANG` | `SwitchLanguageToggle` | Legacy Windows Language Bar | Left-click toggles Chinese/English mode through `GUID_COMPARTMENT_KEYBOARD_OPENCLOSE`; right-click opens the mode menu. |
+| Full/half punctuation | `GUID_LBI_FULL_HALF` | `FullHalfToggle` | Legacy Windows Language Bar | Left-click toggles full-width/half-width punctuation; right-click opens the mode menu. |
+| Settings | `GUID_LBI_SETTINGS` | `SettingsMenu` | Legacy Windows Language Bar | Opens the settings-oriented language bar menu. |
+
+Do not reuse `GUID_LBI_INPUTMODE` for full-width/half-width punctuation. Windows uses that item as the taskbar IME mode icon, so it must represent mode/menu behavior rather than punctuation width.
+
 ### Requirements
 
 - It must provide a Chinese/English mode switch button.
+- It must provide a full-width/half-width punctuation switch button.
 - It must provide an advanced features menu.
 
 ### Design Principles
