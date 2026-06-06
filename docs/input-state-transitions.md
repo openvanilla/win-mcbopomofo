@@ -192,7 +192,66 @@ Common path:
 2. `AssociatedPhrases` or `AssociatedPhrasesPlain`
 3. Returns to `Inputting`, `Committing`, or `Empty` after character selection.
 
-## 4. The Specificity of `Committing`
+## 4. Key Triggers for Special States
+
+The input method is state-driven, so a key does not have one global meaning.
+Each key is interpreted together with the current state. The table below lists
+the main keys that enter special states.
+
+### 4.1 Feature Menu and Feature States
+
+| Key / action | Required current state | Resulting state | Notes |
+| --- | --- | --- | --- |
+| `Ctrl+\` | Any state accepted by `KeyHandler::handle()` | `StateSequence(Empty -> SelectingFeature)` | Clears the current state first, then opens the feature menu. |
+| Select "Big5 input" in `SelectingFeature` | `SelectingFeature` | `Big5` | Enters Big5 hex input mode. |
+| Select "Date and time" in `SelectingFeature` | `SelectingFeature` | `SelectingDateMacro` | Opens a candidate-only date/time macro menu. |
+| Select "Number input" in `SelectingFeature` | `SelectingFeature` | `NumberInput` | Enters numeric conversion mode. |
+| Select "Iroha kana input" in `SelectingFeature` | `SelectingFeature` | `Iroha` | Enters Iroha code input mode. |
+
+### 4.2 Candidate, Punctuation, and Menu States
+
+| Key / action | Required current state | Resulting state | Notes |
+| --- | --- | --- | --- |
+| `Space` | `Inputting`, no active reading, and candidate selection by space enabled | `ChoosingCandidate` | Opens candidates for the reading grid around the current cursor. |
+| `Down` | `Inputting`, no active reading | `ChoosingCandidate` | Alternative candidate-opening key. |
+| `` ` `` | No active Bopomofo reading and punctuation-list data available | `ChoosingPunctuationList` | Inserts the punctuation-list pseudo reading and opens punctuation candidates. |
+| `?` | `ChoosingCandidate` | `SelectingDictionary` | Opens dictionary services for the highlighted candidate, if services are available. |
+| `?` | `Marking` | `SelectingDictionary` | Opens dictionary services for the marked phrase. |
+| Select "Character Information" in `SelectingDictionary` | `SelectingDictionary` | `ShowingCharInfo` | Displays metadata for the selected phrase or character. |
+| `+` / `=` | `ChoosingCandidate` | `CustomMenu` | Opens the boost menu for eligible multi-syllable candidates. |
+| `-` / `_` | `ChoosingCandidate` | `CustomMenu` | Opens the exclude menu for eligible multi-syllable candidates. |
+
+### 4.3 Marking and User Phrase States
+
+| Key / action | Required current state | Resulting state | Notes |
+| --- | --- | --- | --- |
+| `Shift+Left` / `Shift+Right` | `Inputting` or `Marking` | `Marking` | Starts or extends a marked phrase range for adding a user phrase. |
+| `Enter` | `Marking` with an acceptable marked phrase | `Inputting` | Adds the marked phrase to user phrases and returns to normal input. |
+| `Enter` | `Marking` with an invalid marked phrase | `Marking` | Stays in marking mode and reports the validation status. |
+
+### 4.4 Associated Phrase States
+
+| Key / action | Required current state | Resulting state | Notes |
+| --- | --- | --- | --- |
+| Compose a syllable | `Inputting`, McBopomofo mode, associated phrases enabled | `AssociatedPhrases` | Auto-triggered associated phrase hint may appear after the inputting state is produced. |
+| `Tab` | Auto-triggered `AssociatedPhrases` | `AssociatedPhrases` | Expands the auto-triggered one-candidate hint into the full associated phrase list. |
+| `Shift+Enter` | `Inputting`, McBopomofo mode, associated phrases enabled | `AssociatedPhrases` | Manually opens associated phrases for the current inputting state. |
+| `Shift+Enter` | `ChoosingCandidate`, McBopomofo mode | `AssociatedPhrases` | Opens associated phrases based on the highlighted candidate. |
+| Plain Bopomofo auto-commit | `Inputting`, Plain Bopomofo mode, associated phrases enabled | `AssociatedPhrasesPlain` | After a single reading is committed, follow-up associated phrase candidates may be shown. |
+
+### 4.5 Special State Continuations
+
+| Key / action | Required current state | Resulting state | Notes |
+| --- | --- | --- | --- |
+| Hex digit | `Big5` | `Big5` or `Committing` | Accumulates up to four hex digits; a complete valid Big5 code commits text. |
+| `Esc` | `Big5` | `Empty` | Cancels Big5 input. |
+| Letter / code key | `Iroha` | `Iroha` or `IrohaCandidate` | Accumulates an Iroha code and may open candidates. |
+| `Enter` / `Space` | `Iroha` | `Committing` or `IrohaCandidate` | Confirms the current Iroha code path. |
+| Digit / decimal key | `NumberInput` | `NumberInput` | Updates the numeric conversion candidates. |
+| Select candidate | `NumberInput` / `SelectingDateMacro` / `IrohaCandidate` | `Committing` | These special candidate states directly commit selected text. |
+| `Esc` / `Backspace` | Candidate or menu states | Previous state or `EmptyIgnoringPrevious` | Candidate-layer cancellation is handled by `InputController`. |
+
+## 5. The Specificity of `Committing`
 
 `Committing` is not a UI state, but an action state.
 
@@ -210,7 +269,7 @@ Therefore:
     - `commitString` is populated
     - Then combined with `Reset()` / `Update()` to form the final payload.
 
-## 5. Difference between `Empty` and `EmptyIgnoringPrevious`
+## 6. Difference between `Empty` and `EmptyIgnoringPrevious`
 
 - `Empty`
   Allows the previous state to produce side effects, such as committing.
@@ -219,7 +278,7 @@ Therefore:
 
 In `InputController::ChangeState()`, both will eventually cause the controller to fall back to `Empty`, but with different semantics.
 
-## 6. Common Rules for Candidate States
+## 7. Common Rules for Candidate States
 
 In `InputController`, the following states are treated as candidate states:
 
@@ -240,7 +299,7 @@ Common characteristics of these states:
 - `candidateIndex_` is managed by `InputController`.
 - Arrow keys, Home/End, PageUp/PageDown, and space bar page turning are all handled at this layer.
 
-## 7. Documentation Maintenance Principles
+## 8. Documentation Maintenance Principles
 
 If a new `InputState` type is added, you must synchronously update at least:
 
