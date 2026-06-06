@@ -25,6 +25,8 @@ Main responsibilities:
 - Create `KeyHandler`.
 - Create `InputController`.
 - Load and apply `Settings`.
+- Monitor configuration and user phrase files on the file system, and reload the
+  affected runtime data when those files change.
 - Receive key event / select candidate / reload / reset commands from the Client.
 - Map `InputState` to `IPC::StateUpdatePayload`.
 - Own and render the custom `CandidateWindow` and `TooltipWindow` HWNDs.
@@ -82,7 +84,54 @@ Main responsibilities:
 - Display the Win32 GUI.
 - Notify the Server to reload settings via `IPC::SerializeReloadSettings()` after saving.
 
-## 3. Main Data Flows
+## 3. State-Driven Input Model
+
+The input method is state-driven. A key event does not directly mutate the UI or
+directly emit text. Instead, the Server interprets each key event against the
+current input state and produces the next input state. Output text and UI updates
+are derived from that state transition.
+
+Conceptually:
+
+```text
+(new state, output text, UI update) = f(old state, key event)
+```
+
+This has several consequences:
+
+- The same key can have different meanings in different states. For example,
+  `Space`, `Enter`, `Esc`, and arrow keys are interpreted differently in
+  `Inputting`, `ChoosingCandidate`, `AssociatedPhrases`, `NumberInput`, or
+  `CustomMenu`.
+- The UI is a projection of state, not the source of truth. Candidate lists,
+  composing text, cursor position, marks, hints, tooltips, and candidate window
+  behavior are derived from `InputState` and converted into
+  `IPC::StateUpdatePayload`.
+- Text commit is also modeled as a state transition. `Committing` is consumed by
+  `InputController`, converted into `UIInterface::CommitString()`, and then the
+  controller returns to `Empty`.
+- Reset and cancellation are explicit state transitions. For example,
+  `EmptyIgnoringPrevious` means the previous composing buffer should be
+  discarded rather than committed.
+
+The practical reducer pipeline is:
+
+```text
+InputController::handleKey(old state, key)
+    -> KeyHandler / candidate handling
+    -> new InputState
+    -> InputController::enterNewState(previous state, new state)
+    -> commit/reset/candidateIndex side effects
+    -> InputController::buildStateUpdatePayload(current state)
+    -> Client TSF composition and UI update
+```
+
+This design keeps language-model behavior, candidate selection, and special input
+modes in the Server state machine, while the Client remains responsible for
+applying the resulting TSF composition and commit operations in the foreground
+process.
+
+## 4. Main Data Flows
 
 ### Keyboard Event Flow
 
@@ -107,7 +156,18 @@ Main responsibilities:
    - `Empty`
 4. The Client updates the preedit or commits directly based on the payload.
 
-## 4. Boundary Between State and Display
+### File-System Reload Flow
+
+The Server also observes runtime data stored on the file system. When the
+configuration file or user phrase data changes, the Server reloads the affected
+data and applies it to the active input controller and language model.
+
+This allows changes made outside the immediate key event path, such as saving
+settings from `ConfigApp` or updating user phrase files, to become visible to the
+running input method without requiring the foreground application or TSF Client
+to restart.
+
+## 5. Boundary Between State and Display
 
 The system has an important division of labor:
 
@@ -124,7 +184,7 @@ For example:
 
 This boundary is important because whether the Client creates a composition or performs a direct commit is determined by the payload contents, not directly by the state type name.
 
-## 5. Why Adopt Client/Server
+## 6. Why Adopt Client/Server
 
 Main reasons:
 
@@ -139,7 +199,7 @@ The cost is:
 - Must define a stable payload format.
 - Need to clearly define the mapping between server states and client behaviors.
 
-## 6. Internationalization (i18n)
+## 7. Internationalization (i18n)
 
 The project implements a native Windows i18n architecture to support multi-lingual environments (primarily Traditional Chinese and English).
 
@@ -147,7 +207,7 @@ The project implements a native Windows i18n architecture to support multi-lingu
 - **Resource Tables**: UI strings are moved into `.rc` resource files using `STRINGTABLE`. Multiple languages are defined using `LANGUAGE` blocks.
 - **Dynamic Loading**: Components load strings at runtime using `LoadStringW` (wrapped in `LoadLocalizedStringW`). This allows the IME UI to automatically switch languages based on the user's Windows display language without requiring separate builds.
 
-## 7. User Interface (UI) Layer
+## 8. User Interface (UI) Layer
 
 The custom popup UI layer lives in the Server process. `CandidateWindow` and `TooltipWindow` are owned, rendered, moved, and hidden by `McBopomofoServer.exe`. The Client still participates in UI routing because only the TSF TIP DLL can safely inspect the focused TSF context and determine the caret or selection rectangle inside the foreground host process.
 
@@ -156,7 +216,7 @@ The custom popup UI layer lives in the Server process. `CandidateWindow` and `To
 - **Dark Mode Support**: The system automatically detects the Windows "App Mode" (Light/Dark) by querying the registry (`Personalize\AppsUseLightTheme`). UI colors, brushes, and backgrounds are dynamically adjusted to match the system theme.
 - **Layered Stacking**: Auxiliary windows (Tooltip and Candidate) are aware of each other's visibility and height, automatically stacking vertically to avoid overlap.
 
-## 8. Current Major Limitations
+## 9. Current Major Limitations
 
 Currently, the Server only maintains a single `InputController` instance, rather than splitting sessions "per input focus / per application context". This means the system architecture still leans toward a single interaction context, rather than comprehensive multi-session state management.
 
