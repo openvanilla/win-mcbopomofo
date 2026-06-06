@@ -176,6 +176,27 @@ bool IsStandaloneModifierKey(WPARAM wParam) {
   }
 }
 
+bool IsHostEditingKey(WPARAM wParam) {
+  switch (wParam) {
+    case VK_RETURN:
+    case VK_ESCAPE:
+    case VK_TAB:
+    case VK_BACK:
+    case VK_DELETE:
+    case VK_LEFT:
+    case VK_RIGHT:
+    case VK_UP:
+    case VK_DOWN:
+    case VK_HOME:
+    case VK_END:
+    case VK_PRIOR:
+    case VK_NEXT:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool IsShiftKey(WPARAM wParam) {
   switch (wParam) {
     case VK_SHIFT:
@@ -675,14 +696,9 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
 
   // If the composition buffer is empty, do not swallow control or editing
   // keys, allowing them to pass through to the host application safely.
-  switch (wParam) {
-    case VK_RETURN:
-    case VK_ESCAPE:
-    case VK_TAB:
-    case VK_BACK:
-    case VK_DELETE:
-      *pfEaten = FALSE;
-      return S_OK;
+  if (IsHostEditingKey(wParam)) {
+    *pfEaten = FALSE;
+    return S_OK;
   }
 
   if (IsServerHandledShortcutKey(wParam, keyboardState)) {
