@@ -72,6 +72,29 @@ TEST(IpcTest, ClientSettingsRoundTrip) {
     EXPECT_TRUE(IPC::IsGetSettingsCommand(IPC::SerializeGetSettings()));
 }
 
+TEST(IpcTest, ProcessDisabledQueryRoundTrip) {
+    IPC::ProcessDisabledQueryPayload query;
+    query.processName = "SheepShaver.exe";
+
+    std::string serializedQuery = IPC::SerializeProcessDisabledQuery(query);
+
+    IPC::ProcessDisabledQueryPayload decodedQuery;
+    ASSERT_TRUE(IPC::DeserializeProcessDisabledQuery(serializedQuery,
+                                                     decodedQuery));
+    EXPECT_EQ(decodedQuery.processName, query.processName);
+
+    IPC::ProcessDisabledResponsePayload response;
+    response.disabled = true;
+
+    std::string serializedResponse =
+        IPC::SerializeProcessDisabledResponse(response);
+
+    IPC::ProcessDisabledResponsePayload decodedResponse;
+    ASSERT_TRUE(IPC::DeserializeProcessDisabledResponse(serializedResponse,
+                                                        decodedResponse));
+    EXPECT_EQ(decodedResponse.disabled, response.disabled);
+}
+
 TEST(IpcTest, KeyEventRoundTripsLayoutAnchor) {
     IPC::KeyEventPayload payload;
     payload.vk = 'A';
@@ -144,6 +167,5 @@ TEST(IpcTest, KeyEventRejectsPayloadWithRemovedDpiScale) {
     IPC::KeyEventPayload decoded;
     EXPECT_FALSE(IPC::DeserializeKeyEvent(removedDpiScalePayload, decoded));
 }
-
 
 

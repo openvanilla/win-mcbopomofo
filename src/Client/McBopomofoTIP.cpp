@@ -23,11 +23,14 @@
 
 #include "McBopomofoTIP.h"
 
+#include <string>
+
 #include "EditSession.h"
 #include "Globals.h"
 #include "LangBarButton.h"
 #include "NamedPipe.h"
 #include "StateEditSession.h"
+#include "UTFHelper.h"
 
 namespace {
 
@@ -338,6 +341,21 @@ bool GetKeyDownLayout(ITfContext* context, TfClientId clientId, RECT* rect) {
   return SUCCEEDED(hr) && SUCCEEDED(editSessionResult) && hasRect;
 }
 
+std::string CurrentProcessNameUtf8() {
+  wchar_t path[MAX_PATH];
+  DWORD length = GetModuleFileNameW(nullptr, path, MAX_PATH);
+  if (length == 0) {
+    return "";
+  }
+
+  std::wstring processPath(path, length);
+  size_t slash = processPath.find_last_of(L"\\/");
+  if (slash != std::wstring::npos) {
+    processPath.erase(0, slash + 1);
+  }
+  return McBopomofo::Utf16ToUtf8(processPath);
+}
+
 }  // namespace
 
 McBopomofoTIP::McBopomofoTIP()
@@ -505,6 +523,8 @@ STDAPI McBopomofoTIP::ActivateEx(ITfThreadMgr* ptim, TfClientId tid,
     return E_INVALIDARG;
   }
 
+  updateProcessDisabledState_();
+
   ptim_ = ptim;
   ptim_->AddRef();
   tid_ = tid;
@@ -660,6 +680,9 @@ STDAPI McBopomofoTIP::Deactivate() {
 
 STDAPI McBopomofoTIP::OnSetFocus(BOOL fForeground) {
   shiftToggleKeyPending_ = false;
+  if (isProcessDisabled_()) {
+    return S_OK;
+  }
   if (!fForeground) {
     resetServerState_();
   }
@@ -672,6 +695,10 @@ STDAPI McBopomofoTIP::OnTestKeyDown(ITfContext* pic, WPARAM wParam,
   UNREFERENCED_PARAMETER(lParam);
   if (pfEaten == nullptr) {
     return E_INVALIDARG;
+  }
+  if (isProcessDisabled_()) {
+    *pfEaten = FALSE;
+    return S_OK;
   }
 
   BYTE keyboardState[256];
@@ -724,6 +751,10 @@ STDAPI McBopomofoTIP::OnKeyDown(ITfContext* pic, WPARAM wParam, LPARAM lParam,
                                 BOOL* pfEaten) {
   if (pfEaten == nullptr) {
     return E_INVALIDARG;
+  }
+  if (isProcessDisabled_()) {
+    *pfEaten = FALSE;
+    return S_OK;
   }
 
   BYTE keyboardState[256];
@@ -821,6 +852,11 @@ STDAPI McBopomofoTIP::OnKeyUp(ITfContext* pic, WPARAM wParam, LPARAM lParam,
   UNREFERENCED_PARAMETER(lParam);
   if (pfEaten == nullptr) {
     return E_INVALIDARG;
+  }
+  if (isProcessDisabled_()) {
+    shiftToggleKeyPending_ = false;
+    *pfEaten = FALSE;
+    return S_OK;
   }
 
   BYTE keyboardState[256];
@@ -1019,6 +1055,33 @@ void McBopomofoTIP::RefreshLangBar() {
     // LogMessage("Refreshing settings button");
     pSettingsButton_->Update();
   }
+}
+
+void McBopomofoTIP::updateProcessDisabledState_() {
+  processDisabled_ = false;
+
+  McBopomofo::IPC::ProcessDisabledQueryPayload query;
+  query.processName = CurrentProcessNameUtf8();
+  if (query.processName.empty()) {
+    return;
+  }
+
+  McBopomofo::IPC::NamedPipeClient pipe(McBopomofo::IPC::PIPE_NAME);
+  std::string response;
+  if (!pipe.Call(McBopomofo::IPC::SerializeProcessDisabledQuery(query),
+                 response)) {
+    // LogMessage("IS_PROCESS_DISABLED IPC Call failed, fallback to enabled");
+    return;
+  }
+
+  McBopomofo::IPC::ProcessDisabledResponsePayload payload;
+  if (!McBopomofo::IPC::DeserializeProcessDisabledResponse(response, payload)) {
+    // LogMessage("IS_PROCESS_DISABLED response deserialize failed, fallback to
+    // enabled");
+    return;
+  }
+
+  processDisabled_ = payload.disabled;
 }
 
 bool McBopomofoTIP::shouldToggleOpenCloseWithShift_() const {

@@ -28,13 +28,15 @@
 #include <windows.h>
 
 #include <algorithm>
-#include <cmath>
 #include <array>
+#include <cctype>
+#include <cmath>
 #include <cwchar>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <mutex>
+#include <string>
 
 #include "CandidateWindow.h"
 #include "CandidateWindowColors.h"
@@ -228,6 +230,88 @@ class ServerPopupController {
 ServerPopupController* g_ServerPopupController = nullptr;
 
 namespace {
+
+constexpr const char* kDisabledAppsFilename = "disabled-apps.txt";
+constexpr const char* kDefaultDisabledApps[] = {
+    "SheepShaver.exe",
+};
+
+std::string NormalizeProcessName(std::string value) {
+  size_t start = 0;
+  while (start < value.size() &&
+         std::isspace(static_cast<unsigned char>(value[start]))) {
+    ++start;
+  }
+
+  size_t end = value.size();
+  while (end > start &&
+         std::isspace(static_cast<unsigned char>(value[end - 1]))) {
+    --end;
+  }
+
+  value = value.substr(start, end - start);
+  size_t slash = value.find_last_of("\\/");
+  if (slash != std::string::npos) {
+    value.erase(0, slash + 1);
+  }
+
+  std::transform(value.begin(), value.end(), value.begin(),
+                 [](unsigned char c) {
+                   return static_cast<char>(std::tolower(c));
+                 });
+  return value;
+}
+
+std::filesystem::path DisabledAppsPath(const std::string& userDir) {
+  return std::filesystem::path(userDir) / kDisabledAppsFilename;
+}
+
+void EnsureDisabledAppsFile(const std::filesystem::path& path) {
+  if (std::filesystem::exists(path)) {
+    return;
+  }
+
+  std::filesystem::create_directories(path.parent_path());
+
+  std::ofstream file(path);
+  if (!file) {
+    FCITX_MCBOPOMOFO_INFO()
+        << "Failed to create disabled apps file: " << path.string();
+    return;
+  }
+
+  file << "# One process name per line. Matching is case-insensitive.\n";
+  for (const char* app : kDefaultDisabledApps) {
+    file << app << "\n";
+  }
+  FCITX_MCBOPOMOFO_INFO() << "Created disabled apps file: " << path.string();
+}
+
+bool IsProcessDisabledByList(const std::filesystem::path& path,
+                             const std::string& processName) {
+  const std::string normalizedProcess = NormalizeProcessName(processName);
+  if (normalizedProcess.empty()) {
+    return false;
+  }
+
+  std::ifstream file(path);
+  if (!file) {
+    return false;
+  }
+
+  std::string line;
+  while (std::getline(file, line)) {
+    const std::string normalizedLine = NormalizeProcessName(line);
+    if (normalizedLine.empty() || normalizedLine[0] == '#' ||
+        normalizedLine[0] == ';') {
+      continue;
+    }
+    if (normalizedLine == normalizedProcess) {
+      return true;
+    }
+  }
+  return false;
+}
 
 bool IsDarkModeEnabled() {
   HKEY hKey;
@@ -721,6 +805,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   std::mutex reloadMutex;
 
   std::string userDir = fcitx5_compat::userDirectory();
+  std::filesystem::path disabledAppsPath = DisabledAppsPath(userDir);
+  EnsureDisabledAppsFile(disabledAppsPath);
   HWND hwndTray = nullptr;
 
   auto reloadSettings = [&]() {
@@ -843,6 +929,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       IPC::ClientSettingsPayload payload;
       payload.shiftToggleOpenClose = settings.shiftToggleOpenClose();
       return IPC::SerializeClientSettings(payload);
+    }
+
+    IPC::ProcessDisabledQueryPayload processDisabledQuery;
+    if (IPC::DeserializeProcessDisabledQuery(req, processDisabledQuery)) {
+      IPC::ProcessDisabledResponsePayload payload;
+      payload.disabled = IsProcessDisabledByList(
+          disabledAppsPath, processDisabledQuery.processName);
+      FCITX_MCBOPOMOFO_INFO()
+          << "IPC Recv: IS_PROCESS_DISABLED process="
+          << processDisabledQuery.processName
+          << " disabled=" << payload.disabled;
+      return IPC::SerializeProcessDisabledResponse(payload);
     }
 
     IPC::ClientLogPayload clientLogReq;

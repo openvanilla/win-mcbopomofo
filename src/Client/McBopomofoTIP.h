@@ -101,6 +101,8 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   void uninitThreadFocusSink_();
 
 
+  void updateProcessDisabledState_();
+  bool isProcessDisabled_() const { return processDisabled_; }
   void resetServerState_();
   bool shouldToggleOpenCloseWithShift_() const;
   bool handleStandaloneShiftKeyDown_(WPARAM wParam,
@@ -136,6 +138,7 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   class CLangBarButton* pSettingsButton_;
 
   bool shiftToggleKeyPending_ = false;
+  bool processDisabled_ = false;
 
   public:
   void ToggleOpenClose();

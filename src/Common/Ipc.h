@@ -40,6 +40,7 @@ enum class Command : int {
   CMD_OPEN_SETTINGS = 4,
   CMD_GET_SETTINGS = 5,
   CMD_CLIENT_LOG = 6,
+  CMD_IS_PROCESS_DISABLED = 7,
 };
 
 enum class CandidateSelectionStyle : int {
@@ -73,6 +74,14 @@ struct ClientLogPayload {
   unsigned long processId = 0;
   uint64_t elapsedMs = 0;
   std::string message;
+};
+
+struct ProcessDisabledQueryPayload {
+  std::string processName;
+};
+
+struct ProcessDisabledResponsePayload {
+  bool disabled = false;
 };
 
 
@@ -146,6 +155,15 @@ bool DeserializeClientSettings(const std::string& data,
 std::string SerializeClientLog(const ClientLogPayload& payload);
 // Deserialize a relayed client log message
 bool DeserializeClientLog(const std::string& data, ClientLogPayload& payload);
+
+std::string SerializeProcessDisabledQuery(
+    const ProcessDisabledQueryPayload& payload);
+bool DeserializeProcessDisabledQuery(const std::string& data,
+                                     ProcessDisabledQueryPayload& payload);
+std::string SerializeProcessDisabledResponse(
+    const ProcessDisabledResponsePayload& payload);
+bool DeserializeProcessDisabledResponse(const std::string& data,
+                                        ProcessDisabledResponsePayload& payload);
 
 
 

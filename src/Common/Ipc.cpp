@@ -257,6 +257,45 @@ bool DeserializeClientLog(const std::string& data, ClientLogPayload& payload) {
   return ReadSizedString(ss, payload.message) && HasNoTrailingData(ss);
 }
 
+std::string SerializeProcessDisabledQuery(
+    const ProcessDisabledQueryPayload& payload) {
+  std::ostringstream ss;
+  ss << (int)Command::CMD_IS_PROCESS_DISABLED << "\n";
+  WriteSizedString(ss, payload.processName);
+  return ss.str();
+}
+
+bool DeserializeProcessDisabledQuery(const std::string& data,
+                                     ProcessDisabledQueryPayload& payload) {
+  std::istringstream ss(data);
+  std::string line;
+
+  try {
+    if (!std::getline(ss, line)) return false;
+    if (std::stoi(line) != (int)Command::CMD_IS_PROCESS_DISABLED) return false;
+  } catch (...) {
+    return false;
+  }
+
+  return ReadSizedString(ss, payload.processName) && HasNoTrailingData(ss);
+}
+
+std::string SerializeProcessDisabledResponse(
+    const ProcessDisabledResponsePayload& payload) {
+  std::ostringstream ss;
+  ss << (payload.disabled ? 1 : 0) << "\n";
+  return ss.str();
+}
+
+bool DeserializeProcessDisabledResponse(
+    const std::string& data, ProcessDisabledResponsePayload& payload) {
+  std::istringstream ss(data);
+  std::string line;
+  if (!std::getline(ss, line)) return false;
+  payload.disabled = (line == "1");
+  return HasNoTrailingData(ss);
+}
+
 
 
 std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
