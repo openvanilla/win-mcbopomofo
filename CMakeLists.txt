@@ -83,6 +83,15 @@ target_include_directories(IpcTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAK
 target_link_libraries(IpcTest PRIVATE Common gtest_main)
 add_test(NAME IpcTest COMMAND IpcTest)
 
+add_executable(ConfigControlStateTest
+    tests/ConfigControlStateTest.cpp
+    src/ConfigApp/ControlState.cpp)
+target_include_directories(ConfigControlStateTest PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/ConfigApp
+    ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
+target_link_libraries(ConfigControlStateTest PRIVATE gtest_main user32)
+add_test(NAME ConfigControlStateTest COMMAND ConfigControlStateTest)
+
 add_executable(PipeTest tests/PipeTest.cpp)
 target_include_directories(PipeTest PRIVATE ${CMAKE_SOURCE_DIR}/src/Common ${CMAKE_SOURCE_DIR}/third_party/OpenCC/deps/googletest-1.15.0/googletest/include)
 target_link_libraries(PipeTest PRIVATE Common gtest_main)

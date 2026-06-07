@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "../Common/UTFHelper.h"
+#include "ControlState.h"
 #include "Ipc.h"
 #include "NamedPipe.h"
 #include "Settings.h"
@@ -393,18 +394,13 @@ int ComboSelection(HWND combo, int fallback) {
 }
 
 bool IsChecked(HWND control) {
-  if (IsRadioButton(control)) {
-    return GetWindowLongPtrW(control, GWLP_USERDATA) != 0;
-  }
-  return SendMessageW(control, BM_GETCHECK, 0, 0) == BST_CHECKED;
+  return McBopomofo::ConfigApp::IsButtonChecked(
+      control, IsRadioButton(control) || IsCheckButton(control));
 }
 
 void SetChecked(HWND control, bool checked) {
-  if (IsRadioButton(control)) {
-    SetWindowLongPtrW(control, GWLP_USERDATA, checked ? 1 : 0);
-    return;
-  }
-  SendMessageW(control, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
+  McBopomofo::ConfigApp::SetButtonChecked(
+      control, checked, IsRadioButton(control) || IsCheckButton(control));
 }
 
 HWND CreateLabel(HWND parent, const wchar_t* text, int x, int y, int width) {
