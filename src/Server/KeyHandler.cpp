@@ -632,6 +632,18 @@ bool KeyHandler::candidatePanelPunctuationMaybeEntered(
     return false;
   }
 
+  if (key.ascii == '`') {
+    auto newState = std::make_unique<InputStates::SelectingFeature>([this](std::string input) {
+      auto* lm = dynamic_cast<McBopomofoLM*>(this->lm_.get());
+      if (lm != nullptr) {
+        return lm->convertMacro(input);
+      }
+      return input;
+    });
+    stateCallback(std::move(newState));
+    return true;
+  }
+
   std::string unigramKey =
       std::string(kPunctuationListUnigramKey) + "_" + key.ascii;
   if (!lm_->hasUnigrams(unigramKey)) {
