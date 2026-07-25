@@ -47,9 +47,9 @@ static const WCHAR c_szModelName[] = L"ThreadingModel";
 static std::wstring LoadStringResourceForLanguage(HINSTANCE hInstance,
                                                   UINT resourceId,
                                                   LANGID langid) {
-  HRSRC resource = FindResourceExW(
-      hInstance, MAKEINTRESOURCEW(6), MAKEINTRESOURCEW((resourceId >> 4) + 1),
-      langid);
+  HRSRC resource =
+      FindResourceExW(hInstance, MAKEINTRESOURCEW(6),
+                      MAKEINTRESOURCEW((resourceId >> 4) + 1), langid);
   if (!resource) return L"";
 
   HGLOBAL resourceData = LoadResource(hInstance, resource);

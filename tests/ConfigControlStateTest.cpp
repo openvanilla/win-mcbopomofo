@@ -1,6 +1,5 @@
-#include <windows.h>
-
 #include <gtest/gtest.h>
+#include <windows.h>
 
 #include "ControlState.h"
 
@@ -9,9 +8,9 @@ namespace {
 class ConfigControlStateTest : public testing::Test {
  protected:
   void SetUp() override {
-    parent_ = CreateWindowExW(0, L"Static", L"", WS_OVERLAPPED, 0, 0, 200, 100,
-                              nullptr, nullptr, GetModuleHandleW(nullptr),
-                              nullptr);
+    parent_ =
+        CreateWindowExW(0, L"Static", L"", WS_OVERLAPPED, 0, 0, 200, 100,
+                        nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     ASSERT_NE(parent_, nullptr);
   }
 
@@ -23,9 +22,9 @@ class ConfigControlStateTest : public testing::Test {
   }
 
   HWND CreateButton(DWORD style) {
-    HWND button = CreateWindowExW(
-        0, L"Button", L"Test", WS_CHILD | style, 0, 0, 100, 24, parent_,
-        nullptr, GetModuleHandleW(nullptr), nullptr);
+    HWND button =
+        CreateWindowExW(0, L"Button", L"Test", WS_CHILD | style, 0, 0, 100, 24,
+                        parent_, nullptr, GetModuleHandleW(nullptr), nullptr);
     EXPECT_NE(button, nullptr);
     return button;
   }

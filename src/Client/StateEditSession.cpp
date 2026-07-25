@@ -442,7 +442,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
         }
       }
     }
-
   }
 
   if (state_.candidates.empty()) {
@@ -465,8 +464,6 @@ STDAPI CStateEditSession::DoEditSession(TfEditCookie ec) {
       pTIP_->GetReadingUIElement()->SetShown(FALSE);
     }
   }
-
-
 
   return S_OK;
 }

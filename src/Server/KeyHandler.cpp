@@ -22,7 +22,6 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #include "KeyHandler.h"
-#include "LanguageModelLoader.h"
 
 #include <algorithm>
 #include <chrono>
@@ -35,6 +34,8 @@
 #include "AssociatedPhrasesV2.h"
 #include "Big5Utils/Big5Utils.h"
 #include "BopomofoBraille/Converter.h"
+#include "IcuTransformInputHelper.h"
+#include "LanguageModelLoader.h"
 #include "McBopomofoLM.h"
 #include "NumberInputHelper.h"
 #include "UTF8Helper.h"
@@ -137,11 +138,6 @@ bool KeyHandler::handle(Key key, McBopomofo::InputState* state,
   auto* big5 = dynamic_cast<InputStates::Big5*>(state);
   if (big5 != nullptr) {
     return handleBig5(key, big5, stateCallback, errorCallback);
-  }
-
-  auto* iroha = dynamic_cast<InputStates::Iroha*>(state);
-  if (iroha != nullptr) {
-    return handleIroha(key, iroha, stateCallback, errorCallback);
   }
 
   // From Key's definition, if shiftPressed is true, it can't be a simple key
@@ -633,13 +629,14 @@ bool KeyHandler::candidatePanelPunctuationMaybeEntered(
   }
 
   if (key.ascii == '`') {
-    auto newState = std::make_unique<InputStates::SelectingFeature>([this](std::string input) {
-      auto* lm = dynamic_cast<McBopomofoLM*>(this->lm_.get());
-      if (lm != nullptr) {
-        return lm->convertMacro(input);
-      }
-      return input;
-    });
+    auto newState = std::make_unique<InputStates::SelectingFeature>(
+        [this](std::string input) {
+          auto* lm = dynamic_cast<McBopomofoLM*>(this->lm_.get());
+          if (lm != nullptr) {
+            return lm->convertMacro(input);
+          }
+          return input;
+        });
     stateCallback(std::move(newState));
     return true;
   }
@@ -1316,74 +1313,55 @@ bool KeyHandler::handleBig5(Key key, McBopomofo::InputStates::Big5* state,
   return true;
 }
 
-bool KeyHandler::handleIroha(Key key, McBopomofo::InputStates::Iroha* state,
-                             StateCallback stateCallback,
-                             KeyHandler::ErrorCallback errorCallback) {
+bool KeyHandler::handleIcuTransformInput(
+    Key key, McBopomofo::InputStates::IcuTransformInput* state,
+    StateCallback stateCallback, KeyHandler::ErrorCallback errorCallback) {
   if (key.ascii == Key::ESC) {
     stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
     return true;
   }
-
-  if (key.ascii == Key::RETURN || key.ascii == Key::SPACE) {
-    std::string code = state->code;
-    if (code.empty()) {
-      stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
-      return true;
-    }
-
-    std::string unigramKey = "_kana_" + code;
-    if (lm_->hasUnigrams(unigramKey)) {
-      auto unigrams = lm_->getUnigrams(unigramKey);
-      if (unigrams.size() == 1) {
-        std::string value = unigrams[0].value();
-        auto seq = std::make_unique<InputStates::StateSequence>();
-        seq->push_back(std::make_unique<InputStates::Committing>(value));
-        seq->push_back(std::make_unique<InputStates::Iroha>(""));
-        stateCallback(std::move(seq));
-      } else {
-        std::vector<std::string> candidates;
-        for (const auto& unigram : unigrams) {
-          candidates.emplace_back(unigram.value());
-        }
-        auto newState =
-            std::make_unique<InputStates::IrohaCandidate>(code, candidates);
-        stateCallback(std::move(newState));
-      }
-      return true;
-    } else {
-      errorCallback();
-      auto newState = std::make_unique<InputStates::Iroha>("");
-      stateCallback(std::move(newState));
-      return true;
-    }
-  }
-
   if (key.isDeleteKeys()) {
-    std::string code = state->code;
-    if (!code.empty()) {
-      code = code.substr(0, code.length() - 1);
-      auto newState = std::make_unique<InputStates::Iroha>(code);
+    std::string string = state->string;
+    if (!string.empty()) {
+      string = string.substr(0, string.length() - 1);
+      auto candidates =
+          IcuTransformInputHelper::FillCandidatesWithString(string);
+      auto newState =
+          std::make_unique<InputStates::IcuTransformInput>(string, candidates);
       stateCallback(std::move(newState));
-    } else {
-      stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
-    }
-    return true;
-  }
-
-  if ((key.ascii >= 'a' && key.ascii <= 'z') ||
-      (key.ascii >= 'A' && key.ascii <= 'Z')) {
-    char lowerAscii = static_cast<char>(std::tolower(key.ascii));
-    if (state->code.length() <= 4)  // Iroha code is 4 hex digits.
-    {
-      std::string code = state->code + lowerAscii;
-      auto newState = std::make_unique<InputStates::Iroha>(code);
-      stateCallback(std::move(newState));
+      return true;
     } else {
       errorCallback();
+      return true;
     }
-  } else {
-    errorCallback();
   }
+
+  char selectionKeys[10] = {'!', '@', '#', '$', '%', '^', '&', '*', '(', ')'};
+  for (size_t i = 0; i < state->candidates.size() && i < 10; ++i) {
+    if (key.ascii == selectionKeys[i]) {
+      return false;
+    }
+  }
+
+  if (std::isprint(static_cast<unsigned char>(key.ascii))) {
+    if (state->string.length() > 100) {
+      errorCallback();
+      return true;
+    }
+    std::string newString = state->string + key.ascii;
+    auto candidates =
+        IcuTransformInputHelper::FillCandidatesWithString(newString);
+    auto newState =
+        std::make_unique<InputStates::IcuTransformInput>(newString, candidates);
+    stateCallback(std::move(newState));
+    return true;
+  } else if (!state->candidates.empty()) {
+    // If the candidate panel is visible, let it handle the key.
+    return false;
+  }
+
+  // If the buffer is empty, all other keys (e.g. cursor keys) exit the state.
+  stateCallback(std::make_unique<InputStates::EmptyIgnoringPrevious>());
   return true;
 }
 

@@ -255,10 +255,9 @@ std::string NormalizeProcessName(std::string value) {
     value.erase(0, slash + 1);
   }
 
-  std::transform(value.begin(), value.end(), value.begin(),
-                 [](unsigned char c) {
-                   return static_cast<char>(std::tolower(c));
-                 });
+  std::transform(
+      value.begin(), value.end(), value.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   return value;
 }
 
@@ -339,8 +338,6 @@ void LogDataFileStatus(const char* label, const std::filesystem::path& path) {
   FCITX_MCBOPOMOFO_INFO() << label << ": " << path.string()
                           << ", exists: " << std::filesystem::exists(path);
 }
-
-
 
 void OpenFileInExplorer(const std::wstring& path) {
   std::wstring args = L"/select,\"" + path + L"\"";
@@ -434,8 +431,7 @@ static bool IsSystemColorSettingsChange(UINT msg, LPARAM lParam) {
   const auto area = reinterpret_cast<LPCWSTR>(lParam);
   return wcscmp(area, L"ImmersiveColorSet") == 0 ||
          wcscmp(area, L"WindowsThemeElement") == 0 ||
-         wcscmp(area, L"UserPreferences") == 0 ||
-         wcscmp(area, L"Policy") == 0;
+         wcscmp(area, L"UserPreferences") == 0 || wcscmp(area, L"Policy") == 0;
 }
 
 class ServerUI : public UIInterface {
@@ -476,7 +472,7 @@ class WinLocalizedStrings
   std::string cursorIsBetweenSyllables(
       const std::string& prevReading, const std::string& nextReading) override {
     std::wstring fmt = LoadLocalizedStringW(GetModuleHandle(NULL),
-                                             IDS_CURSOR_BETWEEN_SYLLABLES);
+                                            IDS_CURSOR_BETWEEN_SYLLABLES);
     WCHAR buffer[256] = {};
     swprintf_s(buffer, fmt.c_str(), Utf8ToUtf16(prevReading).c_str(),
                Utf8ToUtf16(nextReading).c_str());
@@ -506,7 +502,7 @@ class WinLocalizedStrings
 
   std::string pressEnterToAddThePhrase() override {
     return Utf16ToUtf8(LoadLocalizedStringW(GetModuleHandle(NULL),
-                                             IDS_PRESS_ENTER_TO_ADD_THE_PHRASE));
+                                            IDS_PRESS_ENTER_TO_ADD_THE_PHRASE));
   }
 
   std::string markedWithSyllablesAndStatus(const std::string&,
@@ -769,8 +765,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   LocalFree(argv);
 
   if (!lm->isDataModelLoaded()) {
-    FCITX_MCBOPOMOFO_ERROR()
-        << "Failed to load language model.";
+    FCITX_MCBOPOMOFO_ERROR() << "Failed to load language model.";
     if (hSingleInstanceMutex) {
       ReleaseMutex(hSingleInstanceMutex);
       CloseHandle(hSingleInstanceMutex);
@@ -936,10 +931,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       IPC::ProcessDisabledResponsePayload payload;
       payload.disabled = IsProcessDisabledByList(
           disabledAppsPath, processDisabledQuery.processName);
-      FCITX_MCBOPOMOFO_INFO()
-          << "IPC Recv: IS_PROCESS_DISABLED process="
-          << processDisabledQuery.processName
-          << " disabled=" << payload.disabled;
+      FCITX_MCBOPOMOFO_INFO() << "IPC Recv: IS_PROCESS_DISABLED process="
+                              << processDisabledQuery.processName
+                              << " disabled=" << payload.disabled;
       return IPC::SerializeProcessDisabledResponse(payload);
     }
 
@@ -950,8 +944,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
           << "ms] " << clientLogReq.message;
       return std::string("1");
     }
-
-
 
     FCITX_MCBOPOMOFO_WARN() << "IPC Failed to deserialize request.";
     return std::string();
@@ -966,9 +958,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   wcex.lpszClassName = L"WinMcBopomofoServerTray";
   RegisterClassExW(&wcex);
 
-  hwndTray = CreateWindowExW(0, L"WinMcBopomofoServerTray", L"",
-                             WS_OVERLAPPED, 0, 0, 0, 0, nullptr, NULL,
-                             wcex.hInstance, NULL);
+  hwndTray = CreateWindowExW(0, L"WinMcBopomofoServerTray", L"", WS_OVERLAPPED,
+                             0, 0, 0, 0, nullptr, NULL, wcex.hInstance, NULL);
   popupController.Create(hInst);
 
   NOTIFYICONDATAW nid = {sizeof(NOTIFYICONDATAW)};

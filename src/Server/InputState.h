@@ -288,21 +288,19 @@ struct Big5 : InputState {
   std::string hexCode;
 };
 
-struct Iroha : InputState {
-  explicit Iroha(std::string code = "") : code(std::move(code)) {}
-  Iroha(Iroha const& code) : code(code.code) {}
-  std::string composingBuffer() const { return "[伊呂波] " + code; }
-  std::string code;
-};
+struct IcuTransformInput : NotEmpty {
+  explicit IcuTransformInput(const std::string& string,
+                             std::vector<std::string> cs)
+      : NotEmpty("[文字轉換] " + string, ("[文字轉換] " + string).length(), ""),
+        string(string),
+        candidates(std::move(cs)) {}
+  IcuTransformInput(const IcuTransformInput& other)
+      : NotEmpty("[文字轉換] " + other.string,
+                 ("[文字轉換] " + other.string).length(), ""),
+        string(other.string),
+        candidates(other.candidates) {}
 
-struct IrohaCandidate : InputState {
-  explicit IrohaCandidate(std::string code = "",
-                          std::vector<std::string> candidates = {})
-      : code(std::move(code)), candidates(std::move(candidates)) {}
-  IrohaCandidate(IrohaCandidate const& other)
-      : code(other.code), candidates(other.candidates) {}
-  std::string composingBuffer() const { return "[伊呂波] " + code; }
-  std::string code;
+  std::string string;
   std::vector<std::string> candidates;
 };
 
@@ -332,8 +330,10 @@ struct SelectingFeature : InputState {
     features.emplace_back("數字輸入", []() {
       return std::make_unique<NumberInput>("", std::vector<std::string>());
     });
-    features.emplace_back("伊呂波假名輸入",
-                          []() { return std::make_unique<Iroha>(""); });
+    features.emplace_back("日韓多語拼音轉換", []() {
+      return std::make_unique<IcuTransformInput>("",
+                                                 std::vector<std::string>());
+    });
   }
 
   std::unique_ptr<InputState> nextState(size_t index) {

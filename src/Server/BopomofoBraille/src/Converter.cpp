@@ -27,11 +27,11 @@
 #include <cctype>
 #include <stdexcept>
 
+#include "Engine/UTF8Helper.h"
 #include "Tokens/Digits.h"
 #include "Tokens/FullWidthPunctuation.h"
 #include "Tokens/HalfWidthPunctuation.h"
 #include "Tokens/Letter.h"
-#include "Engine/UTF8Helper.h"
 
 namespace McBopomofo {
 

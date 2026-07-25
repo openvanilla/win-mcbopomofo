@@ -84,8 +84,6 @@ struct ProcessDisabledResponsePayload {
   bool disabled = false;
 };
 
-
-
 struct CandidateWindowColors {
   uint32_t text = 0x101010;
   uint32_t background = 0xFFFFFF;
@@ -162,10 +160,8 @@ bool DeserializeProcessDisabledQuery(const std::string& data,
                                      ProcessDisabledQueryPayload& payload);
 std::string SerializeProcessDisabledResponse(
     const ProcessDisabledResponsePayload& payload);
-bool DeserializeProcessDisabledResponse(const std::string& data,
-                                        ProcessDisabledResponsePayload& payload);
-
-
+bool DeserializeProcessDisabledResponse(
+    const std::string& data, ProcessDisabledResponsePayload& payload);
 
 // Serialize a state update to a string
 std::string SerializeStateUpdate(const StateUpdatePayload& payload);

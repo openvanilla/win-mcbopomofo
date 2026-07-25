@@ -23,17 +23,19 @@
 
 // Windows adaptation of MemoryMappedFile for Win-McBopomofo.
 //
-// On POSIX systems (Linux and macOS), memory-mapped files are typically implemented using
-// standard system calls like open(), mmap(), and munmap(). However, Windows does not natively
-// support these POSIX APIs.
+// On POSIX systems (Linux and macOS), memory-mapped files are typically
+// implemented using standard system calls like open(), mmap(), and munmap().
+// However, Windows does not natively support these POSIX APIs.
 //
-// Since the McBopomofo core engine relies on memory-mapped dictionary files for highly-efficient,
-// low-overhead read access to the language model databases, a custom abstraction is needed on Windows.
-// This Windows implementation of MemoryMappedFile bridges that gap by wrapping the native Win32
-// memory mapping APIs (CreateFileW, CreateFileMappingW, MapViewOfFile, and UnmapViewOfFile).
+// Since the McBopomofo core engine relies on memory-mapped dictionary files for
+// highly-efficient, low-overhead read access to the language model databases, a
+// custom abstraction is needed on Windows. This Windows implementation of
+// MemoryMappedFile bridges that gap by wrapping the native Win32 memory mapping
+// APIs (CreateFileW, CreateFileMappingW, MapViewOfFile, and UnmapViewOfFile).
 //
-// By providing this Windows-specific implementation behind a unified MemoryMappedFile interface,
-// the core engine's database loading logic remains completely platform-independent.
+// By providing this Windows-specific implementation behind a unified
+// MemoryMappedFile interface, the core engine's database loading logic remains
+// completely platform-independent.
 #include "MemoryMappedFile.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -63,12 +65,13 @@ MemoryMappedFile::~MemoryMappedFile() { close(); }
 bool MemoryMappedFile::open(const char* path) {
   close();
 
-  // To maintain cross-platform interface compatibility with Linux and macOS (where paths
-  // are natively UTF-8 encoded char* strings), the core engine passes paths as UTF-8 narrow
-  // strings on all platforms. On Windows, however, native APIs like CreateFileW require UTF-16
-  // (wchar_t). Therefore, we explicitly convert the UTF-8 path to UTF-16 here to ensure we can
-  // correctly open files containing any unicode characters (such as Chinese or non-ASCII paths)
-  // while preserving the engine's clean, cross-platform architecture.
+  // To maintain cross-platform interface compatibility with Linux and macOS
+  // (where paths are natively UTF-8 encoded char* strings), the core engine
+  // passes paths as UTF-8 narrow strings on all platforms. On Windows, however,
+  // native APIs like CreateFileW require UTF-16 (wchar_t). Therefore, we
+  // explicitly convert the UTF-8 path to UTF-16 here to ensure we can correctly
+  // open files containing any unicode characters (such as Chinese or non-ASCII
+  // paths) while preserving the engine's clean, cross-platform architecture.
   int wlen = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
   if (wlen == 0) return false;
   std::wstring wpath(wlen, 0);

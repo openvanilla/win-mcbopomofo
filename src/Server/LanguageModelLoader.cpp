@@ -39,8 +39,7 @@ constexpr char kDataPath[] = "data/data.txt";
 constexpr char kDataPathPlainBPMF[] = "data/data-plain-bpmf.txt";
 constexpr char kUserPhraseFilename[] = "user.txt";
 constexpr char kExcludedPhraseFilename[] = "exclude.txt";
-constexpr char kAssociatedPhrasesV2Path[] =
-    "data/associated-phrases-v2.txt";
+constexpr char kAssociatedPhrasesV2Path[] = "data/associated-phrases-v2.txt";
 constexpr char kPhrasesReplacementFilename[] = "phrases-replacement.txt";
 constexpr char kBpmfvPUAFilename[] = "data/bpmfvs-pua.txt";
 constexpr char kBpmfvVariantsFilename[] = "data/bpmfvs-variants.txt";
@@ -256,18 +255,21 @@ bool LanguageModelLoader::reloadUserModelsIfNeeded() {
   }
 
 #ifdef _WIN32
-  // On Windows, std::filesystem::path::string() converts native UTF-16 to the active
-  // system ANSI code page (e.g., CP950/Big5 on Traditional Chinese locale), which
-  // corrupts paths containing characters outside that code page. Since MemoryMappedFile
-  // expects a UTF-8 encoded const char* path on all platforms, we explicitly convert
-  // the native UTF-16 path (wstring()) to UTF-8 using Utf16ToUtf8.
+  // On Windows, std::filesystem::path::string() converts native UTF-16 to the
+  // active system ANSI code page (e.g., CP950/Big5 on Traditional Chinese
+  // locale), which corrupts paths containing characters outside that code page.
+  // Since MemoryMappedFile expects a UTF-8 encoded const char* path on all
+  // platforms, we explicitly convert the native UTF-16 path (wstring()) to
+  // UTF-8 using Utf16ToUtf8.
   if (shouldReloadUserPhrases) {
-    lm_->loadUserPhrases(Utf16ToUtf8(userPhrasesPath_.path().wstring()).c_str(),
-                         Utf16ToUtf8(excludedPhrasesPath_.path().wstring()).c_str());
+    lm_->loadUserPhrases(
+        Utf16ToUtf8(userPhrasesPath_.path().wstring()).c_str(),
+        Utf16ToUtf8(excludedPhrasesPath_.path().wstring()).c_str());
   }
 
   if (shouldReloadPhrasesReplacement) {
-    lm_->loadPhraseReplacementMap(Utf16ToUtf8(phrasesReplacementPath_.path().wstring()).c_str());
+    lm_->loadPhraseReplacementMap(
+        Utf16ToUtf8(phrasesReplacementPath_.path().wstring()).c_str());
   }
 #else
   if (shouldReloadUserPhrases) {

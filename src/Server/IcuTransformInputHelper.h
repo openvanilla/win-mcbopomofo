@@ -1,4 +1,4 @@
-// Copyright (c) 2026 and onwards The McBopomofo Authors.
+// Copyright (c) 2022 and onwards The McBopomofo Authors.
 //
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
@@ -21,38 +21,19 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-#include <gtest/gtest.h>
+#ifndef MCBOPOMOFO_SRC_ICUTRANSFORMINPUTHELPER_H_
+#define MCBOPOMOFO_SRC_ICUTRANSFORMINPUTHELPER_H_
 
+#include <memory>
 #include <string>
-
-#include "InputMacro.h"
+#include <vector>
 
 namespace McBopomofo {
-namespace {
+namespace IcuTransformInputHelper {
 
-TEST(InputMacroTest, BasicMacroTest) {
-  InputMacroController controller;
+std::vector<std::string> FillCandidatesWithString(const std::string& string);
 
-  // Verify that the controller can handle registered macros
-  std::string thisYear = controller.handle("MACRO@THIS_YEAR_PLAIN");
-  EXPECT_FALSE(thisYear.empty());
-  EXPECT_NE(thisYear.find("年"), std::string::npos);
-
-  std::string todayShort = controller.handle("MACRO@DATE_TODAY_SHORT");
-  EXPECT_FALSE(todayShort.empty());
-
-  std::string rocYear = controller.handle("MACRO@THIS_YEAR_ROC");
-  EXPECT_FALSE(rocYear.empty());
-  EXPECT_NE(rocYear.find("民國"), std::string::npos);
-
-  std::string ganzhi = controller.handle("MACRO@THIS_YEAR_GANZHI");
-  EXPECT_FALSE(ganzhi.empty());
-  EXPECT_NE(ganzhi.find("年"), std::string::npos);
-
-  std::string zodiac = controller.handle("MACRO@THIS_YEAR_CHINESE_ZODIAC");
-  EXPECT_FALSE(zodiac.empty());
-  EXPECT_NE(zodiac.find("年"), std::string::npos);
-}
-
-}  // namespace
+}  // namespace IcuTransformInputHelper
 }  // namespace McBopomofo
+
+#endif /* MCBOPOMOFO_SRC_ICUTRANSFORMINPUTHELPER_H_ */

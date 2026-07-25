@@ -81,11 +81,8 @@ const char* StateName(InputState* state) {
   if (dynamic_cast<InputStates::Big5*>(state) != nullptr) {
     return "Big5";
   }
-  if (dynamic_cast<InputStates::IrohaCandidate*>(state) != nullptr) {
-    return "IrohaCandidate";
-  }
-  if (dynamic_cast<InputStates::Iroha*>(state) != nullptr) {
-    return "Iroha";
+  if (dynamic_cast<InputStates::IcuTransformInput*>(state) != nullptr) {
+    return "IcuTransformInput";
   }
   if (dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr) {
     return "SelectingFeature";
@@ -139,8 +136,8 @@ int CandidateCount(InputState* state) {
           dynamic_cast<InputStates::SelectingDateMacro*>(state)) {
     return static_cast<int>(selectingDateMacro->menu.size());
   }
-  if (auto* iroha = dynamic_cast<InputStates::IrohaCandidate*>(state)) {
-    return static_cast<int>(iroha->candidates.size());
+  if (auto* icu = dynamic_cast<InputStates::IcuTransformInput*>(state)) {
+    return static_cast<int>(icu->candidates.size());
   }
   if (auto* customMenu = dynamic_cast<InputStates::CustomMenu*>(state)) {
     return static_cast<int>(customMenu->entries.size());
@@ -158,12 +155,13 @@ bool IsCandidateState(InputState* state) {
          dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||
          dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr ||
          dynamic_cast<InputStates::SelectingDateMacro*>(state) != nullptr ||
-         dynamic_cast<InputStates::IrohaCandidate*>(state) != nullptr ||
+         dynamic_cast<InputStates::IcuTransformInput*>(state) != nullptr ||
          dynamic_cast<InputStates::CustomMenu*>(state) != nullptr;
 }
 
 bool IsForcedVerticalCandidateState(InputState* state) {
   if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||
+      dynamic_cast<InputStates::IcuTransformInput*>(state) != nullptr ||
       dynamic_cast<InputStates::SelectingDictionary*>(state) != nullptr ||
       dynamic_cast<InputStates::ShowingCharInfo*>(state) != nullptr ||
       dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr ||
@@ -267,6 +265,7 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   }
 
   if (dynamic_cast<InputStates::NumberInput*>(state) != nullptr ||
+      dynamic_cast<InputStates::IcuTransformInput*>(state) != nullptr ||
       dynamic_cast<InputStates::SelectingDictionary*>(state) != nullptr ||
       dynamic_cast<InputStates::ShowingCharInfo*>(state) != nullptr ||
       dynamic_cast<InputStates::SelectingFeature*>(state) != nullptr ||
@@ -333,6 +332,7 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
       payload.candidates.push_back(c.value);
     }
   } else if (auto* numInput = dynamic_cast<InputStates::NumberInput*>(state)) {
+    payload.selectionStyle = IPC::CandidateSelectionStyle::kShiftDigits;
     payload.composingBuffer = numInput->composingBuffer;
     payload.cursorIndex = static_cast<int>(numInput->cursorIndex);
     for (const auto& c : numInput->candidates) {
@@ -341,9 +341,12 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   } else if (auto* big5 = dynamic_cast<InputStates::Big5*>(state)) {
     payload.composingBuffer = big5->composingBuffer();
     payload.cursorIndex = static_cast<int>(payload.composingBuffer.length());
-  } else if (auto* irohaState = dynamic_cast<InputStates::Iroha*>(state)) {
-    payload.composingBuffer = irohaState->composingBuffer();
-    payload.cursorIndex = static_cast<int>(payload.composingBuffer.length());
+  } else if (auto* icuTransformInput =
+                 dynamic_cast<InputStates::IcuTransformInput*>(state)) {
+    payload.selectionStyle = IPC::CandidateSelectionStyle::kShiftDigits;
+    payload.composingBuffer = icuTransformInput->composingBuffer;
+    payload.cursorIndex = static_cast<int>(icuTransformInput->cursorIndex);
+    payload.candidates = icuTransformInput->candidates;
   } else if (auto* selectingFeature =
                  dynamic_cast<InputStates::SelectingFeature*>(state)) {
     for (const auto& feature : selectingFeature->features) {
@@ -352,10 +355,6 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
   } else if (auto* selectingDateMacro =
                  dynamic_cast<InputStates::SelectingDateMacro*>(state)) {
     payload.candidates = selectingDateMacro->menu;
-  } else if (auto* iroha = dynamic_cast<InputStates::IrohaCandidate*>(state)) {
-    payload.composingBuffer = iroha->composingBuffer();
-    payload.cursorIndex = static_cast<int>(payload.composingBuffer.length());
-    payload.candidates = iroha->candidates;
   } else if (auto* customMenu = dynamic_cast<InputStates::CustomMenu*>(state)) {
     payload.composingBuffer = customMenu->composingBuffer;
     payload.cursorIndex = static_cast<int>(customMenu->cursorIndex);
@@ -462,6 +461,18 @@ bool InputController::handleKey(const Key& key) {
     }
   }
 
+  if (auto* icuTransformInput =
+          dynamic_cast<InputStates::IcuTransformInput*>(currentState_.get())) {
+    if (keyHandler_->handleIcuTransformInput(
+            key, icuTransformInput,
+            [this](std::unique_ptr<InputState> state) {
+              enterNewState_(std::move(currentState_), std::move(state));
+            },
+            [this]() { handleError_(); })) {
+      return true;
+    }
+  }
+
   if (IsCandidateState(currentState_.get())) {
     bool result = handleCandidateKey_(
         key,
@@ -493,6 +504,8 @@ bool InputController::handleCandidateKey_(
       dynamic_cast<InputStates::AssociatedPhrasesPlain*>(currentState_.get());
   auto* numberInput =
       dynamic_cast<InputStates::NumberInput*>(currentState_.get());
+  auto* icuTransformInput =
+      dynamic_cast<InputStates::IcuTransformInput*>(currentState_.get());
   auto* choosingPunctuation =
       dynamic_cast<InputStates::ChoosingPunctuationList*>(currentState_.get());
   auto* choosing =
@@ -534,7 +547,8 @@ bool InputController::handleCandidateKey_(
     candidateIndex_ = 0;
   }
 
-  bool useShiftKey = numberInput != nullptr || associatedPlain != nullptr;
+  bool useShiftKey = numberInput != nullptr || icuTransformInput != nullptr ||
+                     associatedPlain != nullptr;
   char ascii = static_cast<char>(
       std::tolower(static_cast<unsigned char>(static_cast<char>(key.ascii))));
 
@@ -933,14 +947,13 @@ void InputController::selectCandidate_(
     return;
   }
 
-  if (auto* iroha =
-          dynamic_cast<InputStates::IrohaCandidate*>(currentState_.get())) {
-    if (index >= 0 && index < static_cast<int>(iroha->candidates.size())) {
-      std::string text = iroha->candidates[index];
-      auto seq = std::make_unique<InputStates::StateSequence>();
-      seq->push_back(std::make_unique<InputStates::Committing>(text));
-      seq->push_back(std::make_unique<InputStates::Iroha>(""));
-      stateCallback(std::move(seq));
+  if (auto* icuTransformInput =
+          dynamic_cast<InputStates::IcuTransformInput*>(currentState_.get())) {
+    if (index >= 0 &&
+        index < static_cast<int>(icuTransformInput->candidates.size())) {
+      candidateIndex_ = -1;
+      std::string text = icuTransformInput->candidates[index];
+      stateCallback(std::make_unique<InputStates::Committing>(text));
     }
     return;
   }

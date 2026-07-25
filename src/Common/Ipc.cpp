@@ -296,8 +296,6 @@ bool DeserializeProcessDisabledResponse(
   return HasNoTrailingData(ss);
 }
 
-
-
 std::string SerializeStateUpdate(const StateUpdatePayload& payload) {
   std::ostringstream ss;
   ss << (payload.consumed ? 1 : 0) << "\n"
