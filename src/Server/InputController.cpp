@@ -332,6 +332,7 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
       payload.candidates.push_back(c.value);
     }
   } else if (auto* numInput = dynamic_cast<InputStates::NumberInput*>(state)) {
+    payload.selectionStyle = IPC::CandidateSelectionStyle::kShiftDigits;
     payload.composingBuffer = numInput->composingBuffer;
     payload.cursorIndex = static_cast<int>(numInput->cursorIndex);
     for (const auto& c : numInput->candidates) {
@@ -342,6 +343,7 @@ IPC::StateUpdatePayload InputController::buildStateUpdatePayload_() const {
     payload.cursorIndex = static_cast<int>(payload.composingBuffer.length());
   } else if (auto* icuTransformInput =
                  dynamic_cast<InputStates::IcuTransformInput*>(state)) {
+    payload.selectionStyle = IPC::CandidateSelectionStyle::kShiftDigits;
     payload.composingBuffer = icuTransformInput->composingBuffer;
     payload.cursorIndex = static_cast<int>(icuTransformInput->cursorIndex);
     payload.candidates = icuTransformInput->candidates;

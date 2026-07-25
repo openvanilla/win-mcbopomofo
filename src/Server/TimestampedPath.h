@@ -43,7 +43,8 @@ class TimestampedPath {
  public:
   TimestampedPath() {}
 #ifdef _WIN32
-  explicit TimestampedPath(const std::string& path) : path_(Utf8ToUtf16(path)) {}
+  explicit TimestampedPath(const std::string& path)
+      : path_(Utf8ToUtf16(path)) {}
 #else
   explicit TimestampedPath(const std::string& path) : path_(path) {}
 #endif

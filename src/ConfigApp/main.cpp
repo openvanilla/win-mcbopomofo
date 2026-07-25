@@ -21,12 +21,14 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
+// clang-format off
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <commctrl.h>
 #include <dwmapi.h>
 #include <shellapi.h>
 #include <uxtheme.h>
+// clang-format on
 
 #include <algorithm>
 #include <array>
@@ -265,8 +267,7 @@ void CacheChildBaseRects(HWND hwnd) {
     rect.right = bottomRight.x;
     rect.bottom = bottomRight.y + g_ScrollPos;
     g_ChildBaseRects.emplace_back(child, rect);
-    g_ContentHeight =
-        std::max(g_ContentHeight, static_cast<int>(rect.bottom));
+    g_ContentHeight = std::max(g_ContentHeight, static_cast<int>(rect.bottom));
   }
   g_ContentHeight += Scale(20);
 }
@@ -283,9 +284,8 @@ void ReflowChildControls(int scrollPos) {
     }
     const int width = rect.right - rect.left;
     const int height = rect.bottom - rect.top;
-    hdwp = DeferWindowPos(hdwp, child, nullptr, rect.left,
-                          rect.top - scrollPos, width, height,
-                          SWP_NOZORDER | SWP_NOACTIVATE);
+    hdwp = DeferWindowPos(hdwp, child, nullptr, rect.left, rect.top - scrollPos,
+                          width, height, SWP_NOZORDER | SWP_NOACTIVATE);
     if (!hdwp) {
       return;
     }
@@ -422,10 +422,10 @@ HWND CreateSectionTitle(HWND parent, const wchar_t* text, int x, int y,
 
 HWND CreateGroup(HWND parent, int x, int y, int width, int height) {
   TrackContentBottom(y, height);
-  HWND group = CreateWindowW(
-      L"Button", L"", WS_VISIBLE | WS_CHILD | BS_GROUPBOX | BS_OWNERDRAW,
-      Scale(x), Scale(y), Scale(width), Scale(height), parent, nullptr, nullptr,
-      nullptr);
+  HWND group = CreateWindowW(L"Button", L"",
+                             WS_VISIBLE | WS_CHILD | BS_GROUPBOX | BS_OWNERDRAW,
+                             Scale(x), Scale(y), Scale(width), Scale(height),
+                             parent, nullptr, nullptr, nullptr);
   g_GroupBoxes.push_back(group);
   return TrackControl(group);
 }
@@ -443,18 +443,17 @@ HWND CreateCombo(HWND parent, int x, int y, int width) {
 
 HWND CreateCheck(HWND parent, const wchar_t* text, int x, int y, int width) {
   TrackContentBottom(y, 24);
-  HWND check = CreateWindowW(L"Button", text,
-                             WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX,
-                             Scale(x), Scale(y), Scale(width), Scale(24), parent,
-                             nullptr, nullptr, nullptr);
+  HWND check = CreateWindowW(
+      L"Button", text, WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTOCHECKBOX,
+      Scale(x), Scale(y), Scale(width), Scale(24), parent, nullptr, nullptr,
+      nullptr);
   return TrackControl(check);
 }
 
 HWND CreateRadio(HWND parent, const wchar_t* text, int x, int y, int width,
                  bool startsGroup) {
   TrackContentBottom(y, 24);
-  DWORD style =
-      WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON;
+  DWORD style = WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_AUTORADIOBUTTON;
   if (startsGroup) {
     style |= WS_GROUP;
   }
@@ -479,10 +478,9 @@ HWND CreateLink(HWND parent, const wchar_t* text, int x, int y, int width,
 
 HWND CreateSeparator(HWND parent, int x, int y, int width) {
   TrackContentBottom(y, 8);
-  HWND separator = CreateWindowW(L"Static", L"",
-                                 WS_VISIBLE | WS_CHILD | SS_OWNERDRAW,
-                                 Scale(x), Scale(y), Scale(width), Scale(8),
-                                 parent, nullptr, nullptr, nullptr);
+  HWND separator = CreateWindowW(
+      L"Static", L"", WS_VISIBLE | WS_CHILD | SS_OWNERDRAW, Scale(x), Scale(y),
+      Scale(width), Scale(8), parent, nullptr, nullptr, nullptr);
   g_Separators.push_back(separator);
   return separator;
 }
@@ -616,8 +614,8 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
     RECT lineRect = rect;
     lineRect.top = rect.top + ((rect.bottom - rect.top) / 2);
     lineRect.bottom = lineRect.top + 1;
-    HBRUSH lineBrush = CreateSolidBrush(g_DarkMode ? RGB(92, 94, 99)
-                                                   : RGB(210, 214, 220));
+    HBRUSH lineBrush =
+        CreateSolidBrush(g_DarkMode ? RGB(92, 94, 99) : RGB(210, 214, 220));
     FillRect(hdc, &lineRect, lineBrush);
     DeleteObject(lineBrush);
     return;
@@ -635,8 +633,7 @@ void DrawOwnerDrawButton(const DRAWITEMSTRUCT* item) {
     return;
   }
 
-  COLORREF buttonColor =
-      g_DarkMode ? RGB(55, 57, 62) : RGB(255, 255, 255);
+  COLORREF buttonColor = g_DarkMode ? RGB(55, 57, 62) : RGB(255, 255, 255);
   HBRUSH buttonBrush = CreateSolidBrush(buttonColor);
   FillRect(hdc, &rect, buttonBrush);
   DeleteObject(buttonBrush);
@@ -853,11 +850,13 @@ void LocalizeControls(HWND hwnd) {
 
 void InitializeComboContents() {
   for (const auto id : kInputModeLabels) {
-    AddComboString(hModeCombo, LoadLocalizedStringW(GetModuleHandle(nullptr), id).c_str());
+    AddComboString(hModeCombo,
+                   LoadLocalizedStringW(GetModuleHandle(nullptr), id).c_str());
   }
   for (const auto& option : kLayoutOptions) {
-    AddComboString(hLayoutCombo,
-                   LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
+    AddComboString(
+        hLayoutCombo,
+        LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
   }
   for (const auto& option : kCandidateKeyOptions) {
     std::wstring ws(option.value, option.value + strlen(option.value));
@@ -869,8 +868,9 @@ void InitializeComboContents() {
     AddComboString(hCandidateKeysCountCombo, text);
   }
   for (const auto& option : kSelectionActionOptions) {
-    AddComboString(hSelectionActionCombo,
-                   LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
+    AddComboString(
+        hSelectionActionCombo,
+        LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
   }
   for (int fontSize : kCandidateFontSizes) {
     wchar_t text[4] = {};
@@ -878,8 +878,9 @@ void InitializeComboContents() {
     AddComboString(hCandidateFontSizeCombo, text);
   }
   for (const auto& option : kCtrlEnterOptions) {
-    AddComboString(hCtrlEnterCombo,
-                   LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
+    AddComboString(
+        hCtrlEnterCombo,
+        LoadLocalizedStringW(GetModuleHandle(nullptr), option.labelId).c_str());
   }
 }
 
@@ -940,12 +941,11 @@ void BindControls(HWND hwnd) {
   g_LinkLabels.push_back(hManualLink);
   g_LinkLabels.push_back(hProjectHomepageLink);
 
-  for (HWND control : {
-           hChooseSpaceCheck, hSelectBeforeRadio, hSelectAfterRadio,
-           hMoveCursorCheck, hVerticalRadio, hHorizontalRadio,
-           hShiftToggleCheck, hUppercaseRadio, hLowercaseRadio,
-           hShiftEnterCheck, hEscClearCheck, hRepeatedPunctuationCheck,
-           hErrorBeepCheck}) {
+  for (HWND control :
+       {hChooseSpaceCheck, hSelectBeforeRadio, hSelectAfterRadio,
+        hMoveCursorCheck, hVerticalRadio, hHorizontalRadio, hShiftToggleCheck,
+        hUppercaseRadio, hLowercaseRadio, hShiftEnterCheck, hEscClearCheck,
+        hRepeatedPunctuationCheck, hErrorBeepCheck}) {
     if (control != nullptr) {
       LONG_PTR style = GetWindowLongPtrW(control, GWL_STYLE);
       SetWindowLongPtrW(control, GWL_STYLE,
@@ -953,14 +953,27 @@ void BindControls(HWND hwnd) {
     }
   }
 
-  for (HWND control : {hReloadBtn, hModeCombo, hLayoutCombo, hCandidateKeysCombo,
-                       hChooseSpaceCheck, hCandidateKeysCountCombo,
-                       hSelectionActionCombo, hSelectBeforeRadio,
-                       hSelectAfterRadio, hMoveCursorCheck, hVerticalRadio,
-                       hHorizontalRadio, hCandidateFontSizeCombo,
-                       hShiftToggleCheck, hUppercaseRadio, hLowercaseRadio,
-                       hShiftEnterCheck, hEscClearCheck, hCtrlEnterCombo,
-                       hRepeatedPunctuationCheck, hErrorBeepCheck}) {
+  for (HWND control : {hReloadBtn,
+                       hModeCombo,
+                       hLayoutCombo,
+                       hCandidateKeysCombo,
+                       hChooseSpaceCheck,
+                       hCandidateKeysCountCombo,
+                       hSelectionActionCombo,
+                       hSelectBeforeRadio,
+                       hSelectAfterRadio,
+                       hMoveCursorCheck,
+                       hVerticalRadio,
+                       hHorizontalRadio,
+                       hCandidateFontSizeCombo,
+                       hShiftToggleCheck,
+                       hUppercaseRadio,
+                       hLowercaseRadio,
+                       hShiftEnterCheck,
+                       hEscClearCheck,
+                       hCtrlEnterCombo,
+                       hRepeatedPunctuationCheck,
+                       hErrorBeepCheck}) {
     if (control != nullptr) {
       SetWindowTheme(control, g_DarkMode ? L"DarkMode_Explorer" : L"Explorer",
                      nullptr);
@@ -1167,7 +1180,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
   HANDLE hSingleInstanceMutex =
       CreateMutexW(nullptr, TRUE, kSingleInstanceMutexName);
   if (hSingleInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
-    std::wstring windowTitle = LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE);
+    std::wstring windowTitle =
+        LoadLocalizedStringW(hInstance, IDS_CONFIG_TITLE);
     HWND existingWindow = FindWindowW(L"#32770", windowTitle.c_str());
     if (existingWindow) {
       ShowWindow(existingWindow, SW_RESTORE);

@@ -332,7 +332,7 @@ struct SelectingFeature : InputState {
     });
     features.emplace_back("日韓多語拼音轉換", []() {
       return std::make_unique<IcuTransformInput>("",
-                                                  std::vector<std::string>());
+                                                 std::vector<std::string>());
     });
   }
 

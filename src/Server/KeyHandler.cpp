@@ -22,7 +22,6 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #include "KeyHandler.h"
-#include "LanguageModelLoader.h"
 
 #include <algorithm>
 #include <chrono>
@@ -36,6 +35,7 @@
 #include "Big5Utils/Big5Utils.h"
 #include "BopomofoBraille/Converter.h"
 #include "IcuTransformInputHelper.h"
+#include "LanguageModelLoader.h"
 #include "McBopomofoLM.h"
 #include "NumberInputHelper.h"
 #include "UTF8Helper.h"
@@ -629,13 +629,14 @@ bool KeyHandler::candidatePanelPunctuationMaybeEntered(
   }
 
   if (key.ascii == '`') {
-    auto newState = std::make_unique<InputStates::SelectingFeature>([this](std::string input) {
-      auto* lm = dynamic_cast<McBopomofoLM*>(this->lm_.get());
-      if (lm != nullptr) {
-        return lm->convertMacro(input);
-      }
-      return input;
-    });
+    auto newState = std::make_unique<InputStates::SelectingFeature>(
+        [this](std::string input) {
+          auto* lm = dynamic_cast<McBopomofoLM*>(this->lm_.get());
+          if (lm != nullptr) {
+            return lm->convertMacro(input);
+          }
+          return input;
+        });
     stateCallback(std::move(newState));
     return true;
   }
@@ -1350,8 +1351,8 @@ bool KeyHandler::handleIcuTransformInput(
     std::string newString = state->string + key.ascii;
     auto candidates =
         IcuTransformInputHelper::FillCandidatesWithString(newString);
-    auto newState = std::make_unique<InputStates::IcuTransformInput>(
-        newString, candidates);
+    auto newState =
+        std::make_unique<InputStates::IcuTransformInput>(newString, candidates);
     stateCallback(std::move(newState));
     return true;
   } else if (!state->candidates.empty()) {

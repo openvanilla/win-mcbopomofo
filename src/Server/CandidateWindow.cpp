@@ -80,8 +80,7 @@ bool IsSystemColorSettingsChange(UINT msg, LPARAM lParam) {
   const auto area = reinterpret_cast<LPCWSTR>(lParam);
   return wcscmp(area, L"ImmersiveColorSet") == 0 ||
          wcscmp(area, L"WindowsThemeElement") == 0 ||
-         wcscmp(area, L"UserPreferences") == 0 ||
-         wcscmp(area, L"Policy") == 0;
+         wcscmp(area, L"UserPreferences") == 0 || wcscmp(area, L"Policy") == 0;
 }
 
 bool IsEmojiCodePoint(char32_t cp) {

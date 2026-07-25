@@ -347,9 +347,8 @@ STDMETHODIMP CLangBarButton::Show(BOOL fShow) {
 STDMETHODIMP CLangBarButton::GetTooltipString(BSTR* pbstrToolTip) {
   if (!pbstrToolTip) return E_INVALIDARG;
   if (kind_ == Kind::SettingsMenu) {
-    *pbstrToolTip =
-        SysAllocString(McBopomofo::LoadLocalizedStringW(g_hInst, IDS_SETTINGS)
-                           .c_str());
+    *pbstrToolTip = SysAllocString(
+        McBopomofo::LoadLocalizedStringW(g_hInst, IDS_SETTINGS).c_str());
     return S_OK;
   }
   *pbstrToolTip = SysAllocString(

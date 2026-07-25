@@ -995,8 +995,6 @@ bool McBopomofoTIP::IsOpen() {
   return true;
 }
 
-
-
 void McBopomofoTIP::applyStateToContext_(
     ITfContext* context, const McBopomofo::IPC::StateUpdatePayload& state,
     const char* logPrefix) {

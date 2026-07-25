@@ -100,7 +100,6 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   BOOL initThreadFocusSink_();
   void uninitThreadFocusSink_();
 
-
   void updateProcessDisabledState_();
   bool isProcessDisabled_() const { return processDisabled_; }
   void resetServerState_();
@@ -140,7 +139,7 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
   bool shiftToggleKeyPending_ = false;
   bool processDisabled_ = false;
 
-  public:
+ public:
   void ToggleOpenClose();
   bool IsOpen();
   void RefreshLangBar();
@@ -151,7 +150,6 @@ class McBopomofoTIP : public ITfTextInputProcessorEx,
  public:
   ITfComposition* GetComposition() const { return pComposition_; }
   void SetComposition(ITfComposition* pComp) { pComposition_ = pComp; }
-
 
   ITfUIElementMgr* GetUIElementMgr() const { return pUIElementMgr_; }
   CCandidateListUIElement* GetCandidateUIElement() const {
