@@ -28,6 +28,7 @@ add_library(McBopomofoEngine STATIC
     ${SERVER_DIR}/ChineseNumbers/SuzhouNumbers.cpp
     ${SERVER_DIR}/RomanNumbers/RomanNumbers.cpp
     ${SERVER_DIR}/NumberInputHelper.cpp
+    ${SERVER_DIR}/IcuTransformInputHelper.cpp
     ${SERVER_DIR}/DictionaryService.cpp
     ${SERVER_DIR}/InputMacro.cpp
 )
@@ -41,7 +42,7 @@ target_include_directories(McBopomofoEngine PUBLIC
     ${CMAKE_SOURCE_DIR}/src/Common
     ${CMAKE_SOURCE_DIR}/third_party/OpenCC/src
 )
-target_link_libraries(McBopomofoEngine PRIVATE BopomofoBraille)
+target_link_libraries(McBopomofoEngine PRIVATE BopomofoBraille icuuc icuin)
 
 # Force C++17 for the engine to maintain compatibility with std::string_view iterators
 set_target_properties(McBopomofoEngine PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)

@@ -91,13 +91,31 @@ TEST_F(BugReproTest, JumpToBig5State) {
     EXPECT_EQ(ui->lastState.composingBuffer, "[Big5碼] ");
 }
 
-TEST_F(BugReproTest, JumpToIrohaState) {
+TEST_F(BugReproTest, JumpToIcuTransformInputState) {
     controller->handleKey(Key::asciiKey('\\', false, true));
     
-    // Select Iroha (fourth feature, index 3)
+    // Select ICU transform (fourth feature, index 3)
     controller->selectCandidate(3);
     
-    EXPECT_EQ(ui->lastState.composingBuffer, "[伊呂波] ");
+    EXPECT_EQ(ui->lastState.composingBuffer, "[文字轉換] ");
+}
+
+TEST_F(BugReproTest, IcuTransformInputTransliteration) {
+    controller->handleKey(Key::asciiKey('\\', false, true));
+    controller->selectCandidate(3); // Enter IcuTransformInput
+    
+    EXPECT_EQ(ui->lastState.composingBuffer, "[文字轉換] ");
+    
+    // Type 'a'
+    controller->handleKey(Key::asciiKey('a', false, false));
+    EXPECT_EQ(ui->lastState.composingBuffer, "[文字轉換] a");
+    // "Latin-Hiragana" for 'a' is "あ"
+    ASSERT_GE(ui->lastState.candidates.size(), 1u);
+    EXPECT_EQ(ui->lastState.candidates[0], "あ");
+
+    // Select candidate 'あ' (index 0)
+    controller->selectCandidate(0);
+    EXPECT_EQ(ui->committedString, "あ");
 }
 
 TEST_F(BugReproTest, SelectingDateMacroCrashRepro) {

@@ -96,6 +96,10 @@ class KeyHandler {
                          StateCallback stateCallback,
                          KeyHandler::ErrorCallback errorCallback);
 
+  bool handleIcuTransformInput(
+      Key key, McBopomofo::InputStates::IcuTransformInput* state,
+      StateCallback stateCallback, KeyHandler::ErrorCallback errorCallback);
+
   void candidateSelected(
       const InputStates::ChoosingCandidate::Candidate& candidate,
       size_t originalCursor, StateCallback stateCallback);
@@ -194,9 +198,6 @@ class KeyHandler {
   bool handleBig5(Key key, McBopomofo::InputStates::Big5* state,
                   StateCallback stateCallback,
                   KeyHandler::ErrorCallback errorCallback);
-  bool handleIroha(Key key, McBopomofo::InputStates::Iroha* state,
-                   StateCallback stateCallback,
-                   KeyHandler::ErrorCallback errorCallback);
 
   bool handleTabKey(bool isShiftPressed, McBopomofo::InputState* state,
                     const StateCallback& stateCallback,

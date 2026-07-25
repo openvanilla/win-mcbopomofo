@@ -137,10 +137,17 @@ Client mapping:
 - Display preedit.
 - Do not display candidate window.
 
-### `Iroha`
+### `IcuTransformInput`
 
-- `composingBuffer = iroha->composingBuffer()`
-- `candidates = []`
+- `composingBuffer = icuTransformInput->composingBuffer`
+- `cursorIndex = icuTransformInput->cursorIndex`
+- `candidates = icuTransformInput->candidates`
+- server popup projection: `forceVertical = true`
+
+Client mapping:
+
+- Display preedit buffer.
+- Display candidates window for script transformation options.
 
 ### `SelectingFeature`
 
@@ -165,11 +172,6 @@ Client mapping:
 - Only display the candidate window.
 
 After an item is selected, this state often transitions directly to a commit-only payload.
-
-### `IrohaCandidate`
-
-- `composingBuffer = iroha->composingBuffer()`
-- `candidates = iroha candidates`
 
 ### `CustomMenu`
 

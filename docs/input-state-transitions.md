@@ -37,8 +37,7 @@ This is an implementation-oriented document. It does not attempt to cover every 
 
 - `AssociatedPhrasesPlain`
 - `Big5`
-- `Iroha`
-- `IrohaCandidate`
+- `IcuTransformInput`
 - `SelectingDateMacro`
 - `SelectingFeature`
 
@@ -76,7 +75,7 @@ stateDiagram-v2
     SelectingFeature --> Big5 : Select Big5
     SelectingFeature --> SelectingDateMacro : Select Date Macro
     SelectingFeature --> NumberInput : Select Number Input
-    SelectingFeature --> Iroha : Select Iroha
+    SelectingFeature --> IcuTransformInput : Select ICU Transform
     
     Big5 --> Committing : Confirm Hex
     Big5 --> Empty : Cancel
@@ -84,8 +83,8 @@ stateDiagram-v2
     SelectingDateMacro --> Committing : Select Date
     SelectingDateMacro --> Empty : Cancel
     
-    Iroha --> IrohaCandidate : Continue
-    IrohaCandidate --> Committing : Select Candidate
+    IcuTransformInput --> Committing : Select Candidate
+    IcuTransformInput --> Empty : Cancel / ESC
     
     Marking --> SelectingDictionary : Dictionary feature
     Marking --> Inputting : Cancel Marking
@@ -134,7 +133,7 @@ Common path:
    - `Big5`
    - `SelectingDateMacro`
    - `NumberInput`
-   - `Iroha`
+   - `IcuTransformInput`
 
 ### 3.4 Date Macro
 
@@ -160,14 +159,14 @@ Common path:
 3. `Big5` continues to accumulate hexadecimal input.
 4. `Committing` or `Empty`
 
-### 3.6 Iroha
+### 3.6 IcuTransformInput
 
 Common path:
 
 1. `SelectingFeature`
-2. `Iroha`
-3. `IrohaCandidate` or `EmptyIgnoringPrevious`
-4. `StateSequence(Committing -> Iroha)` or `Empty`
+2. `IcuTransformInput`
+3. `IcuTransformInput` displays transformed script candidate candidates as characters are typed.
+4. `Committing` or `Empty`
 
 ### 3.7 User Phrases, Marking and Character Info
 
@@ -206,7 +205,7 @@ the main keys that enter special states.
 | Select "Big5 input" in `SelectingFeature` | `SelectingFeature` | `Big5` | Enters Big5 hex input mode. |
 | Select "Date and time" in `SelectingFeature` | `SelectingFeature` | `SelectingDateMacro` | Opens a candidate-only date/time macro menu. |
 | Select "Number input" in `SelectingFeature` | `SelectingFeature` | `NumberInput` | Enters numeric conversion mode. |
-| Select "Iroha kana input" in `SelectingFeature` | `SelectingFeature` | `Iroha` | Enters Iroha code input mode. |
+| Select "Multilingual transliteration" in `SelectingFeature` | `SelectingFeature` | `IcuTransformInput` | Enters ICU-based script transformation input mode. |
 
 ### 4.2 Candidate, Punctuation, and Menu States
 
@@ -245,10 +244,9 @@ the main keys that enter special states.
 | --- | --- | --- | --- |
 | Hex digit | `Big5` | `Big5` or `Committing` | Accumulates up to four hex digits; a complete valid Big5 code commits text. |
 | `Esc` | `Big5` | `Empty` | Cancels Big5 input. |
-| Letter / code key | `Iroha` | `Iroha` or `IrohaCandidate` | Accumulates an Iroha code and may open candidates. |
-| `Enter` / `Space` | `Iroha` | `Committing` or `IrohaCandidate` | Confirms the current Iroha code path. |
+| Letter / printable key | `IcuTransformInput` | `IcuTransformInput` | Accumulates input string and generates transliteration candidates. |
 | Digit / decimal key | `NumberInput` | `NumberInput` | Updates the numeric conversion candidates. |
-| Select candidate | `NumberInput` / `SelectingDateMacro` / `IrohaCandidate` | `Committing` | These special candidate states directly commit selected text. |
+| Select candidate | `NumberInput` / `SelectingDateMacro` / `IcuTransformInput` | `Committing` | These special candidate states directly commit selected text. |
 | `Esc` / `Backspace` | Candidate or menu states | Previous state or `EmptyIgnoringPrevious` | Candidate-layer cancellation is handled by `InputController`. |
 
 ## 5. The Specificity of `Committing`
@@ -290,7 +288,7 @@ In `InputController`, the following states are treated as candidate states:
 - `NumberInput`
 - `SelectingFeature`
 - `SelectingDateMacro`
-- `IrohaCandidate`
+- `IcuTransformInput`
 - `CustomMenu`
 
 Common characteristics of these states:

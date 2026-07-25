@@ -49,7 +49,7 @@ When the current state is a candidate state, such as:
 - `NumberInput`
 - `SelectingFeature`
 - `SelectingDateMacro`
-- `IrohaCandidate`
+- `IcuTransformInput`
 - `CustomMenu`
 
 Pressing the space bar will execute:

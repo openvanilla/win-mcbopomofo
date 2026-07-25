@@ -174,7 +174,7 @@ This architecture decouples the complex Windows TSF/Win32 APIs from the core inp
 
 ### Extending the Input Method
 
-To add new features or input modes (like the current Big5 or Iroha modes), you should design and implement new states. The typical workflow is:
+To add new features or input modes (like the current Big5 or ICU transform modes), you should design and implement new states. The typical workflow is:
 
 1. **Update `InputState.h`**: Define a new struct that inherits from `InputState` (or `NotEmpty` if it has a composing buffer).
 2. **Update `KeyHandler`**: Implement the logic to enter this new state via the `stateCallback`. Add logic in `KeyHandler::handle` (or a specific handler method) to process keys while in this state.
