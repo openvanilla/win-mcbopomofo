@@ -1799,6 +1799,14 @@ void KeyHandler::pinNode(
     size_t originalCursor,
     const InputStates::ChoosingCandidate::Candidate& candidate,
     bool useMoveCursorAfterSelectionSetting) {
+  // Since WalkResult makes references to the current nodes, we must make a
+  // copy of the walk that *has a copy* of the current nodes to capture the
+  // current state. ReadingGrid::overrideCandidate() changes the state, and
+  // so having a simple copy of latestWalk_ (auto prevWalk = latestWalk_;)
+  // is NOT enough.
+  Formosa::Gramambular2::ReadingGrid::WalkResult prevWalk =
+      latestWalk_.copyWithFixedNodes();
+
   size_t actualCursor = actualCandidateCursorIndex();
   Formosa::Gramambular2::ReadingGrid::Candidate gridCandidate(
       candidate.reading, candidate.value, "");
@@ -1806,7 +1814,6 @@ void KeyHandler::pinNode(
     return;
   }
 
-  Formosa::Gramambular2::ReadingGrid::WalkResult prevWalk = latestWalk_;
   walk();
 
   // Update the user override model if warranted.

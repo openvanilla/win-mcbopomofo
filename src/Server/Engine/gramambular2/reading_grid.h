@@ -111,6 +111,17 @@ class ReadingGrid {
           unigramIter_(unigrams_.begin()),
           overrideType_(OverrideType::kNone) {}
 
+    // An explicit copy ctor is needed since unigramIter_ must come from
+    // this.unigram_, not copied.
+    Node(const Node& o)
+        : reading_(o.reading_),
+          spanningLength_(o.spanningLength_),
+          unigrams_(o.unigrams_),
+          unigramIter_(
+              std::next(unigrams_.begin(),
+                        std::distance(o.unigrams_.begin(), o.unigramIter_))),
+          overrideType_(o.overrideType_) {}
+
     [[nodiscard]] const std::string& reading() const { return reading_; }
 
     [[nodiscard]] size_t spanningLength() const { return spanningLength_; }
@@ -178,6 +189,24 @@ class ReadingGrid {
 
     std::vector<std::string> valuesAsStrings() const;
     std::vector<std::string> readingsAsStrings() const;
+
+    // Makes a copy with the nodes also being copies instead of refernces to
+    // those in the current grid.
+    //
+    // For performance reasons, nodes is a vector of shared ptrs to those
+    // nodes in the referenced grid. If the intent is to have the walk capture
+    // the current state of the grid before the grid mutates, the default
+    // behavior will not be enough. Instead, use this to make sure that the
+    // nodes are correctly copied.
+    WalkResult copyWithFixedNodes() const {
+      std::vector<NodePtr> copiedNodes;
+      for (const auto& n : nodes) {
+        copiedNodes.push_back(std::make_shared<Node>(*n));
+      }
+
+      return WalkResult{copiedNodes, totalReadings, vertices, edges,
+                        elapsedMicroseconds};
+    }
   };
 
   WalkResult walk();
@@ -253,6 +282,11 @@ class ReadingGrid {
 
   // Internal methods for maintaining the grid.
 
+  enum class EditType {
+    kInsertion,
+    kDeletion,
+  };
+
   void expandGridAt(size_t loc);
   void shrinkGridAt(size_t loc);
   void removeAffectedNodes(size_t loc);
@@ -260,7 +294,7 @@ class ReadingGrid {
   std::string combineReading(std::vector<std::string>::const_iterator begin,
                              std::vector<std::string>::const_iterator end);
   bool hasNodeAt(size_t loc, size_t readingLen, const std::string& reading);
-  void update();
+  void update(size_t loc, EditType editType);
 
   // Internal implementation of overrideCandidate, with an optional reading.
   bool overrideCandidate(size_t loc, const std::string* reading,

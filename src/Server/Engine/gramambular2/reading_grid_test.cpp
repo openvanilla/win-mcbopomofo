@@ -166,6 +166,37 @@ class MockLM : public LanguageModel {
   bool hasUnigrams(const std::string&) override { return true; }
 };
 
+class SingleReadingCountingLM : public LanguageModel {
+ public:
+  std::vector<Unigram> getUnigrams(const std::string& reading) override {
+    ++getUnigramsCount_;
+    ++getUnigramsCounts_[reading];
+    if (reading.find(ReadingGrid::kDefaultSeparator) != std::string::npos) {
+      return {};
+    }
+    return std::vector<Unigram>{Unigram(reading, -1)};
+  }
+
+  bool hasUnigrams(const std::string& reading) override {
+    ++hasUnigramsCount_;
+    return reading.find(ReadingGrid::kDefaultSeparator) == std::string::npos;
+  }
+
+  [[nodiscard]] size_t getUnigramsCount() const { return getUnigramsCount_; }
+
+  [[nodiscard]] size_t getUnigramsCount(const std::string& reading) const {
+    auto iter = getUnigramsCounts_.find(reading);
+    return iter == getUnigramsCounts_.end() ? 0 : iter->second;
+  }
+
+  [[nodiscard]] size_t hasUnigramsCount() const { return hasUnigramsCount_; }
+
+ private:
+  std::map<std::string, size_t> getUnigramsCounts_;
+  size_t getUnigramsCount_ = 0;
+  size_t hasUnigramsCount_ = 0;
+};
+
 static bool Contains(const std::vector<ReadingGrid::Candidate>& candidates,
                      const std::string& str) {
   return std::any_of(candidates.cbegin(), candidates.cend(),
@@ -267,6 +298,94 @@ TEST(ReadingGridTest, BasicOperations) {
   ASSERT_EQ(grid.cursor(), 0);
   ASSERT_EQ(grid.length(), 0);
   ASSERT_EQ(grid.spans().size(), 0);
+}
+
+TEST(ReadingGridTest, InsertReadingQueriesEachCombinationOnce) {
+  auto lm = std::make_shared<SingleReadingCountingLM>();
+  ReadingGrid grid(lm);
+
+  for (const char* reading : {"a", "b", "c", "d", "e", "f"}) {
+    ASSERT_TRUE(grid.insertReading(reading));
+  }
+
+  EXPECT_EQ(lm->getUnigramsCount(), 21);
+  EXPECT_EQ(lm->hasUnigramsCount(), 0);
+  EXPECT_EQ(lm->getUnigramsCount("a-b"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("a-b-c-d-e-f"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("e-f"), 1);
+}
+
+TEST(ReadingGridTest, InsertionOnlyQueriesSpansContainingTheEdit) {
+  auto lm = std::make_shared<SingleReadingCountingLM>();
+  ReadingGrid grid(lm);
+  ASSERT_TRUE(grid.insertReading("a"));
+  ASSERT_TRUE(grid.insertReading("b"));
+  ASSERT_TRUE(grid.insertReading("c"));
+
+  grid.setCursor(1);
+  ASSERT_TRUE(grid.insertReading("x"));
+
+  EXPECT_EQ(lm->getUnigramsCount(), 12);
+  EXPECT_EQ(lm->getUnigramsCount("b-c"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("a-x"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("a-x-b-c"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("x-b-c"), 1);
+}
+
+TEST(ReadingGridTest, InsertionAtBeginningPreservesExistingLookupResults) {
+  auto lm = std::make_shared<SingleReadingCountingLM>();
+  ReadingGrid grid(lm);
+  ASSERT_TRUE(grid.insertReading("b"));
+  ASSERT_TRUE(grid.insertReading("c"));
+
+  grid.setCursor(0);
+  ASSERT_TRUE(grid.insertReading("a"));
+
+  EXPECT_EQ(lm->getUnigramsCount(), 6);
+  EXPECT_EQ(lm->getUnigramsCount("b-c"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("a-b"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("a-b-c"), 1);
+}
+
+TEST(ReadingGridTest, DeletionOnlyQueriesSpansCrossingTheEdit) {
+  auto lm = std::make_shared<SingleReadingCountingLM>();
+  ReadingGrid grid(lm);
+  ASSERT_TRUE(grid.insertReading("a"));
+  ASSERT_TRUE(grid.insertReading("b"));
+  ASSERT_TRUE(grid.insertReading("c"));
+  ASSERT_TRUE(grid.insertReading("d"));
+
+  grid.setCursor(2);
+  ASSERT_TRUE(grid.deleteReadingBeforeCursor());
+
+  EXPECT_EQ(lm->getUnigramsCount(), 12);
+  EXPECT_EQ(lm->getUnigramsCount("a-c"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("a-c-d"), 1);
+  EXPECT_EQ(lm->getUnigramsCount("c-d"), 1);
+
+  grid.setCursor(0);
+  ASSERT_TRUE(grid.deleteReadingAfterCursor());
+  EXPECT_EQ(lm->getUnigramsCount(), 12);
+  ASSERT_EQ(grid.readings(), (std::vector<std::string>{"c", "d"}));
+  ASSERT_NE(grid.spans()[0].nodeOf(1), nullptr);
+  EXPECT_EQ(grid.spans()[0].nodeOf(1)->reading(), "c");
+
+  grid.setCursor(2);
+  ASSERT_TRUE(grid.deleteReadingBeforeCursor());
+  EXPECT_EQ(lm->getUnigramsCount(), 12);
+  ASSERT_EQ(grid.readings(), (std::vector<std::string>{"c"}));
+  ASSERT_NE(grid.spans()[0].nodeOf(1), nullptr);
+  EXPECT_EQ(grid.spans()[0].nodeOf(1)->reading(), "c");
+}
+
+TEST(ReadingGridTest, InsertReadingAcceptsReadingOwnedByGrid) {
+  ReadingGrid grid(std::make_shared<MockLM>());
+  ASSERT_TRUE(grid.insertReading("a"));
+
+  const std::string& aliasedReading = grid.readings()[0];
+  ASSERT_TRUE(grid.insertReading(aliasedReading));
+  ASSERT_EQ(grid.readings(), (std::vector<std::string>{"a", "a"}));
+  ASSERT_EQ(grid.spans()[1].nodeOf(1)->reading(), "a");
 }
 
 TEST(ReadingGridTest, InvalidOperations) {
@@ -815,6 +934,23 @@ TEST(ReadingGridTest, FindInSpan2) {
   ASSERT_EQ(result->get()->spanningLength(), 2);
   ASSERT_EQ(result->get()->reading(), "ㄍㄠㄖㄜˋ");
   ASSERT_EQ(result->get()->value(), "高熱");
+}
+
+TEST(ReadingGridTest, CopyWithFixedNodesMustNotContainDanglingUnigramIter) {
+  Formosa::Gramambular2::ReadingGrid::WalkResult walkBefore;
+  {
+    ReadingGrid grid(std::make_shared<SimpleLM>(kSampleData));
+    grid.insertReading("ㄙ");
+    grid.overrideCandidate(0, "司");
+    walkBefore = grid.walk().copyWithFixedNodes();
+  }
+
+  // Accessing value() dereferences the walkBefore.unigramIter_, which must not
+  // come from the nodes in the grid that is already gone. Failure to do so
+  // causes address sanitizer to report a use-after-free error.
+  std::string val = walkBefore.nodes[0]->value();
+
+  EXPECT_EQ(val, "司");  // should be the overriden one, not the default "斯"
 }
 
 }  // namespace Formosa::Gramambular2
